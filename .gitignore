@@ -1,0 +1,38 @@
+context.md
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node / SvelteKit
+node_modules/
+.svelte-kit/
+build/
+dist/
+coverage/
+
+# Go
+bin/
+*.test
+*.out
+coverage.out
+
+# Temporary files
+tmp/
+temp/
+.cache/
