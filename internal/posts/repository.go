@@ -9,9 +9,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pendig/kelompok/internal/jsonvalue"
 )
 
 var ErrNotFound = errors.New("post not found")
+var ErrAmbiguous = errors.New("post slug is ambiguous")
 
 type Repository struct {
 	db *pgxpool.Pool
@@ -50,7 +52,7 @@ func (r *Repository) ListPublic(ctx context.Context, limit int) ([]Post, error) 
 	}
 	defer rows.Close()
 
-	items := make([]Post, 0)
+	items := make([]Post, 0, limit)
 	for rows.Next() {
 		item, err := scanPost(rows)
 		if err != nil {
@@ -74,7 +76,7 @@ func (r *Repository) ListByOrganizationSlug(ctx context.Context, organizationSlu
 	}
 	defer rows.Close()
 
-	items := make([]Post, 0)
+	items := make([]Post, 0, limit)
 	for rows.Next() {
 		item, err := scanPost(rows)
 		if err != nil {
@@ -87,13 +89,46 @@ func (r *Repository) ListByOrganizationSlug(ctx context.Context, organizationSlu
 }
 
 func (r *Repository) FindPublishedBySlug(ctx context.Context, slug string) (Post, error) {
-	row := r.db.QueryRow(ctx, postSelect(`
+	rows, err := r.db.Query(ctx, postSelect(`
 		WHERE p.slug = $1
 			AND p.status = 'published'
 		ORDER BY p.published_at DESC NULLS LAST, p.created_at DESC
-		LIMIT 1
+		LIMIT 2
 	`), slug)
+	if err != nil {
+		return Post{}, err
+	}
+	defer rows.Close()
 
+	items := make([]Post, 0, 2)
+	for rows.Next() {
+		item, err := scanPost(rows)
+		if err != nil {
+			return Post{}, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return Post{}, err
+	}
+
+	if len(items) == 0 {
+		return Post{}, ErrNotFound
+	}
+	if len(items) > 1 {
+		return Post{}, ErrAmbiguous
+	}
+
+	return items[0], nil
+}
+
+func (r *Repository) FindPublishedByOrganizationAndSlug(ctx context.Context, organizationSlug, postSlug string) (Post, error) {
+	row := r.db.QueryRow(ctx, postSelect(`
+		WHERE o.slug = $1
+			AND p.slug = $2
+			AND p.status = 'published'
+		LIMIT 1
+	`), organizationSlug, postSlug)
 	item, err := scanPost(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Post{}, ErrNotFound
@@ -112,10 +147,10 @@ func postSelect(where string) string {
 			p.slug,
 			p.title,
 			COALESCE(p.summary, ''),
-			p.content,
+			COALESCE(p.content, ''),
 			p.status,
-			p.post_data::text,
-			p.seo_data::text,
+			COALESCE(p.post_data::text, '{}'),
+			COALESCE(p.seo_data::text, '{}'),
 			p.published_at,
 			p.created_at,
 			p.updated_at
@@ -159,15 +194,8 @@ func scanPost(row postRow) (Post, error) {
 	if publishedAt.Valid {
 		item.PublishedAt = &publishedAt.Time
 	}
-	item.PostData = rawJSON(postData, "{}")
-	item.SEOData = rawJSON(seoData, "{}")
+	item.PostData = jsonvalue.Raw(postData, "{}")
+	item.SEOData = jsonvalue.Raw(seoData, "{}")
 
 	return item, nil
-}
-
-func rawJSON(value, fallback string) json.RawMessage {
-	if value == "" {
-		return json.RawMessage(fallback)
-	}
-	return json.RawMessage(value)
 }

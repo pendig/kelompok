@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pendig/kelompok/internal/jsonvalue"
 )
 
 var ErrNotFound = errors.New("organization not found")
@@ -55,9 +56,9 @@ func (r *Repository) ListPublic(ctx context.Context, limit int) ([]Organization,
 			COALESCE(website_url, ''),
 			COALESCE(official_email, ''),
 			claim_status,
-			profile_data::text,
-			sdgs_data::text,
-			impact_data::text,
+			COALESCE(profile_data::text, '{}'),
+			COALESCE(sdgs_data::text, '{}'),
+			COALESCE(impact_data::text, '{}'),
 			created_at,
 			updated_at
 		FROM organizations
@@ -69,7 +70,7 @@ func (r *Repository) ListPublic(ctx context.Context, limit int) ([]Organization,
 	}
 	defer rows.Close()
 
-	items := make([]Organization, 0)
+	items := make([]Organization, 0, limit)
 	for rows.Next() {
 		item, err := scanOrganization(rows)
 		if err != nil {
@@ -96,9 +97,9 @@ func (r *Repository) FindBySlug(ctx context.Context, slug string) (Organization,
 			COALESCE(website_url, ''),
 			COALESCE(official_email, ''),
 			claim_status,
-			profile_data::text,
-			sdgs_data::text,
-			impact_data::text,
+			COALESCE(profile_data::text, '{}'),
+			COALESCE(sdgs_data::text, '{}'),
+			COALESCE(impact_data::text, '{}'),
 			created_at,
 			updated_at
 		FROM organizations
@@ -145,16 +146,9 @@ func scanOrganization(row organizationRow) (Organization, error) {
 		return Organization{}, err
 	}
 
-	item.ProfileData = rawJSON(profileData, "{}")
-	item.SDGSData = rawJSON(sdgsData, "{}")
-	item.ImpactData = rawJSON(impactData, "{}")
+	item.ProfileData = jsonvalue.Raw(profileData, "{}")
+	item.SDGSData = jsonvalue.Raw(sdgsData, "{}")
+	item.ImpactData = jsonvalue.Raw(impactData, "{}")
 
 	return item, nil
-}
-
-func rawJSON(value, fallback string) json.RawMessage {
-	if value == "" {
-		return json.RawMessage(fallback)
-	}
-	return json.RawMessage(value)
 }

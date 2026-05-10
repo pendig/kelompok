@@ -119,10 +119,15 @@ Public MVP endpoints:
 GET /api/v1/organizations
 GET /api/v1/organizations/{slug}
 GET /api/v1/organizations/{slug}/posts
+GET /api/v1/organizations/{slug}/posts/{post_slug}
 GET /api/v1/organizations/{slug}/impact-reports
 GET /api/v1/posts
 GET /api/v1/posts/{slug}
 ```
+
+Use the organization-scoped post detail endpoint when a post slug may exist in more than one organization.
+
+Public responses are intentionally smaller than the database rows. The API does not expose internal UUIDs, claim verification emails, raw source evidence, or plugin-private JSON metadata through public endpoints. Dynamic JSON fields are filtered through a public allowlist before response encoding.
 
 ## CLI
 

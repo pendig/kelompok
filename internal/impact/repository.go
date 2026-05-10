@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pendig/kelompok/internal/jsonvalue"
 )
 
 type Repository struct {
@@ -45,8 +46,8 @@ func (r *Repository) ListByOrganizationSlug(ctx context.Context, organizationSlu
 			COALESCE(ir.summary, ''),
 			ir.report_period_start,
 			ir.report_period_end,
-			ir.sdgs::text,
-			ir.metrics::text,
+			COALESCE(ir.sdgs::text, '[]'),
+			COALESCE(ir.metrics::text, '{}'),
 			ir.status,
 			ir.published_at,
 			ir.created_at,
@@ -63,7 +64,7 @@ func (r *Repository) ListByOrganizationSlug(ctx context.Context, organizationSlu
 	}
 	defer rows.Close()
 
-	items := make([]Report, 0)
+	items := make([]Report, 0, limit)
 	for rows.Next() {
 		item, err := scanReport(rows)
 		if err != nil {
@@ -116,15 +117,8 @@ func scanReport(row reportRow) (Report, error) {
 	if publishedAt.Valid {
 		item.PublishedAt = &publishedAt.Time
 	}
-	item.SDGS = rawJSON(sdgs, "[]")
-	item.Metrics = rawJSON(metrics, "{}")
+	item.SDGS = jsonvalue.Raw(sdgs, "[]")
+	item.Metrics = jsonvalue.Raw(metrics, "{}")
 
 	return item, nil
-}
-
-func rawJSON(value, fallback string) json.RawMessage {
-	if value == "" {
-		return json.RawMessage(fallback)
-	}
-	return json.RawMessage(value)
 }

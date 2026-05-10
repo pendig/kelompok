@@ -60,6 +60,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/organizations", s.handleListOrganizations)
 	s.mux.HandleFunc("GET /api/v1/organizations/{slug}", s.handleGetOrganization)
 	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/posts", s.handleListOrganizationPosts)
+	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/posts/{post_slug}", s.handleGetOrganizationPost)
 	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/impact-reports", s.handleListOrganizationImpactReports)
 	s.mux.HandleFunc("GET /api/v1/posts", s.handleListPosts)
 	s.mux.HandleFunc("GET /api/v1/posts/{slug}", s.handleGetPost)
@@ -84,7 +85,7 @@ func (s *Server) handleListOrganizations(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, http.StatusOK, response{
-		Data: items,
+		Data: publicOrganizations(items),
 		Meta: map[string]any{
 			"count": len(items),
 			"limit": limit,
@@ -105,12 +106,16 @@ func (s *Server) handleGetOrganization(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, response{
-		Data:    item,
+		Data:    publicOrganization(item),
 		Message: "ok",
 	})
 }
 
 func (s *Server) handleListOrganizationPosts(w http.ResponseWriter, r *http.Request) {
+	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
+		return
+	}
+
 	limit := limitFromRequest(r, 20, 100)
 	items, err := s.posts.ListByOrganizationSlug(r.Context(), r.PathValue("slug"), limit)
 	if err != nil {
@@ -119,7 +124,7 @@ func (s *Server) handleListOrganizationPosts(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, http.StatusOK, response{
-		Data: items,
+		Data: publicPosts(items),
 		Meta: map[string]any{
 			"count": len(items),
 			"limit": limit,
@@ -128,7 +133,32 @@ func (s *Server) handleListOrganizationPosts(w http.ResponseWriter, r *http.Requ
 	})
 }
 
+func (s *Server) handleGetOrganizationPost(w http.ResponseWriter, r *http.Request) {
+	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
+		return
+	}
+
+	item, err := s.posts.FindPublishedByOrganizationAndSlug(r.Context(), r.PathValue("slug"), r.PathValue("post_slug"))
+	if errors.Is(err, posts.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "post_not_found", "Post not found", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "post_lookup_failed", "Failed to load post", nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Data:    publicPost(item),
+		Message: "ok",
+	})
+}
+
 func (s *Server) handleListOrganizationImpactReports(w http.ResponseWriter, r *http.Request) {
+	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
+		return
+	}
+
 	limit := limitFromRequest(r, 20, 100)
 	items, err := s.impact.ListByOrganizationSlug(r.Context(), r.PathValue("slug"), limit)
 	if err != nil {
@@ -137,7 +167,7 @@ func (s *Server) handleListOrganizationImpactReports(w http.ResponseWriter, r *h
 	}
 
 	writeJSON(w, http.StatusOK, response{
-		Data: items,
+		Data: publicImpactReports(items),
 		Meta: map[string]any{
 			"count": len(items),
 			"limit": limit,
@@ -155,7 +185,7 @@ func (s *Server) handleListPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, response{
-		Data: items,
+		Data: publicPosts(items),
 		Meta: map[string]any{
 			"count": len(items),
 			"limit": limit,
@@ -170,13 +200,19 @@ func (s *Server) handleGetPost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "post_not_found", "Post not found", nil)
 		return
 	}
+	if errors.Is(err, posts.ErrAmbiguous) {
+		writeError(w, http.StatusConflict, "post_slug_ambiguous", "Post slug is used by more than one organization; use the organization-scoped post endpoint", map[string]string{
+			"endpoint": "/api/v1/organizations/{slug}/posts/{post_slug}",
+		})
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "post_lookup_failed", "Failed to load post", nil)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, response{
-		Data:    item,
+		Data:    publicPost(item),
 		Message: "ok",
 	})
 }
@@ -196,9 +232,7 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	if err := database.Ping(ctx, s.db); err != nil {
-		writeError(w, http.StatusServiceUnavailable, "database_not_ready", "Database is not ready", map[string]string{
-			"reason": err.Error(),
-		})
+		writeError(w, http.StatusServiceUnavailable, "database_not_ready", "Database is not ready", nil)
 		return
 	}
 
@@ -257,4 +291,16 @@ func limitFromRequest(r *http.Request, fallback, max int) int {
 	}
 
 	return limit
+}
+
+func (s *Server) ensureOrganization(w http.ResponseWriter, r *http.Request, slug string) bool {
+	if _, err := s.organizations.FindBySlug(r.Context(), slug); errors.Is(err, organizations.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "organization_not_found", "Organization not found", nil)
+		return false
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, "organization_lookup_failed", "Failed to load organization", nil)
+		return false
+	}
+
+	return true
 }
