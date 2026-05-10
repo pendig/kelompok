@@ -26,7 +26,7 @@ jobs:
 
       - name: Check formatting
         run: |
-          files="$(gofmt -l cmd internal)"
+          files="$(gofmt -l cmd internal migrations)"
           if [ -n "$files" ]; then
             echo "$files"
             exit 1

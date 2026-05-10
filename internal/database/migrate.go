@@ -3,8 +3,9 @@ package database
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"sort"
 	"strings"
 
@@ -18,9 +19,16 @@ type Migration struct {
 	Path    string
 }
 
-func Migrate(ctx context.Context, pool *pgxpool.Pool, dir string) (err error) {
+func MigrateDir(ctx context.Context, pool *pgxpool.Pool, dir string) error {
 	if dir == "" {
 		dir = "migrations"
+	}
+	return Migrate(ctx, pool, os.DirFS(dir), ".")
+}
+
+func Migrate(ctx context.Context, pool *pgxpool.Pool, migrationFS fs.FS, dir string) (err error) {
+	if dir == "" {
+		dir = "."
 	}
 
 	conn, err := pool.Acquire(ctx)
@@ -47,7 +55,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, dir string) (err error) {
 		return fmt.Errorf("ensure schema_migrations: %w", err)
 	}
 
-	migrations, err := listMigrations(dir)
+	migrations, err := listMigrations(migrationFS, dir)
 	if err != nil {
 		return err
 	}
@@ -61,7 +69,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, dir string) (err error) {
 			continue
 		}
 
-		if err := applyMigration(ctx, conn, migration); err != nil {
+		if err := applyMigration(ctx, conn, migrationFS, migration); err != nil {
 			return err
 		}
 	}
@@ -69,8 +77,8 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, dir string) (err error) {
 	return nil
 }
 
-func listMigrations(dir string) ([]Migration, error) {
-	entries, err := os.ReadDir(dir)
+func listMigrations(migrationFS fs.FS, dir string) ([]Migration, error) {
+	entries, err := fs.ReadDir(migrationFS, dir)
 	if err != nil {
 		return nil, fmt.Errorf("read migrations dir: %w", err)
 	}
@@ -83,7 +91,7 @@ func listMigrations(dir string) ([]Migration, error) {
 
 		migrations = append(migrations, Migration{
 			Version: entry.Name(),
-			Path:    filepath.Join(dir, entry.Name()),
+			Path:    path.Join(dir, entry.Name()),
 		})
 	}
 
@@ -102,8 +110,8 @@ func isApplied(ctx context.Context, conn *pgxpool.Conn, version string) (bool, e
 	return exists, nil
 }
 
-func applyMigration(ctx context.Context, conn *pgxpool.Conn, migration Migration) error {
-	sql, err := os.ReadFile(migration.Path)
+func applyMigration(ctx context.Context, conn *pgxpool.Conn, migrationFS fs.FS, migration Migration) error {
+	sql, err := fs.ReadFile(migrationFS, migration.Path)
 	if err != nil {
 		return fmt.Errorf("read migration %s: %w", migration.Path, err)
 	}

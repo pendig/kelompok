@@ -20,7 +20,7 @@ func TestListMigrationsPreservesFullFilenameVersion(t *testing.T) {
 		}
 	}
 
-	migrations, err := listMigrations(dir)
+	migrations, err := listMigrations(os.DirFS(dir), ".")
 	if err != nil {
 		t.Fatalf("list migrations: %v", err)
 	}

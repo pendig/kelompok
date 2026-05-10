@@ -13,6 +13,7 @@ import (
 	"github.com/pendig/kelompok/internal/config"
 	"github.com/pendig/kelompok/internal/database"
 	"github.com/pendig/kelompok/internal/httpapi"
+	migrationfiles "github.com/pendig/kelompok/migrations"
 )
 
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
@@ -120,7 +121,7 @@ func migrate(ctx context.Context, stdout io.Writer) error {
 	}
 	defer pool.Close()
 
-	if err := database.Migrate(ctx, pool, "migrations"); err != nil {
+	if err := database.Migrate(ctx, pool, migrationfiles.FS, "."); err != nil {
 		return err
 	}
 
