@@ -1,0 +1,21 @@
+{
+  "name": "kelompok-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 4622 --host 0.0.0.0",
+    "check": "svelte-check",
+    "build": "vite build",
+    "preview": "vite preview --port 4622 --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^3.3.1",
+    "@sveltejs/kit": "^2.8.4",
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "@types/node": "^22.8.7",
+    "svelte": "^5.19.3",
+    "svelte-check": "^4.1.1",
+    "vite": "^5.4.10"
+  }
+}

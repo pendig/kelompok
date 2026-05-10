@@ -1,0 +1,87 @@
+const DEFAULT_API_BASE_URL = "http://localhost:4621";
+const DEFAULT_FETCH_TIMEOUT_MS = 3500;
+
+function normalize(path) {
+	if (!path.startsWith("/")) {
+		return `/${path}`;
+	}
+	return path;
+}
+
+function readConfig() {
+	const configured = (import.meta.env.VITE_API_BASE_URL || "").trim();
+	if (configured.length === 0) {
+		return DEFAULT_API_BASE_URL;
+	}
+	return configured.replace(/\/$/, "");
+}
+
+async function readResponse(response) {
+	const contentType = response.headers.get("content-type") || "";
+	if (!contentType.includes("application/json")) {
+		const text = await response.text();
+		throw new Error(`Unexpected response from API (${response.status}): ${text.slice(0, 200)}`);
+	}
+
+	const payload = await response.json();
+	if (!response.ok) {
+		const details = payload?.error ? `${payload.error.code}: ${payload.error.message}` : `HTTP ${response.status}`;
+		throw new Error(details);
+	}
+
+	return payload;
+}
+
+export async function fetchJSON(path, init = {}) {
+	const baseUrl = readConfig();
+	const url = `${baseUrl}${normalize(path)}`;
+	const controller = init.signal ? null : new AbortController();
+	const timeout = controller
+		? setTimeout(() => controller.abort(), DEFAULT_FETCH_TIMEOUT_MS)
+		: null;
+
+	try {
+		const response = await fetch(url, {
+			headers: {
+				"accept": "application/json",
+				...(init.headers || {}),
+			},
+			...init,
+			signal: init.signal ?? controller.signal,
+		});
+
+		return readResponse(response);
+	} finally {
+		if (timeout) {
+			clearTimeout(timeout);
+		}
+	}
+}
+
+export async function fetchJSONResult(path, fallbackData = []) {
+	try {
+		const payload = await fetchJSON(path);
+		return {
+			data: payload.data ?? fallbackData,
+			error: null,
+		};
+	} catch (error) {
+		return {
+			data: fallbackData,
+			error: error instanceof Error ? error.message : "Unable to load data from API",
+		};
+	}
+}
+
+export function fallbackDate(value, locale = "en-US") {
+	if (!value) {
+		return "—";
+	}
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	const dateLocale = locale === "id" ? "id-ID" : "en-US";
+	return new Intl.DateTimeFormat(dateLocale, { dateStyle: "medium" }).format(date);
+}

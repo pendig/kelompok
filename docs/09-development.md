@@ -6,7 +6,7 @@ This document covers the first local development path for Kelompok.
 
 - Go 1.26 or newer
 - PostgreSQL 15 or newer
-- Node.js and pnpm later for the SvelteKit web app
+- Node.js and npm (or pnpm) for the SvelteKit web app
 
 ## Environment
 
@@ -83,6 +83,31 @@ The first migration creates the stable CRM tables for:
 Dynamic and provider-specific data belongs in JSONB columns until it becomes stable enough to promote into structured columns.
 
 Kelompok targets PostgreSQL 15 or newer. The initial schema uses `gen_random_uuid()` for UUID defaults and does not create database extensions from application migrations, so managed environments should provision required database capabilities before running the app user migrations.
+
+## Frontend
+
+The web app uses SvelteKit and is intentionally minimal for MVP:
+
+```sh
+cd web
+cp .env.example .env
+npm install
+npm run dev
+```
+
+The frontend uses this API base:
+
+```text
+VITE_API_BASE_URL=http://localhost:4621
+```
+
+and runs on:
+
+```text
+http://localhost:4622
+```
+
+If you run API on another host/port, change `VITE_API_BASE_URL` accordingly.
 
 ## API
 

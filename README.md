@@ -143,6 +143,13 @@ go run ./cmd/kelompok seed demo
 go run ./cmd/kelompok-api
 ```
 
+```sh
+cd web
+cp .env.example .env
+npm install
+npm run dev
+```
+
 Common shortcuts:
 
 ```sh
@@ -153,6 +160,11 @@ make api
 ```
 
 The API defaults to `:4621`. Real database credentials should only live in local environment files or secret managers, never in committed files.
+
+Frontend defaults:
+
+- Web app port: `4622`
+- API base: `http://localhost:4621`
 
 ## Development Principles
 
