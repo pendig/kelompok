@@ -14,6 +14,8 @@ The web app, automation jobs, service integrations, and future AI workflows shou
 - Make claim, import, and enrichment operations auditable
 - Publish OpenAPI docs
 - Expose plugin-safe ingestion endpoints and commands
+- Return public DTOs instead of raw database models
+- Keep claim-only contact data, source evidence, raw imports, and private plugin metadata out of public responses
 
 ## Response Shape
 
@@ -41,6 +43,12 @@ Recommended error shape:
 
 ## Public Endpoints
 
+Public endpoints must be treated as an explicit allowlist.
+
+They may include public organization profile fields, public post fields, and public impact metrics. They must not expose internal UUIDs, claim verification emails, raw source records, private evidence, credentials, tokens, or plugin-private metadata.
+
+Dynamic JSON fields are filtered before they leave the API. If a plugin or import pipeline needs to keep raw evidence, it should store that data in internal tables or private JSON fields and expose only reviewed public fields through the stable response DTO.
+
 Organizations:
 
 ```text
@@ -50,7 +58,18 @@ GET /api/v1/organizations/{slug}/events
 GET /api/v1/organizations/{slug}/donations
 GET /api/v1/organizations/{slug}/impact-reports
 GET /api/v1/organizations/{slug}/posts
+GET /api/v1/organizations/{slug}/posts/{post_slug}
 GET /api/v1/organizations/{slug}/sdgs
+```
+
+Implemented in the first public read API slice:
+
+```text
+GET /api/v1/organizations
+GET /api/v1/organizations/{slug}
+GET /api/v1/organizations/{slug}/posts
+GET /api/v1/organizations/{slug}/posts/{post_slug}
+GET /api/v1/organizations/{slug}/impact-reports
 ```
 
 Posts:
@@ -60,6 +79,13 @@ GET /api/v1/posts
 GET /api/v1/posts/{slug}
 GET /api/v1/post-categories
 GET /api/v1/post-tags
+```
+
+Implemented in the first public read API slice:
+
+```text
+GET /api/v1/posts
+GET /api/v1/posts/{slug}
 ```
 
 Events:
@@ -170,6 +196,12 @@ kelompok migrate up
 kelompok migrate down
 kelompok seed
 kelompok health
+```
+
+Implemented early:
+
+```text
+kelompok seed demo
 ```
 
 Organization data:

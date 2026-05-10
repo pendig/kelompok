@@ -13,6 +13,7 @@ import (
 	"github.com/pendig/kelompok/internal/config"
 	"github.com/pendig/kelompok/internal/database"
 	"github.com/pendig/kelompok/internal/httpapi"
+	"github.com/pendig/kelompok/internal/seed"
 	migrationfiles "github.com/pendig/kelompok/migrations"
 )
 
@@ -29,11 +30,26 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return health(ctx, stdout)
 	case "migrate":
 		return migrate(ctx, stdout)
+	case "seed":
+		return runSeed(ctx, args[1:], stdout)
 	case "db":
 		return runDB(ctx, args[1:], stdout)
 	default:
 		printHelp(stderr)
 		return fmt.Errorf("unknown command: %s", args[0])
+	}
+}
+
+func runSeed(ctx context.Context, args []string, stdout io.Writer) error {
+	if len(args) == 0 {
+		return errors.New("seed command requires a subcommand")
+	}
+
+	switch args[0] {
+	case "demo":
+		return seedDemo(ctx, stdout)
+	default:
+		return fmt.Errorf("unknown seed subcommand: %s", args[0])
 	}
 }
 
@@ -129,6 +145,33 @@ func migrate(ctx context.Context, stdout io.Writer) error {
 	return nil
 }
 
+func seedDemo(ctx context.Context, stdout io.Writer) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	pool, err := database.Open(ctx, cfg.DatabaseURL, poolSettings(cfg))
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	result, err := seed.Demo(ctx, pool)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(
+		stdout,
+		"demo seed: ok organization=%s posts=%d impact_reports=%d sdgs_signals=%d\n",
+		result.OrganizationSlug,
+		result.Posts,
+		result.ImpactReports,
+		result.SDGSSignals,
+	)
+	return nil
+}
+
 func printHelp(stdout io.Writer) {
 	fmt.Fprint(stdout, `Kelompok CLI
 
@@ -136,6 +179,7 @@ Usage:
   kelompok serve        Start the API server
   kelompok health       Check database connectivity
   kelompok migrate      Apply pending SQL migrations
+  kelompok seed demo    Insert or update demo public MVP data
   kelompok db ping      Check database connectivity
   kelompok db migrate   Apply pending SQL migrations
   kelompok help         Show this help
