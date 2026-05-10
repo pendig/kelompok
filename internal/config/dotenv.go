@@ -40,7 +40,9 @@ func loadDotEnv(path string) error {
 			value = unquoted
 		}
 
-		_ = os.Setenv(key, value)
+		if err := os.Setenv(key, value); err != nil {
+			return err
+		}
 	}
 
 	return scanner.Err()

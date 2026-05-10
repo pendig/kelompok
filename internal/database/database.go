@@ -8,7 +8,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
+type PoolSettings struct {
+	MaxConns          int32
+	MinConns          int32
+	MaxConnLifetime   time.Duration
+	MaxConnIdleTime   time.Duration
+	HealthCheckPeriod time.Duration
+}
+
+func Open(ctx context.Context, databaseURL string, settings PoolSettings) (*pgxpool.Pool, error) {
 	if databaseURL == "" {
 		return nil, errors.New("KELOMPOK_DATABASE_URL is required")
 	}
@@ -18,11 +26,11 @@ func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	config.MaxConns = 5
-	config.MinConns = 0
-	config.MaxConnLifetime = 30 * time.Minute
-	config.MaxConnIdleTime = 5 * time.Minute
-	config.HealthCheckPeriod = time.Minute
+	config.MaxConns = settings.MaxConns
+	config.MinConns = settings.MinConns
+	config.MaxConnLifetime = settings.MaxConnLifetime
+	config.MaxConnIdleTime = settings.MaxConnIdleTime
+	config.HealthCheckPeriod = settings.HealthCheckPeriod
 
 	return pgxpool.NewWithConfig(ctx, config)
 }

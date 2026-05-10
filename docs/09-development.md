@@ -19,10 +19,20 @@ cp .env.example .env
 Set a local database URL:
 
 ```sh
-KELOMPOK_DATABASE_URL=postgres://kelompok:change-me@100.65.30.81:5432/kelompok_dev?sslmode=disable
+KELOMPOK_DATABASE_URL=postgres://kelompok:change-me@localhost:54621/kelompok_dev?sslmode=disable
 ```
 
 Do not commit `.env` or real credentials.
+
+Database pool settings can be tuned with:
+
+```text
+KELOMPOK_DB_MAX_CONNS=5
+KELOMPOK_DB_MIN_CONNS=0
+KELOMPOK_DB_MAX_CONN_LIFETIME=30m
+KELOMPOK_DB_MAX_CONN_IDLE_TIME=5m
+KELOMPOK_DB_HEALTH_CHECK_PERIOD=1m
+```
 
 ## Database
 
@@ -59,6 +69,8 @@ The first migration creates the stable CRM tables for:
 - audit logs
 
 Dynamic and provider-specific data belongs in JSONB columns until it becomes stable enough to promote into structured columns.
+
+Kelompok targets PostgreSQL 15 or newer. The initial schema uses `gen_random_uuid()` for UUID defaults and does not create database extensions from application migrations, so managed environments should provision required database capabilities before running the app user migrations.
 
 ## API
 

@@ -31,9 +31,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	case "db":
 		return runDB(ctx, args[1:], stdout)
 	default:
-		fmt.Fprintf(stderr, "unknown command: %s\n\n", args[0])
 		printHelp(stderr)
-		return errors.New("unknown command")
+		return fmt.Errorf("unknown command: %s", args[0])
 	}
 }
 
@@ -53,8 +52,11 @@ func runDB(ctx context.Context, args []string, stdout io.Writer) error {
 }
 
 func serve(ctx context.Context, stdout io.Writer) error {
-	cfg := config.Load()
-	pool, err := database.Open(ctx, cfg.DatabaseURL)
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	pool, err := database.Open(ctx, cfg.DatabaseURL, poolSettings(cfg))
 	if err != nil {
 		return err
 	}
@@ -86,8 +88,11 @@ func serve(ctx context.Context, stdout io.Writer) error {
 }
 
 func health(ctx context.Context, stdout io.Writer) error {
-	cfg := config.Load()
-	pool, err := database.Open(ctx, cfg.DatabaseURL)
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	pool, err := database.Open(ctx, cfg.DatabaseURL, poolSettings(cfg))
 	if err != nil {
 		return err
 	}
@@ -105,8 +110,11 @@ func health(ctx context.Context, stdout io.Writer) error {
 }
 
 func migrate(ctx context.Context, stdout io.Writer) error {
-	cfg := config.Load()
-	pool, err := database.Open(ctx, cfg.DatabaseURL)
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	pool, err := database.Open(ctx, cfg.DatabaseURL, poolSettings(cfg))
 	if err != nil {
 		return err
 	}
@@ -135,5 +143,20 @@ Environment:
   KELOMPOK_ENV
   KELOMPOK_API_ADDR
   KELOMPOK_DATABASE_URL
+  KELOMPOK_DB_MAX_CONNS
+  KELOMPOK_DB_MIN_CONNS
+  KELOMPOK_DB_MAX_CONN_LIFETIME
+  KELOMPOK_DB_MAX_CONN_IDLE_TIME
+  KELOMPOK_DB_HEALTH_CHECK_PERIOD
 `)
+}
+
+func poolSettings(cfg config.Config) database.PoolSettings {
+	return database.PoolSettings{
+		MaxConns:          cfg.DatabaseMaxConns,
+		MinConns:          cfg.DatabaseMinConns,
+		MaxConnLifetime:   cfg.DatabaseMaxConnLifetime,
+		MaxConnIdleTime:   cfg.DatabaseMaxConnIdleTime,
+		HealthCheckPeriod: cfg.DatabaseHealthCheckPeriod,
+	}
 }

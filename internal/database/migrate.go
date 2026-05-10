@@ -11,17 +11,34 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const migrationAdvisoryLockKey int64 = 4621001
+
 type Migration struct {
 	Version string
 	Path    string
 }
 
-func Migrate(ctx context.Context, pool *pgxpool.Pool, dir string) error {
+func Migrate(ctx context.Context, pool *pgxpool.Pool, dir string) (err error) {
 	if dir == "" {
 		dir = "migrations"
 	}
 
-	if _, err := pool.Exec(ctx, `
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire migration connection: %w", err)
+	}
+	defer conn.Release()
+
+	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationAdvisoryLockKey); err != nil {
+		return fmt.Errorf("acquire migration lock: %w", err)
+	}
+	defer func() {
+		if _, unlockErr := conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, migrationAdvisoryLockKey); err == nil && unlockErr != nil {
+			err = fmt.Errorf("release migration lock: %w", unlockErr)
+		}
+	}()
+
+	if _, err := conn.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version text PRIMARY KEY,
 			applied_at timestamptz NOT NULL DEFAULT now()
@@ -36,7 +53,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, dir string) error {
 	}
 
 	for _, migration := range migrations {
-		applied, err := isApplied(ctx, pool, migration.Version)
+		applied, err := isApplied(ctx, conn, migration.Version)
 		if err != nil {
 			return err
 		}
@@ -44,7 +61,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, dir string) error {
 			continue
 		}
 
-		if err := applyMigration(ctx, pool, migration); err != nil {
+		if err := applyMigration(ctx, conn, migration); err != nil {
 			return err
 		}
 	}
@@ -64,13 +81,8 @@ func listMigrations(dir string) ([]Migration, error) {
 			continue
 		}
 
-		version := strings.TrimSuffix(entry.Name(), ".sql")
-		if cut := strings.Index(version, "_"); cut > 0 {
-			version = version[:cut]
-		}
-
 		migrations = append(migrations, Migration{
-			Version: version,
+			Version: entry.Name(),
 			Path:    filepath.Join(dir, entry.Name()),
 		})
 	}
@@ -82,21 +94,21 @@ func listMigrations(dir string) ([]Migration, error) {
 	return migrations, nil
 }
 
-func isApplied(ctx context.Context, pool *pgxpool.Pool, version string) (bool, error) {
+func isApplied(ctx context.Context, conn *pgxpool.Conn, version string) (bool, error) {
 	var exists bool
-	if err := pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)`, version).Scan(&exists); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)`, version).Scan(&exists); err != nil {
 		return false, fmt.Errorf("check migration %s: %w", version, err)
 	}
 	return exists, nil
 }
 
-func applyMigration(ctx context.Context, pool *pgxpool.Pool, migration Migration) error {
+func applyMigration(ctx context.Context, conn *pgxpool.Conn, migration Migration) error {
 	sql, err := os.ReadFile(migration.Path)
 	if err != nil {
 		return fmt.Errorf("read migration %s: %w", migration.Path, err)
 	}
 
-	tx, err := pool.Begin(ctx)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin migration %s: %w", migration.Version, err)
 	}
