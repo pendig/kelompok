@@ -28,6 +28,7 @@ coverage/
 
 # Go
 bin/
+.gocache/
 *.test
 *.out
 coverage.out
