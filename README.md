@@ -132,25 +132,6 @@ Event management, donor management, practical import plugins, and advanced integ
 - [Open Source Governance](docs/06-open-source-governance.md)
 - [Runtime Decisions](docs/07-runtime-decisions.md)
 - [Plugin System](docs/08-plugin-system.md)
-- [Development](docs/09-development.md)
-
-## Quick Development Start
-
-```sh
-cp .env.example .env
-go run ./cmd/kelompok db migrate
-go run ./cmd/kelompok-api
-```
-
-Common shortcuts:
-
-```sh
-make test
-make db-migrate
-make api
-```
-
-The API defaults to `:4621`. Real database credentials should only live in local environment files or secret managers, never in committed files.
 
 ## Development Principles
 
