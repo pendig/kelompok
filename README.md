@@ -139,6 +139,7 @@ Event management, donor management, practical import plugins, and advanced integ
 ```sh
 cp .env.example .env
 go run ./cmd/kelompok db migrate
+go run ./cmd/kelompok seed demo
 go run ./cmd/kelompok-api
 ```
 
@@ -147,6 +148,7 @@ Common shortcuts:
 ```sh
 make test
 make db-migrate
+make seed-demo
 make api
 ```
 

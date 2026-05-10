@@ -54,6 +54,18 @@ Check connectivity:
 go run ./cmd/kelompok db ping
 ```
 
+Insert demo MVP data:
+
+```sh
+go run ./cmd/kelompok seed demo
+```
+
+Or with the project shortcut:
+
+```sh
+make seed-demo
+```
+
 The first migration creates the stable CRM tables for:
 
 - users
@@ -101,6 +113,17 @@ GET /readyz
 
 `/healthz` checks that the process is alive. `/readyz` checks database connectivity.
 
+Public MVP endpoints:
+
+```text
+GET /api/v1/organizations
+GET /api/v1/organizations/{slug}
+GET /api/v1/organizations/{slug}/posts
+GET /api/v1/organizations/{slug}/impact-reports
+GET /api/v1/posts
+GET /api/v1/posts/{slug}
+```
+
 ## CLI
 
 The CLI is intentionally dependency-light for now.
@@ -109,6 +132,7 @@ The CLI is intentionally dependency-light for now.
 go run ./cmd/kelompok help
 go run ./cmd/kelompok serve
 go run ./cmd/kelompok migrate
+go run ./cmd/kelompok seed demo
 go run ./cmd/kelompok db ping
 go run ./cmd/kelompok db migrate
 ```

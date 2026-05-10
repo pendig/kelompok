@@ -53,6 +53,15 @@ GET /api/v1/organizations/{slug}/posts
 GET /api/v1/organizations/{slug}/sdgs
 ```
 
+Implemented in the first public read API slice:
+
+```text
+GET /api/v1/organizations
+GET /api/v1/organizations/{slug}
+GET /api/v1/organizations/{slug}/posts
+GET /api/v1/organizations/{slug}/impact-reports
+```
+
 Posts:
 
 ```text
@@ -60,6 +69,13 @@ GET /api/v1/posts
 GET /api/v1/posts/{slug}
 GET /api/v1/post-categories
 GET /api/v1/post-tags
+```
+
+Implemented in the first public read API slice:
+
+```text
+GET /api/v1/posts
+GET /api/v1/posts/{slug}
 ```
 
 Events:
@@ -170,6 +186,12 @@ kelompok migrate up
 kelompok migrate down
 kelompok seed
 kelompok health
+```
+
+Implemented early:
+
+```text
+kelompok seed demo
 ```
 
 Organization data:
