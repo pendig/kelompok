@@ -14,6 +14,7 @@ The docs are intentionally written before implementation so the project can star
 - [06 Open Source Governance](06-open-source-governance.md)
 - [07 Runtime Decisions](07-runtime-decisions.md)
 - [08 Plugin System](08-plugin-system.md)
+- [09 Development](09-development.md)
 
 ## Current Planning Summary
 
