@@ -3,6 +3,11 @@
 	import { locale, t } from "$lib/i18n.js";
 
 	let { data } = $props();
+
+	function postPath(post) {
+		const orgSlug = post.organization?.slug || post.organization_slug;
+		return `/organizations/${encodeURIComponent(orgSlug)}/posts/${encodeURIComponent(post.slug)}`;
+	}
 </script>
 
 <section class="page-heading">
@@ -20,7 +25,7 @@
 	<div>
 		{#each data.posts as post}
 			<div class="list-item">
-				<a class="title" href={`/posts/${post.slug}`}>{post.title}</a>
+				<a class="title" href={postPath(post)}>{post.title}</a>
 				<p class="meta">
 					{$t("postsPage.by", { name: post.organization?.name || $t("postsPage.unknownAuthor") })}
 					· {fallbackDate(post.published_at, $locale)}

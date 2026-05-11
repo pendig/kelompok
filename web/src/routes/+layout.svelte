@@ -3,6 +3,8 @@
 	import { initLocale, languages, locale, setLocale, t } from "$lib/i18n.js";
 	import "../app.css";
 
+	let { children } = $props();
+
 	onMount(() => {
 		initLocale();
 	});
@@ -50,6 +52,6 @@
 
 <main class="page">
 	<div class="container">
-		<slot />
+		{@render children()}
 	</div>
 </main>

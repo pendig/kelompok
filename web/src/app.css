@@ -570,6 +570,15 @@ img {
 	box-shadow: none;
 }
 
+.detail-list {
+	display: grid;
+	gap: 0.55rem;
+	margin: 0;
+	padding: 0;
+	color: var(--muted);
+	list-style: none;
+}
+
 .list-item {
 	margin-bottom: 12px;
 }

@@ -11,6 +11,14 @@
 
 		return org.city || org.country || fallback;
 	}
+
+	function organizationPath(slug) {
+		return `/organizations/${encodeURIComponent(slug)}`;
+	}
+
+	function postPath(post) {
+		return `${organizationPath(post.organization?.slug || post.organization_slug)}/posts/${encodeURIComponent(post.slug)}`;
+	}
 </script>
 
 <section class="hero">
@@ -125,7 +133,7 @@
 				{#each data.organizations.slice(0, 4) as org}
 					<article class="surface-card">
 						<div class="card-top">
-							<h3><a href={`/organizations/${org.slug}`}>{org.name}</a></h3>
+							<h3><a href={organizationPath(org.slug)}>{org.name}</a></h3>
 							{#if org.claim_status}
 								<span class="pill">{org.claim_status}</span>
 							{/if}
@@ -152,7 +160,7 @@
 				{#each data.posts.slice(0, 4) as post}
 					<article class="surface-card">
 						<div class="card-top">
-							<h3><a href={`/posts/${post.slug}`}>{post.title}</a></h3>
+							<h3><a href={postPath(post)}>{post.title}</a></h3>
 							<span class="pill">{fallbackDate(post.published_at, $locale)}</span>
 						</div>
 
