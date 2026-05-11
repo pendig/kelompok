@@ -31,6 +31,7 @@
 		</a>
 
 		<nav class="nav" aria-label="Primary">
+			<a href="/admin" class="nav-link">{$t("nav.admin")}</a>
 			<a href="/organizations" class="nav-link">{$t("nav.organizations")}</a>
 			<a href="/posts" class="nav-link">{$t("nav.posts")}</a>
 			<a href="https://github.com/pendig/kelompok" class="nav-link">{$t("nav.source")}</a>
