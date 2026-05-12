@@ -109,6 +109,8 @@ http://localhost:4622
 
 If you run API on another host/port, change `VITE_API_BASE_URL` accordingly.
 
+The `/admin` route is the current alpha CRM workspace. It can create and edit organization profiles, create member records, submit claim requests, create posts, and create impact reports through the local API. Treat it as a controlled development interface until authentication and organization authorization are added.
+
 ## API
 
 Start the API server:
@@ -143,6 +145,7 @@ Public MVP endpoints:
 ```text
 GET /api/v1/organizations
 GET /api/v1/organizations/{slug}
+POST /api/v1/organizations/{slug}/claims
 GET /api/v1/organizations/{slug}/posts
 GET /api/v1/organizations/{slug}/posts/{post_slug}
 GET /api/v1/organizations/{slug}/impact-reports
@@ -153,6 +156,32 @@ GET /api/v1/posts/{slug}
 Use the organization-scoped post detail endpoint when a post slug may exist in more than one organization.
 
 Public responses are intentionally smaller than the database rows. The API does not expose internal UUIDs, claim verification emails, raw source evidence, or plugin-private JSON metadata through public endpoints. Dynamic JSON fields are filtered through a public allowlist before response encoding.
+
+Alpha admin endpoints:
+
+```text
+GET /api/v1/org-admin/organizations
+POST /api/v1/org-admin/organizations
+GET /api/v1/org-admin/organizations/{slug}
+PATCH /api/v1/org-admin/organizations/{slug}
+GET /api/v1/org-admin/organizations/{slug}/claims
+GET /api/v1/org-admin/organizations/{slug}/members
+POST /api/v1/org-admin/organizations/{slug}/members
+PATCH /api/v1/org-admin/members/{id}
+DELETE /api/v1/org-admin/members/{id}
+GET /api/v1/org-admin/posts
+POST /api/v1/org-admin/posts
+PATCH /api/v1/org-admin/posts/{id}
+POST /api/v1/org-admin/posts/{id}/publish
+POST /api/v1/org-admin/posts/{id}/archive
+GET /api/v1/org-admin/impact-reports
+POST /api/v1/org-admin/impact-reports
+PATCH /api/v1/org-admin/impact-reports/{id}
+POST /api/v1/org-admin/impact-reports/{id}/publish
+POST /api/v1/org-admin/impact-reports/{id}/archive
+```
+
+Do not publish the alpha admin API directly to the internet without auth.
 
 ## CLI
 

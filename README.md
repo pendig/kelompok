@@ -109,9 +109,9 @@ Use uncommon default ports to avoid conflicts with other local projects:
 
 ## Repository Status
 
-This repository is currently in planning and foundation mode.
+This repository is currently in active MVP foundation mode.
 
-The first milestone is documentation, architecture, and a lean backend skeleton. The goal is to avoid rebuilding the older multi-repo system as-is and instead create a simpler, modular open-source platform.
+The first milestone is documentation, architecture, a lean Go API/CLI foundation, and a SvelteKit public/admin web surface. The goal is to avoid rebuilding the older multi-repo system as-is and instead create a simpler, modular open-source platform.
 
 The minimal public MVP should ship a working SvelteKit frontend for:
 
@@ -120,7 +120,7 @@ The minimal public MVP should ship a working SvelteKit frontend for:
 - Public impact reports
 - Minimal organization admin screens for editing those records
 
-Event management, donor management, practical import plugins, and advanced integrations can follow after the minimal public MVP.
+The alpha admin API and `/admin` screen are intended for local and controlled deployments until authentication and organization-level authorization are added. Event management, donor management, practical import plugins, and advanced integrations can follow after the minimal public MVP.
 
 ## Documentation
 

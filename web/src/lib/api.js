@@ -42,11 +42,11 @@ export async function fetchJSON(path, init = {}) {
 
 	try {
 		const response = await fetch(url, {
+			...init,
 			headers: {
 				"accept": "application/json",
 				...(init.headers || {}),
 			},
-			...init,
 			signal: init.signal ?? controller.signal,
 		});
 

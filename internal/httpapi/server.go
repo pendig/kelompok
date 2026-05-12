@@ -12,6 +12,7 @@ import (
 	"github.com/pendig/kelompok/internal/config"
 	"github.com/pendig/kelompok/internal/database"
 	"github.com/pendig/kelompok/internal/impact"
+	"github.com/pendig/kelompok/internal/members"
 	"github.com/pendig/kelompok/internal/organizations"
 	"github.com/pendig/kelompok/internal/posts"
 )
@@ -23,6 +24,7 @@ type Server struct {
 	organizations *organizations.Repository
 	posts         *posts.Repository
 	impact        *impact.Repository
+	members       *members.Repository
 }
 
 func New(config config.Config, db *pgxpool.Pool) *Server {
@@ -33,6 +35,7 @@ func New(config config.Config, db *pgxpool.Pool) *Server {
 		organizations: organizations.NewRepository(db),
 		posts:         posts.NewRepository(db),
 		impact:        impact.NewRepository(db),
+		members:       members.NewRepository(db),
 	}
 	server.routes()
 	return server
@@ -59,11 +62,32 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /readyz", s.handleReady)
 	s.mux.HandleFunc("GET /api/v1/organizations", s.handleListOrganizations)
 	s.mux.HandleFunc("GET /api/v1/organizations/{slug}", s.handleGetOrganization)
+	s.mux.HandleFunc("POST /api/v1/organizations/{slug}/claims", s.handleCreateOrganizationClaim)
 	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/posts", s.handleListOrganizationPosts)
 	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/posts/{post_slug}", s.handleGetOrganizationPost)
 	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/impact-reports", s.handleListOrganizationImpactReports)
 	s.mux.HandleFunc("GET /api/v1/posts", s.handleListPosts)
 	s.mux.HandleFunc("GET /api/v1/posts/{slug}", s.handleGetPost)
+
+	s.mux.HandleFunc("GET /api/v1/org-admin/organizations", s.handleListAdminOrganizations)
+	s.mux.HandleFunc("POST /api/v1/org-admin/organizations", s.handleCreateAdminOrganization)
+	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}", s.handleGetAdminOrganization)
+	s.mux.HandleFunc("PATCH /api/v1/org-admin/organizations/{slug}", s.handleUpdateAdminOrganization)
+	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/claims", s.handleListOrganizationClaims)
+	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/members", s.handleListOrganizationMembers)
+	s.mux.HandleFunc("POST /api/v1/org-admin/organizations/{slug}/members", s.handleCreateOrganizationMember)
+	s.mux.HandleFunc("PATCH /api/v1/org-admin/members/{id}", s.handleUpdateAdminMember)
+	s.mux.HandleFunc("DELETE /api/v1/org-admin/members/{id}", s.handleDeleteAdminMember)
+	s.mux.HandleFunc("GET /api/v1/org-admin/posts", s.handleListAdminPosts)
+	s.mux.HandleFunc("POST /api/v1/org-admin/posts", s.handleCreateAdminPost)
+	s.mux.HandleFunc("PATCH /api/v1/org-admin/posts/{id}", s.handleUpdateAdminPost)
+	s.mux.HandleFunc("POST /api/v1/org-admin/posts/{id}/publish", s.handlePublishAdminPost)
+	s.mux.HandleFunc("POST /api/v1/org-admin/posts/{id}/archive", s.handleArchiveAdminPost)
+	s.mux.HandleFunc("GET /api/v1/org-admin/impact-reports", s.handleListAdminImpactReports)
+	s.mux.HandleFunc("POST /api/v1/org-admin/impact-reports", s.handleCreateAdminImpactReport)
+	s.mux.HandleFunc("PATCH /api/v1/org-admin/impact-reports/{id}", s.handleUpdateAdminImpactReport)
+	s.mux.HandleFunc("POST /api/v1/org-admin/impact-reports/{id}/publish", s.handlePublishAdminImpactReport)
+	s.mux.HandleFunc("POST /api/v1/org-admin/impact-reports/{id}/archive", s.handleArchiveAdminImpactReport)
 }
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {

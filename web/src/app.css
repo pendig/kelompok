@@ -32,10 +32,12 @@ body {
 	background:
 		linear-gradient(180deg, #ffffff 0%, #fbf8ff 44%, #f7f4fb 100%);
 	font-family:
-		"Avenir Next",
-		"Nunito Sans",
-		"Helvetica Neue",
-		Helvetica,
+		Inter,
+		ui-sans-serif,
+		system-ui,
+		-apple-system,
+		BlinkMacSystemFont,
+		"Segoe UI",
 		sans-serif;
 	font-size: 16px;
 	line-height: 1.5;
@@ -774,6 +776,172 @@ img {
 	overflow-x: auto;
 }
 
+.admin-workspace {
+	display: grid;
+	grid-template-columns: minmax(260px, 0.36fr) minmax(0, 1fr);
+	gap: 16px;
+	align-items: start;
+}
+
+.admin-sidebar,
+.admin-main {
+	display: grid;
+	gap: 14px;
+	align-content: start;
+}
+
+.admin-panel,
+.ghost-button {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface);
+	box-shadow: var(--shadow-sm);
+}
+
+.admin-panel {
+	display: grid;
+	gap: 14px;
+	padding: 18px;
+}
+
+.admin-panel.compact {
+	padding: 14px;
+}
+
+.admin-panel h3 {
+	margin: 0;
+	font-size: 18px;
+	line-height: 1.25;
+}
+
+.admin-form-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.admin-field-grid,
+.admin-panel-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.admin-field-grid.two,
+.admin-panel-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-panel label {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+	color: var(--muted);
+	font-size: 13px;
+	font-weight: 750;
+}
+
+.admin-panel input,
+.admin-panel select,
+.admin-panel textarea {
+	width: 100%;
+	min-height: 42px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: #ffffff;
+	color: var(--text);
+	font: inherit;
+	font-size: 14px;
+	font-weight: 500;
+	padding: 9px 11px;
+	outline: none;
+}
+
+.admin-panel textarea {
+	min-height: 92px;
+	resize: vertical;
+	line-height: 1.5;
+}
+
+.admin-panel input:focus,
+.admin-panel select:focus,
+.admin-panel textarea:focus {
+	border-color: var(--purple-600);
+	box-shadow: 0 0 0 3px rgba(111, 53, 191, 0.14);
+}
+
+.admin-panel .btn.primary {
+	color: #ffffff;
+	background: var(--purple-700);
+	border-color: var(--purple-700);
+}
+
+.admin-panel .btn.primary:hover {
+	background: var(--purple-800);
+	border-color: var(--purple-800);
+}
+
+.admin-org-nav {
+	display: grid;
+	gap: 8px;
+}
+
+.admin-org-nav a {
+	display: grid;
+	gap: 2px;
+	padding: 10px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	color: var(--text);
+	text-decoration: none;
+}
+
+.admin-org-nav a.active,
+.admin-org-nav a:hover {
+	border-color: var(--purple-600);
+	background: var(--surface-tint);
+}
+
+.admin-org-nav small {
+	color: var(--muted);
+}
+
+.admin-actions,
+.inline-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+}
+
+button.btn,
+.ghost-button {
+	cursor: pointer;
+	font: inherit;
+}
+
+.ghost-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 36px;
+	padding: 0 12px;
+	color: var(--purple-800);
+	font-size: 13px;
+	font-weight: 800;
+	text-decoration: none;
+}
+
+.ghost-button:hover {
+	border-color: var(--purple-600);
+	background: var(--surface-tint);
+}
+
+.section-head.single {
+	grid-template-columns: 1fr;
+}
+
 .callout-inner {
 	display: flex;
 	align-items: center;
@@ -799,12 +967,16 @@ img {
 	.section-head,
 	.content-grid,
 	.two-col,
-	.admin-grid {
+	.admin-grid,
+	.admin-workspace,
+	.admin-panel-grid {
 		grid-template-columns: 1fr;
 	}
 
 	.feature-grid,
-	.grid {
+	.grid,
+	.admin-field-grid,
+	.admin-field-grid.two {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
@@ -839,13 +1011,16 @@ img {
 
 	.hero-stats,
 	.feature-grid,
-	.grid {
+	.grid,
+	.admin-field-grid,
+	.admin-field-grid.two {
 		grid-template-columns: 1fr;
 	}
 
 	.preview-head,
 	.mini-head,
-	.card-top {
+	.card-top,
+	.admin-form-head {
 		align-items: flex-start;
 		flex-direction: column;
 	}

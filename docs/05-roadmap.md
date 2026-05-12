@@ -41,6 +41,12 @@ Why this is first:
 - Pluginability must be designed before imports and custom workflows grow.
 - It prevents the core from becoming tightly coupled to one provider or one import format.
 
+Current alpha progress:
+
+- Go API, database migrations, seed data, CLI framework, plugin registry skeleton, and public SvelteKit pages are in place.
+- Organization admin API, member API, claim request creation, post management API, impact report management API, and the `/admin` CRM workspace are in the alpha slice.
+- The remaining release blockers before a public alpha are authentication, organization authorization, CLI coverage for the new write paths, and focused tests around admin mutations.
+
 ## Phase 1: Organization CRM Core
 
 Outcome: organizations can be created, listed, viewed, edited, and claimed.
