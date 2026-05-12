@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type Config struct {
 	Env                       string
 	APIAddr                   string
+	AdminAPIKey               string
+	AdminOrganizationSlugs    []string
 	DatabaseURL               string
 	DatabaseMaxConns          int32
 	DatabaseMinConns          int32
@@ -51,6 +54,8 @@ func Load() (Config, error) {
 	return Config{
 		Env:                       env("KELOMPOK_ENV", "development"),
 		APIAddr:                   env("KELOMPOK_API_ADDR", ":4621"),
+		AdminAPIKey:               strings.TrimSpace(os.Getenv("KELOMPOK_ADMIN_API_KEY")),
+		AdminOrganizationSlugs:    envCSV("KELOMPOK_ADMIN_ORGANIZATION_SLUGS"),
 		DatabaseURL:               os.Getenv("KELOMPOK_DATABASE_URL"),
 		DatabaseMaxConns:          maxConns,
 		DatabaseMinConns:          minConns,
@@ -58,6 +63,24 @@ func Load() (Config, error) {
 		DatabaseMaxConnIdleTime:   maxConnIdleTime,
 		DatabaseHealthCheckPeriod: healthCheckPeriod,
 	}, nil
+}
+
+func envCSV(key string) []string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return nil
+	}
+
+	parts := strings.Split(value, ",")
+	items := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(strings.ToLower(part))
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+
+	return items
 }
 
 func env(key, fallback string) string {

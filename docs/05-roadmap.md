@@ -45,7 +45,7 @@ Current alpha progress:
 
 - Go API, database migrations, seed data, CLI framework, plugin registry skeleton, and public SvelteKit pages are in place.
 - Organization admin API, member API, claim request creation, post management API, impact report management API, and the `/admin` CRM workspace are in the alpha slice.
-- The remaining release blockers before a public alpha are authentication, organization authorization, CLI coverage for the new write paths, and focused tests around admin mutations.
+- The remaining release blockers before a public alpha are full user login, claim ownership workflows, CLI coverage for the new write paths, and focused tests around admin mutations. The current alpha admin API is protected by a static admin key and optional organization slug scope for controlled deployments.
 
 ## Phase 1: Organization CRM Core
 

@@ -157,7 +157,7 @@ POST /api/v1/org-admin/posts/{id}/publish
 POST /api/v1/org-admin/posts/{id}/archive
 ```
 
-The current alpha admin endpoints are intended for local MVP development and controlled deployments only. Before exposing `org-admin` to the public internet, add the authentication and organization-authorization gate described in the roadmap.
+The current alpha admin endpoints require `KELOMPOK_ADMIN_API_KEY`, provided as either `X-Kelompok-Admin-Key` or `Authorization: Bearer <key>`. `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` can restrict slug-scoped admin routes to specific organizations. Before broad public hosting, replace the static alpha key with user login, claim ownership, and organization-level role checks.
 
 Event management:
 

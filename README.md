@@ -120,7 +120,7 @@ The minimal public MVP should ship a working SvelteKit frontend for:
 - Public impact reports
 - Minimal organization admin screens for editing those records
 
-The alpha admin API and `/admin` screen are intended for local and controlled deployments until authentication and organization-level authorization are added. Event management, donor management, practical import plugins, and advanced integrations can follow after the minimal public MVP.
+The alpha admin API and `/admin` screen require `KELOMPOK_ADMIN_API_KEY` and are intended for local and controlled deployments until full user login and organization-level roles are added. Event management, donor management, practical import plugins, and advanced integrations can follow after the minimal public MVP.
 
 ## Documentation
 

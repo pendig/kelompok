@@ -1,5 +1,37 @@
 import { fail } from "@sveltejs/kit";
+import { env } from "$env/dynamic/private";
 import { fetchJSON, fetchJSONResult } from "../../lib/api.js";
+
+const ADMIN_API_KEY = `${env.KELOMPOK_ADMIN_API_KEY || ""}`.trim();
+
+function adminHeaders(headers = {}) {
+	return {
+		...headers,
+		...(ADMIN_API_KEY ? { "x-kelompok-admin-key": ADMIN_API_KEY } : {}),
+	};
+}
+
+function adminFetchJSON(path, init = {}) {
+	return fetchJSON(path, {
+		...init,
+		headers: adminHeaders(init.headers || {}),
+	});
+}
+
+async function adminFetchJSONResult(path, fallbackData = []) {
+	try {
+		const payload = await adminFetchJSON(path);
+		return {
+			data: payload.data ?? fallbackData,
+			error: null,
+		};
+	} catch (error) {
+		return {
+			data: fallbackData,
+			error: error instanceof Error ? error.message : "Unable to load data from API",
+		};
+	}
+}
 
 function checkEndpoint(path) {
 	return fetchJSON(path)
@@ -51,7 +83,7 @@ function jsonArray(source, fallback = []) {
 }
 
 async function mutate(path, body, method = "POST") {
-	return fetchJSON(path, {
+	return adminFetchJSON(path, {
 		method,
 		headers: {
 			"content-type": "application/json",
@@ -156,9 +188,9 @@ function actionError(error) {
 
 export async function load({ url }) {
 	const [orgPayload, postPayload, impactPayload, health, ready, root] = await Promise.all([
-		fetchJSONResult("/api/v1/org-admin/organizations?limit=50"),
-		fetchJSONResult("/api/v1/org-admin/posts?limit=50"),
-		fetchJSONResult("/api/v1/org-admin/impact-reports?limit=50"),
+		adminFetchJSONResult("/api/v1/org-admin/organizations?limit=50"),
+		adminFetchJSONResult("/api/v1/org-admin/posts?limit=50"),
+		adminFetchJSONResult("/api/v1/org-admin/impact-reports?limit=50"),
 		checkEndpoint("/healthz"),
 		checkEndpoint("/readyz"),
 		checkEndpoint("/"),
@@ -173,9 +205,9 @@ export async function load({ url }) {
 	const [selectedPayload, memberPayload, claimPayload] =
 		selectedSlug ?
 			await Promise.all([
-				fetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}`, null),
-				fetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/members?limit=30`),
-				fetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/claims?limit=20`),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}`, null),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/members?limit=30`),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/claims?limit=20`),
 			])
 		:	[
 				{ data: null, error: null },
@@ -202,6 +234,12 @@ export async function load({ url }) {
 			status: health.ok ? "pass" : "fail",
 			detail: health.ok ? `status=${health.payload.data?.status || "ok"}` : health.error,
 			needsReview: false,
+		},
+		{
+			label: "admin.checkAdminAuth",
+			status: ADMIN_API_KEY ? "pass" : "fail",
+			detail: ADMIN_API_KEY ? "admin key is configured for server-side admin requests" : "set KELOMPOK_ADMIN_API_KEY",
+			needsReview: !ADMIN_API_KEY,
 		},
 		{
 			label: "admin.checkReadyHealth",
