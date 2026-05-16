@@ -31,13 +31,15 @@ func (s *Server) handleCreateOrganizationClaim(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleListAdminOrganizations(w http.ResponseWriter, r *http.Request) {
-	if item, ok := principalFromContext(r); ok && !item.AdminKey && item.User.Role != "superadmin" {
-		writeError(w, http.StatusForbidden, "admin_org_scope_required", "User sessions must use organization-scoped endpoints", nil)
-		return
-	}
-	if s.adminScopeConfigured() {
-		writeError(w, http.StatusForbidden, "admin_org_scope_required", "Scoped admin keys must use organization-scoped endpoints", nil)
-		return
+	if item, ok := principalFromContext(r); ok {
+		if !item.AdminKey && item.User.Role != "superadmin" {
+			writeError(w, http.StatusForbidden, "admin_org_scope_required", "User sessions must use organization-scoped endpoints", nil)
+			return
+		}
+		if item.AdminKey && s.adminScopeConfigured() {
+			writeError(w, http.StatusForbidden, "admin_org_scope_required", "Scoped admin keys must use organization-scoped endpoints", nil)
+			return
+		}
 	}
 
 	limit := limitFromRequest(r, 50, 100)
@@ -572,9 +574,14 @@ func (s *Server) ensureAdminListScope(w http.ResponseWriter, r *http.Request, or
 	if organizationSlug != "" {
 		return s.ensureAdminOrganizationSlugForRequest(w, r, organizationSlug)
 	}
-	if item, ok := principalFromContext(r); ok && !item.AdminKey && item.User.Role != "superadmin" {
-		writeError(w, http.StatusForbidden, "admin_org_scope_required", "User sessions must include organization_slug", nil)
-		return false
+	if item, ok := principalFromContext(r); ok {
+		if !item.AdminKey && item.User.Role == "superadmin" {
+			return true
+		}
+		if !item.AdminKey {
+			writeError(w, http.StatusForbidden, "admin_org_scope_required", "User sessions must include organization_slug", nil)
+			return false
+		}
 	}
 	if !s.adminScopeConfigured() {
 		return true
