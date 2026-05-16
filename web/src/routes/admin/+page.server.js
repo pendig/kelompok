@@ -1,9 +1,9 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
-import { APIError, fetchJSON } from "../../lib/api.js";
+import { fetchJSON } from "../../lib/api.js";
+import { loadSession, loginWithPassword, logoutSession, SESSION_COOKIE } from "$lib/server/session.js";
 
 const ADMIN_API_KEY = `${env.KELOMPOK_ADMIN_API_KEY || ""}`.trim();
-const SESSION_COOKIE = "kelompok_session";
 
 function adminHeaders(cookies, headers = {}) {
 	const sessionToken = cookies?.get(SESSION_COOKIE) || "";
@@ -189,27 +189,6 @@ function actionError(error) {
 	});
 }
 
-async function loadSession(cookies) {
-	const token = cookies.get(SESSION_COOKIE);
-	if (!token) {
-		return null;
-	}
-
-	try {
-		const payload = await fetchJSON("/api/v1/auth/me", {
-			headers: {
-				authorization: `Bearer ${token}`,
-			},
-		});
-		return payload.data ?? null;
-	} catch (error) {
-		if (error instanceof APIError && (error.status === 401 || error.status === 403)) {
-			cookies.delete(SESSION_COOKIE, { path: "/" });
-		}
-		return null;
-	}
-}
-
 export async function load({ url, cookies }) {
 	const session = await loadSession(cookies);
 	const isScopedSession = Boolean(session && session.user?.role !== "superadmin");
@@ -388,43 +367,14 @@ export const actions = {
 	login: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
-			const payload = await fetchJSON("/api/v1/auth/login", {
-				method: "POST",
-				headers: {
-					"content-type": "application/json",
-				},
-				body: JSON.stringify({
-					email: value(form, "email"),
-					password: value(form, "password"),
-				}),
-			});
-			cookies.set(SESSION_COOKIE, payload.data.token, {
-				path: "/",
-				httpOnly: true,
-				sameSite: "lax",
-				secure: env.NODE_ENV === "production",
-				expires: new Date(payload.data.expires_at),
-			});
+			await loginWithPassword(cookies, value(form, "email"), value(form, "password"));
 			return { ok: true, action: "login" };
 		} catch (error) {
 			return actionError(error);
 		}
 	},
 	logout: async ({ cookies }) => {
-		const token = cookies.get(SESSION_COOKIE);
-		if (token) {
-			try {
-				await fetchJSON("/api/v1/auth/logout", {
-					method: "POST",
-					headers: {
-						authorization: `Bearer ${token}`,
-					},
-				});
-			} catch {
-				// Local cookie cleanup should still happen if the API session is already gone.
-			}
-		}
-		cookies.delete(SESSION_COOKIE, { path: "/" });
+		await logoutSession(cookies);
 		throw redirect(303, "/admin");
 	},
 	createOrganization: async ({ request, cookies }) => {
