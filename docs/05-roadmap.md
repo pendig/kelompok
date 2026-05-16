@@ -216,7 +216,7 @@ Scope:
 
 ## `1.0-alpha.1` Cut Line
 
-`1.0-alpha.1` is allowed once Phase 0, the practical Phase 1 organization core, and the practical Phase 2 public profile/posts/impact surface are present enough for controlled demos.
+`1.0-alpha.1` is targeted once Phase 0, the core organization features from Phase 1, and the public profile/posts/impact surface from Phase 2 are sufficiently implemented for controlled demos.
 
 Included:
 

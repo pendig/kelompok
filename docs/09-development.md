@@ -212,11 +212,18 @@ npm run build --prefix web
 
 For a local smoke test:
 
+In one terminal, prepare the database and start the API:
+
 ```sh
 go run ./cmd/kelompok db migrate
 go run ./cmd/kelompok seed demo
 KELOMPOK_ADMIN_API_KEY=change-me-dev-admin-key go run ./cmd/kelompok-api
-KELOMPOK_ADMIN_API_KEY=change-me-dev-admin-key npm run dev --prefix web -- --host 127.0.0.1 --port 4622
+```
+
+In a second terminal, start the web app:
+
+```sh
+KELOMPOK_ADMIN_API_KEY=change-me-dev-admin-key npm run dev --prefix web -- --host localhost --port 4622
 ```
 
 Then open:
