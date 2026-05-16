@@ -294,7 +294,10 @@ func (r *Repository) CreateClaim(ctx context.Context, organizationSlug string, i
 		item.ReviewedAt = &value
 	}
 
-	_ = audit.Record(ctx, r.db, nil, "claim_request", item.ID, "create", nil, item, map[string]any{"organization_slug": organizationSlug})
+	_ = audit.Record(ctx, r.db, nil, "claim_request", item.ID, "create", nil, item, map[string]any{
+		"organization_id":   organization.ID,
+		"organization_slug": organizationSlug,
+	})
 	return item, nil
 }
 
@@ -441,7 +444,7 @@ func (r *Repository) reviewClaim(ctx context.Context, claimID string, reviewerUs
 	}
 
 	if status == "approved" {
-		if _, err := tx.Exec(ctx, `
+		tag, err := tx.Exec(ctx, `
 			UPDATE organizations
 			SET
 				claim_status = 'claimed',
@@ -449,8 +452,13 @@ func (r *Repository) reviewClaim(ctx context.Context, claimID string, reviewerUs
 				claimed_at = now(),
 				updated_at = now()
 			WHERE id = $1
-		`, item.OrganizationID, item.UserID); err != nil {
+				AND claim_status <> 'claimed'
+		`, item.OrganizationID, item.UserID)
+		if err != nil {
 			return ClaimRequest{}, err
+		}
+		if tag.RowsAffected() == 0 {
+			return ClaimRequest{}, ErrClaimNotPending
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO organization_user_roles (organization_id, user_id, role)

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -74,6 +75,9 @@ func (r *Repository) Register(ctx context.Context, input RegisterInput) (User, e
 	password := strings.TrimSpace(input.Password)
 	if email == "" {
 		return User{}, errors.New("email is required")
+	}
+	if !validEmail(email) {
+		return User{}, errors.New("email must be valid")
 	}
 	if password == "" {
 		return User{}, errors.New("password is required")
@@ -315,6 +319,11 @@ func scanUser(row userRow) (User, error) {
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func validEmail(email string) bool {
+	address, err := mail.ParseAddress(email)
+	return err == nil && address.Address == email
 }
 
 func newSessionToken() (string, string, error) {

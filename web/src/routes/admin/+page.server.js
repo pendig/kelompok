@@ -210,35 +210,78 @@ async function loadSession(cookies) {
 
 export async function load({ url, cookies }) {
 	const session = await loadSession(cookies);
-	const [orgPayload, postPayload, impactPayload, health, ready, root] = await Promise.all([
-		adminFetchJSONResult("/api/v1/org-admin/organizations?limit=50", [], cookies),
-		adminFetchJSONResult("/api/v1/org-admin/posts?limit=50", [], cookies),
-		adminFetchJSONResult("/api/v1/org-admin/impact-reports?limit=50", [], cookies),
+	const isScopedSession = Boolean(session && session.user?.role !== "superadmin");
+	const [health, ready, root] = await Promise.all([
 		checkEndpoint("/healthz"),
 		checkEndpoint("/readyz"),
 		checkEndpoint("/"),
 	]);
 
-	const organizations = orgPayload.data ?? [];
-	const posts = postPayload.data ?? [];
-	const impactReports = impactPayload.data ?? [];
 	const requestedSlug = url.searchParams.get("org");
-	const selectedSlug = requestedSlug || organizations[0]?.slug || "";
+	let orgPayload = { data: [], error: null };
+	let postPayload = { data: [], error: null };
+	let impactPayload = { data: [], error: null };
+	let selectedPayload = { data: null, error: null };
+	let memberPayload = { data: [], error: null };
+	let claimPayload = { data: [], error: null };
+	let auditPayload = { data: [], error: null };
+	let selectedSlug = "";
 
-	const [selectedPayload, memberPayload, claimPayload, auditPayload] =
-		selectedSlug ?
-			await Promise.all([
+	if (isScopedSession) {
+		const roleOrganizations = session.organization_roles ?? [];
+		const allowedSlugs = roleOrganizations.map((role) => role.organization_slug).filter(Boolean);
+		selectedSlug = allowedSlugs.includes(requestedSlug) ? requestedSlug : allowedSlugs[0] || "";
+		orgPayload = {
+			data: roleOrganizations.map((role) => ({
+				slug: role.organization_slug,
+				name: role.organization_name,
+				claim_status: role.role,
+			})),
+			error: null,
+		};
+
+		if (selectedSlug) {
+			[selectedPayload, postPayload, impactPayload, memberPayload, claimPayload, auditPayload] = await Promise.all([
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}`, null, cookies),
+				adminFetchJSONResult(`/api/v1/org-admin/posts?organization_slug=${encodeURIComponent(selectedSlug)}&limit=50`, [], cookies),
+				adminFetchJSONResult(
+					`/api/v1/org-admin/impact-reports?organization_slug=${encodeURIComponent(selectedSlug)}&limit=50`,
+					[],
+					cookies,
+				),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/members?limit=30`, [], cookies),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/claims?limit=20`, [], cookies),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/audit-logs?limit=20`, [], cookies),
+			]);
+		}
+	} else {
+		[orgPayload, postPayload, impactPayload] = await Promise.all([
+			adminFetchJSONResult("/api/v1/org-admin/organizations?limit=50", [], cookies),
+			adminFetchJSONResult("/api/v1/org-admin/posts?limit=50", [], cookies),
+			adminFetchJSONResult("/api/v1/org-admin/impact-reports?limit=50", [], cookies),
+		]);
+		selectedSlug = requestedSlug || orgPayload.data?.[0]?.slug || "";
+
+		if (selectedSlug) {
+			[selectedPayload, memberPayload, claimPayload, auditPayload] = await Promise.all([
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}`, null, cookies),
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/members?limit=30`, [], cookies),
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/claims?limit=20`, [], cookies),
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/audit-logs?limit=20`, [], cookies),
-			])
-		:	[
-				{ data: null, error: null },
-				{ data: [], error: null },
-				{ data: [], error: null },
-				{ data: [], error: null },
-			];
+			]);
+		}
+	}
+
+	let organizations = orgPayload.data ?? [];
+	if (selectedPayload.data && !organizations.some((organization) => organization.slug === selectedPayload.data.slug)) {
+		organizations = [selectedPayload.data, ...organizations];
+	} else if (selectedPayload.data) {
+		organizations = organizations.map((organization) =>
+			organization.slug === selectedPayload.data.slug ? selectedPayload.data : organization,
+		);
+	}
+	const posts = postPayload.data ?? [];
+	const impactReports = impactPayload.data ?? [];
 
 	const impactByOrganization = organizations.slice(0, 6).map((org) => {
 		const count = impactReports.filter((item) => item.organization_slug === org.slug).length;
