@@ -67,6 +67,7 @@ Implemented in the first public read API slice:
 ```text
 GET /api/v1/organizations
 GET /api/v1/organizations/{slug}
+POST /api/v1/organizations/{slug}/claims
 GET /api/v1/organizations/{slug}/posts
 GET /api/v1/organizations/{slug}/posts/{post_slug}
 GET /api/v1/organizations/{slug}/impact-reports
@@ -118,7 +119,7 @@ GET /api/v1/auth/me
 Claims:
 
 ```text
-POST /api/v1/organizations/{id}/claims
+POST /api/v1/organizations/{slug}/claims
 GET /api/v1/claims
 GET /api/v1/claims/{id}
 POST /api/v1/claims/{id}/verify-email
@@ -130,22 +131,33 @@ POST /api/v1/admin/claims/{id}/reject
 Organization management:
 
 ```text
-PATCH /api/v1/org-admin/organizations/{id}
-POST /api/v1/org-admin/organizations/{id}/members
-PATCH /api/v1/org-admin/organizations/{id}/members/{member_id}
-DELETE /api/v1/org-admin/organizations/{id}/members/{member_id}
-POST /api/v1/org-admin/organizations/{id}/impact-reports
+GET /api/v1/org-admin/organizations
+POST /api/v1/org-admin/organizations
+GET /api/v1/org-admin/organizations/{slug}
+PATCH /api/v1/org-admin/organizations/{slug}
+GET /api/v1/org-admin/organizations/{slug}/claims
+GET /api/v1/org-admin/organizations/{slug}/members
+POST /api/v1/org-admin/organizations/{slug}/members
+PATCH /api/v1/org-admin/members/{id}
+DELETE /api/v1/org-admin/members/{id}
+GET /api/v1/org-admin/impact-reports
+POST /api/v1/org-admin/impact-reports
 PATCH /api/v1/org-admin/impact-reports/{id}
+POST /api/v1/org-admin/impact-reports/{id}/publish
+POST /api/v1/org-admin/impact-reports/{id}/archive
 ```
 
 Post management:
 
 ```text
+GET /api/v1/org-admin/posts
 POST /api/v1/org-admin/posts
 PATCH /api/v1/org-admin/posts/{id}
 POST /api/v1/org-admin/posts/{id}/publish
 POST /api/v1/org-admin/posts/{id}/archive
 ```
+
+The current alpha admin endpoints require `KELOMPOK_ADMIN_API_KEY`, provided as either `X-Kelompok-Admin-Key` or `Authorization: Bearer <key>`. `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` can restrict slug-scoped admin routes to specific organizations. Before broad public hosting, replace the static alpha key with user login, claim ownership, and organization-level role checks.
 
 Event management:
 

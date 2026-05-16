@@ -6,7 +6,7 @@ This document covers the first local development path for Kelompok.
 
 - Go 1.26 or newer
 - PostgreSQL 15 or newer
-- Node.js and pnpm later for the SvelteKit web app
+- Node.js and npm (or pnpm) for the SvelteKit web app
 
 ## Environment
 
@@ -23,6 +23,18 @@ KELOMPOK_DATABASE_URL=postgres://kelompok:change-me@localhost:54621/kelompok_dev
 ```
 
 Do not commit `.env` or real credentials.
+
+Set an admin key for the alpha admin API and `/admin` route:
+
+```sh
+KELOMPOK_ADMIN_API_KEY=change-me-dev-admin-key
+```
+
+For controlled demos, the same key must be available to the API process and the SvelteKit server process. Optionally restrict the key to specific organization slugs:
+
+```sh
+KELOMPOK_ADMIN_ORGANIZATION_SLUGS=gerakan-hijau-nusantara,another-org
+```
 
 Database pool settings can be tuned with:
 
@@ -84,6 +96,34 @@ Dynamic and provider-specific data belongs in JSONB columns until it becomes sta
 
 Kelompok targets PostgreSQL 15 or newer. The initial schema uses `gen_random_uuid()` for UUID defaults and does not create database extensions from application migrations, so managed environments should provision required database capabilities before running the app user migrations.
 
+## Frontend
+
+The web app uses SvelteKit and is intentionally minimal for MVP:
+
+```sh
+cd web
+cp .env.example .env
+npm install
+npm run dev
+```
+
+The frontend uses this API base:
+
+```text
+VITE_API_BASE_URL=http://localhost:4621
+```
+
+and runs on:
+
+```text
+http://localhost:4622
+```
+
+If you run API on another host/port, change `VITE_API_BASE_URL` accordingly.
+
+The `/admin` route is the current alpha CRM workspace. It can create and edit organization profiles, create member records, submit claim requests, create posts, and create impact reports through the local API. Treat it as a controlled development interface until authentication and organization authorization are added.
+It reads `KELOMPOK_ADMIN_API_KEY` on the server side and sends it to the API as `X-Kelompok-Admin-Key`; this key is not used in browser-side code.
+
 ## API
 
 Start the API server:
@@ -118,6 +158,7 @@ Public MVP endpoints:
 ```text
 GET /api/v1/organizations
 GET /api/v1/organizations/{slug}
+POST /api/v1/organizations/{slug}/claims
 GET /api/v1/organizations/{slug}/posts
 GET /api/v1/organizations/{slug}/posts/{post_slug}
 GET /api/v1/organizations/{slug}/impact-reports
@@ -128,6 +169,32 @@ GET /api/v1/posts/{slug}
 Use the organization-scoped post detail endpoint when a post slug may exist in more than one organization.
 
 Public responses are intentionally smaller than the database rows. The API does not expose internal UUIDs, claim verification emails, raw source evidence, or plugin-private JSON metadata through public endpoints. Dynamic JSON fields are filtered through a public allowlist before response encoding.
+
+Alpha admin endpoints:
+
+```text
+GET /api/v1/org-admin/organizations
+POST /api/v1/org-admin/organizations
+GET /api/v1/org-admin/organizations/{slug}
+PATCH /api/v1/org-admin/organizations/{slug}
+GET /api/v1/org-admin/organizations/{slug}/claims
+GET /api/v1/org-admin/organizations/{slug}/members
+POST /api/v1/org-admin/organizations/{slug}/members
+PATCH /api/v1/org-admin/members/{id}
+DELETE /api/v1/org-admin/members/{id}
+GET /api/v1/org-admin/posts
+POST /api/v1/org-admin/posts
+PATCH /api/v1/org-admin/posts/{id}
+POST /api/v1/org-admin/posts/{id}/publish
+POST /api/v1/org-admin/posts/{id}/archive
+GET /api/v1/org-admin/impact-reports
+POST /api/v1/org-admin/impact-reports
+PATCH /api/v1/org-admin/impact-reports/{id}
+POST /api/v1/org-admin/impact-reports/{id}/publish
+POST /api/v1/org-admin/impact-reports/{id}/archive
+```
+
+Do not publish the alpha admin API directly to the internet without setting `KELOMPOK_ADMIN_API_KEY`. For shared environments, also set `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` or place the API behind a stronger auth proxy until full user login is implemented.
 
 ## CLI
 

@@ -1,0 +1,186 @@
+<script>
+	import { fallbackDate } from "../../../lib/api.js";
+	import { locale, t } from "$lib/i18n.js";
+
+	let { data } = $props();
+
+	let org = $derived(data.organization);
+	let profile = $derived(org?.profile_data || {});
+	let sdgs = $derived(org?.sdgs_data || {});
+
+	function organizationPath(path = "") {
+		return `/organizations/${encodeURIComponent(org.slug)}${path}`;
+	}
+
+	function postPath(post) {
+		return `${organizationPath("/posts")}/${encodeURIComponent(post.slug)}`;
+	}
+
+	function formatLocation() {
+		const parts = [org.city, org.region, org.country].filter(Boolean);
+		return parts.length ? parts.join(", ") : $t("organizationDetail.unknownLocation");
+	}
+
+	function contactItems() {
+		const value = profile.public_contact;
+		if (!value) {
+			return [];
+		}
+
+		if (typeof value === "string") {
+			return [{ label: $t("organizationDetail.publicContact"), value }];
+		}
+
+		if (Array.isArray(value)) {
+			return value
+				.map((item) => {
+					if (typeof item === "string") {
+						return { label: $t("organizationDetail.publicContact"), value: item };
+					}
+					return {
+						label: item.label || item.type || $t("organizationDetail.publicContact"),
+						value: item.value || item.url || item.email || item.phone || "",
+					};
+				})
+				.filter((item) => item.value);
+		}
+
+		return Object.entries(value)
+			.map(([label, item]) => {
+				if (typeof item === "string") {
+					return { label, value: item };
+				}
+				return { label, value: item?.value || item?.url || item?.email || item?.phone || "" };
+			})
+			.filter((item) => item.value);
+	}
+</script>
+
+<nav class="breadcrumbs">
+	<a href="/">{$t("organizationDetail.home")}</a>
+	<span>›</span>
+	<a href="/organizations">{$t("nav.organizations")}</a>
+	<span>›</span>
+	<span>{org.name}</span>
+</nav>
+
+<header class="two-col" style="margin-top: 1rem">
+	<section class="card">
+		<h1>{org.name}</h1>
+		<p class="muted">Slug: <span class="code">{org.slug}</span></p>
+		<p>{org.description || $t("organizationDetail.noDescription")}</p>
+		<p class="small muted">{$t("organizationDetail.tagline")}: {org.legal_name || "—"}</p>
+		<p class="small">
+			{$t("organizationDetail.updatedAt", { date: fallbackDate(org.updated_at, $locale) })}
+		</p>
+	</section>
+
+	<section class="card">
+		<div class="label">{$t("organizationDetail.info")}</div>
+		<p class="value"><strong>{$t("organizationDetail.location")}:</strong> {formatLocation()}</p>
+		<p class="value">
+			<strong>{$t("organizationDetail.website")}:</strong>
+			{#if org.website_url}
+				<a href={org.website_url} target="_blank" rel="noreferrer">{org.website_url}</a>
+			{:else}
+				—
+			{/if}
+		</p>
+		<p class="value"><strong>{$t("organizationDetail.claim")}:</strong> {org.claim_status}</p>
+		{#if profile.languages?.length}
+			<div class="label">{$t("organizationDetail.languages")}</div>
+			<div class="pill-row">
+				{#each profile.languages as language}
+					<span class="pill">{language}</span>
+				{/each}
+			</div>
+		{/if}
+	</section>
+</header>
+
+<section>
+	<div class="actions">
+		<a href={organizationPath("/posts")}>{$t("organizationDetail.allPosts")}</a>
+		<a href={organizationPath("/impact")}>{$t("organizationDetail.impactReports")}</a>
+	</div>
+
+	<h2 class="section-title">{$t("organizationDetail.vision")}</h2>
+	<div class="grid">
+		<div class="card">
+			<div class="label">{$t("organizationDetail.history")}</div>
+			<p class="small">{org.history || $t("organizationDetail.noHistory")}</p>
+		</div>
+		<div class="card">
+			<div class="label">{$t("organizationDetail.publicContact")}</div>
+			{#if contactItems().length}
+				<ul class="detail-list">
+					{#each contactItems() as item}
+						<li><strong>{item.label}:</strong> {item.value}</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="small">{$t("organizationDetail.noContact")}</p>
+			{/if}
+		</div>
+	</div>
+</section>
+
+<section>
+	<h2 class="section-title">SDGS</h2>
+	<div class="grid">
+		<div class="card">
+			<div class="label">{$t("organizationDetail.focus")}</div>
+			{#if sdgs.primary?.length}
+				<div class="pill-row">
+					{#each sdgs.primary as goal}
+						<span class="pill">{goal}</span>
+					{/each}
+				</div>
+			{:else}
+				<p class="small">{$t("organizationDetail.noSdgs")}</p>
+			{/if}
+		</div>
+		<div class="card">
+			<div class="label">{$t("organizationDetail.programs")}</div>
+			{#if profile.programs?.length}
+				<ul>
+					{#each profile.programs as item}
+						<li>{item}</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="small">{$t("organizationDetail.noPrograms")}</p>
+			{/if}
+		</div>
+	</div>
+</section>
+
+<section>
+	<h2 class="section-title">{$t("organizationDetail.recentPosts")}</h2>
+	{#if data.posts.length === 0}
+		<p class="empty">{$t("organizationDetail.noPosts")}</p>
+	{:else}
+		{#each data.posts.slice(0, 6) as post}
+			<div class="list-item">
+				<a class="title" href={postPath(post)}>{post.title}</a>
+				<div class="meta">
+					{fallbackDate(post.published_at, $locale)} · {post.summary || "—"}
+				</div>
+			</div>
+		{/each}
+	{/if}
+</section>
+
+<section>
+	<h2 class="section-title">{$t("organizationDetail.impactReports")}</h2>
+	{#if data.impactReports.length === 0}
+		<p class="empty">{$t("organizationDetail.noReports")}</p>
+	{:else}
+		{#each data.impactReports.slice(0, 6) as report}
+			<div class="list-item">
+				<div class="title">{report.title}</div>
+				<div class="meta">{fallbackDate(report.published_at, $locale)} · {report.summary || "—"}</div>
+			</div>
+		{/each}
+	{/if}
+</section>

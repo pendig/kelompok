@@ -58,6 +58,40 @@ func TestPublicOrganizationOmitsClaimEmailAndFiltersJSON(t *testing.T) {
 	}
 }
 
+func TestPublicOrganizationKeepsReviewedPublicContact(t *testing.T) {
+	item := organizations.Organization{
+		Slug:        "safe-org",
+		Name:        "Safe Org",
+		ClaimStatus: "claimed",
+		ProfileData: json.RawMessage(`{
+			"public_contact":{
+				"email":"hello@example.org",
+				"phone":"+6200000000",
+				"private_token":"hidden"
+			}
+		}`),
+		SDGSData:   json.RawMessage(`{}`),
+		ImpactData: json.RawMessage(`{}`),
+		CreatedAt:  time.Date(2026, 5, 10, 1, 0, 0, 0, time.UTC),
+		UpdatedAt:  time.Date(2026, 5, 10, 1, 0, 0, 0, time.UTC),
+	}
+
+	encoded, err := json.Marshal(publicOrganization(item))
+	if err != nil {
+		t.Fatalf("marshal public organization: %v", err)
+	}
+	body := string(encoded)
+
+	for _, expected := range []string{"hello@example.org", "+6200000000"} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("public organization removed public contact %q in %s", expected, body)
+		}
+	}
+	if strings.Contains(body, "private_token") || strings.Contains(body, "hidden") {
+		t.Fatalf("public organization leaked private public_contact field: %s", body)
+	}
+}
+
 func TestPublicPostOmitsInternalIDsAndFiltersSEOData(t *testing.T) {
 	item := posts.Post{
 		ID:               "post-internal-id",
