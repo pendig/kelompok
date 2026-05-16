@@ -1,5 +1,31 @@
-import { error } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { APIError, fetchJSON } from "../../../lib/api.js";
+
+function value(form, key) {
+	return `${form.get(key) || ""}`.trim();
+}
+
+function claimInput(form) {
+	const note = value(form, "evidence_note");
+
+	return {
+		method: value(form, "method") || "official_email",
+		target: value(form, "target"),
+		requester_email: value(form, "requester_email"),
+		evidence: {
+			source: "public-profile",
+			...(note ? { note } : {}),
+		},
+	};
+}
+
+function actionError(err) {
+	return fail(400, {
+		ok: false,
+		action: "submitClaim",
+		error: err instanceof Error ? err.message : "Unable to submit claim",
+	});
+}
 
 export async function load({ params }) {
 	const { slug } = params;
@@ -25,3 +51,22 @@ export async function load({ params }) {
 		throw err;
 	}
 }
+
+export const actions = {
+	submitClaim: async ({ request, params }) => {
+		try {
+			const form = await request.formData();
+			const payload = await fetchJSON(`/api/v1/organizations/${encodeURIComponent(params.slug)}/claims`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+				},
+				body: JSON.stringify(claimInput(form)),
+			});
+
+			return { ok: true, action: "submitClaim", item: payload.data };
+		} catch (err) {
+			return actionError(err);
+		}
+	},
+};
