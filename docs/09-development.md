@@ -1,6 +1,6 @@
 # Development
 
-This document covers the first local development path for Kelompok.
+This document covers the local development path for the Kelompok alpha.
 
 ## Runtime Requirements
 
@@ -30,7 +30,9 @@ Set an admin key for the alpha admin API and `/admin` route:
 KELOMPOK_ADMIN_API_KEY=change-me-dev-admin-key
 ```
 
-For controlled demos, the same key must be available to the API process and the SvelteKit server process. Optionally restrict the key to specific organization slugs:
+For controlled demos, the same key must be available to the API process and the SvelteKit server process. The browser never receives this key; SvelteKit forwards it from server-side code only.
+
+Optionally restrict the key to specific organization slugs:
 
 ```sh
 KELOMPOK_ADMIN_ORGANIZATION_SLUGS=gerakan-hijau-nusantara,another-org
@@ -98,7 +100,7 @@ Kelompok targets PostgreSQL 15 or newer. The initial schema uses `gen_random_uui
 
 ## Frontend
 
-The web app uses SvelteKit and is intentionally minimal for MVP:
+The web app uses SvelteKit and is intentionally minimal for the alpha:
 
 ```sh
 cd web
@@ -121,8 +123,8 @@ http://localhost:4622
 
 If you run API on another host/port, change `VITE_API_BASE_URL` accordingly.
 
-The `/admin` route is the current alpha CRM workspace. It can create and edit organization profiles, create member records, submit claim requests, create posts, and create impact reports through the local API. Treat it as a controlled development interface until authentication and organization authorization are added.
-It reads `KELOMPOK_ADMIN_API_KEY` on the server side and sends it to the API as `X-Kelompok-Admin-Key`; this key is not used in browser-side code.
+The `/admin` route is the current alpha CRM workspace. It can create and edit organization profiles, create member records, submit claim requests, create posts, and create impact reports through the local API. Treat it as a controlled development interface until full user login, claim ownership verification, and organization roles are added.
+It reads `KELOMPOK_ADMIN_API_KEY` on the server side and sends it to the API as `X-Kelompok-Admin-Key`.
 
 ## API
 
@@ -195,6 +197,34 @@ POST /api/v1/org-admin/impact-reports/{id}/archive
 ```
 
 Do not publish the alpha admin API directly to the internet without setting `KELOMPOK_ADMIN_API_KEY`. For shared environments, also set `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` or place the API behind a stronger auth proxy until full user login is implemented.
+
+When `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` is set, scoped keys must use organization-scoped routes or include a matching `organization_slug` where supported. Global admin list routes are blocked for scoped keys to avoid cross-organization data leakage.
+
+## Alpha Verification
+
+Before tagging an alpha release, run:
+
+```sh
+go test ./...
+npm run check --prefix web
+npm run build --prefix web
+```
+
+For a local smoke test:
+
+```sh
+go run ./cmd/kelompok db migrate
+go run ./cmd/kelompok seed demo
+KELOMPOK_ADMIN_API_KEY=change-me-dev-admin-key go run ./cmd/kelompok-api
+KELOMPOK_ADMIN_API_KEY=change-me-dev-admin-key npm run dev --prefix web -- --host 127.0.0.1 --port 4622
+```
+
+Then open:
+
+```text
+http://localhost:4622/
+http://localhost:4622/admin
+```
 
 ## CLI
 

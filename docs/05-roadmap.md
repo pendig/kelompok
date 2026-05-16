@@ -45,7 +45,8 @@ Current alpha progress:
 
 - Go API, database migrations, seed data, CLI framework, plugin registry skeleton, and public SvelteKit pages are in place.
 - Organization admin API, member API, claim request creation, post management API, impact report management API, and the `/admin` CRM workspace are in the alpha slice.
-- The remaining release blockers before a public alpha are full user login, claim ownership workflows, CLI coverage for the new write paths, and focused tests around admin mutations. The current alpha admin API is protected by a static admin key and optional organization slug scope for controlled deployments.
+- The current alpha admin API is protected by a static admin key and optional organization slug scope for controlled deployments.
+- Remaining work after `1.0-alpha.1`: full user login, claim ownership workflows, broader CLI coverage for write paths, practical import plugins, and deeper mutation test coverage.
 
 ## Phase 1: Organization CRM Core
 
@@ -212,6 +213,29 @@ Scope:
 - QR check-in
 - Advanced ticketing
 - Advanced analytics
+
+## `1.0-alpha.1` Cut Line
+
+`1.0-alpha.1` is allowed once Phase 0, the practical Phase 1 organization core, and the practical Phase 2 public profile/posts/impact surface are present enough for controlled demos.
+
+Included:
+
+- Go API server and CLI framework
+- PostgreSQL migration and demo seed data
+- Public organization list/detail pages
+- Public organization post and impact report pages
+- Alpha `/admin` workspace for organization profile, members, claims, posts, and impact reports
+- Static admin API key with optional organization slug scope
+- Basic CI and local verification commands
+
+Explicitly not included:
+
+- Full user login
+- Claim approval and ownership workflow
+- Production-grade organization roles
+- Event management MVP
+- Donor management MVP
+- Practical CSV/JSON import plugins
 
 ## Minimal Public MVP Cut Line
 

@@ -157,7 +157,9 @@ POST /api/v1/org-admin/posts/{id}/publish
 POST /api/v1/org-admin/posts/{id}/archive
 ```
 
-The current alpha admin endpoints require `KELOMPOK_ADMIN_API_KEY`, provided as either `X-Kelompok-Admin-Key` or `Authorization: Bearer <key>`. `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` can restrict slug-scoped admin routes to specific organizations. Before broad public hosting, replace the static alpha key with user login, claim ownership, and organization-level role checks.
+The current alpha admin endpoints require `KELOMPOK_ADMIN_API_KEY`, provided as either `X-Kelompok-Admin-Key` or `Authorization: Bearer <key>`. `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` can restrict access to specific organizations. Scoped keys must use organization-scoped routes or provide a matching `organization_slug` where supported; global list routes are blocked for scoped keys.
+
+This key gate is intentionally small and self-hosting friendly. Before broad public hosting, replace the static alpha key with user login, claim ownership, and organization-level role checks.
 
 Event management:
 
