@@ -202,7 +202,10 @@ func (r *Repository) UpdateByID(ctx context.Context, id string, input AdminInput
 		return Report{}, err
 	}
 
-	publishedAt := normalizedPublishedAt(input.Status, input.PublishedAt)
+	var publishedAt any
+	if input.PublishedAt != nil {
+		publishedAt = input.PublishedAt
+	}
 
 	row := r.db.QueryRow(ctx, `
 		WITH updated AS (

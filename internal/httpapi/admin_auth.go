@@ -18,11 +18,6 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		if !s.authorizedAdminOrganization(r) {
-			writeError(w, http.StatusForbidden, "admin_org_forbidden", "Admin key is not authorized for this organization", nil)
-			return
-		}
-
 		next(w, r)
 	}
 }
@@ -52,15 +47,16 @@ func bearerToken(header string) string {
 	return strings.TrimSpace(token)
 }
 
-func (s *Server) authorizedAdminOrganization(r *http.Request) bool {
+func (s *Server) adminScopeConfigured() bool {
+	return len(s.config.AdminOrganizationSlugs) > 0
+}
+
+func (s *Server) authorizedAdminOrganizationSlug(slug string) bool {
 	if len(s.config.AdminOrganizationSlugs) == 0 {
 		return true
 	}
 
-	slug := strings.ToLower(strings.TrimSpace(r.PathValue("slug")))
-	if slug == "" {
-		slug = strings.ToLower(strings.TrimSpace(r.URL.Query().Get("organization_slug")))
-	}
+	slug = strings.ToLower(strings.TrimSpace(slug))
 	if slug == "" {
 		return false
 	}
@@ -71,5 +67,14 @@ func (s *Server) authorizedAdminOrganization(r *http.Request) bool {
 		}
 	}
 
+	return false
+}
+
+func (s *Server) ensureAdminOrganizationSlug(w http.ResponseWriter, slug string) bool {
+	if s.authorizedAdminOrganizationSlug(slug) {
+		return true
+	}
+
+	writeError(w, http.StatusForbidden, "admin_org_forbidden", "Admin key is not authorized for this organization", nil)
 	return false
 }
