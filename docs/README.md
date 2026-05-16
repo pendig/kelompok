@@ -1,8 +1,8 @@
 # Kelompok Documentation
 
-This folder contains the planning and architecture notes for Kelompok.
+This folder contains the product, architecture, and development notes for Kelompok.
 
-The docs are intentionally written before implementation so the project can start with a clear product boundary, contributor-friendly module ownership, and a simpler technical direction than the previous multi-repo system.
+The docs keep the alpha release grounded: Kelompok should stay a lean organization CRM first, with public profiles, posts, impact reporting, API, CLI, and plugin contracts growing in a maintainable way.
 
 ## Index
 
@@ -16,12 +16,15 @@ The docs are intentionally written before implementation so the project can star
 - [08 Plugin System](08-plugin-system.md)
 - [09 Development](09-development.md)
 
-## Current Planning Summary
+## Current Alpha Summary
 
-Kelompok should be a free, open-source organization management platform with three pillars:
+Kelompok is preparing `1.0-alpha.1`. The current implementation has:
 
-1. Data and public organization profiles
-2. Event management and lightweight ticketing
-3. Donor management and transparent reporting
+- Go API and CLI foundation
+- PostgreSQL migrations and demo seed data
+- Public SvelteKit pages for organizations, posts, and impact reports
+- Alpha `/admin` CRM workspace for controlled deployments
+- Static admin API key protection with optional organization slug scope
+- Plugin architecture documentation and registry skeleton
 
-The recommended implementation starts with a Go backend, SvelteKit frontend, PostgreSQL, JSONB for dynamic metadata, OpenAPI documentation, a CLI for imports and claim operations, and a plugin system for custom integrations.
+The alpha is not a full hosted production release yet. Full user login, claim ownership verification, organization roles, practical import plugins, events, and donor management remain later milestones.

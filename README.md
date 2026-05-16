@@ -107,20 +107,23 @@ Use uncommon default ports to avoid conflicts with other local projects:
 - Worker metrics or internal diagnostics: `4623`
 - PostgreSQL in Docker Compose: `54621`
 
-## Repository Status
+## Alpha Status
 
-This repository is currently in active MVP foundation mode.
+Kelompok is currently preparing `1.0-alpha.1`.
 
-The first milestone is documentation, architecture, a lean Go API/CLI foundation, and a SvelteKit public/admin web surface. The goal is to avoid rebuilding the older multi-repo system as-is and instead create a simpler, modular open-source platform.
+The current codebase includes a lean Go API/CLI foundation, PostgreSQL migrations and seed data, public SvelteKit pages, and an alpha `/admin` CRM workspace for organization profiles, members, claims, posts, and impact reports.
 
-The minimal public MVP should ship a working SvelteKit frontend for:
+The alpha is useful for local development, controlled demos, and early self-hosting tests. It is not yet a full public SaaS release because full user login, claim ownership verification, and organization role management are still intentionally scoped after this alpha.
+
+Included alpha surface:
 
 - Public organization profiles
 - Organization posts and articles
 - Public impact reports
-- Minimal organization admin screens for editing those records
+- Alpha admin screens for editing profile, member, claim, post, and impact records
+- Static admin API key protection for controlled deployments
 
-The alpha admin API and `/admin` screen require `KELOMPOK_ADMIN_API_KEY` and are intended for local and controlled deployments until full user login and organization-level roles are added. Event management, donor management, practical import plugins, and advanced integrations can follow after the minimal public MVP.
+Event management, donor management, practical import plugins, and advanced integrations can follow after the minimal public MVP.
 
 ## Documentation
 
@@ -138,6 +141,7 @@ The alpha admin API and `/admin` screen require `KELOMPOK_ADMIN_API_KEY` and are
 
 ```sh
 cp .env.example .env
+# Edit KELOMPOK_DATABASE_URL and KELOMPOK_ADMIN_API_KEY before starting.
 go run ./cmd/kelompok db migrate
 go run ./cmd/kelompok seed demo
 go run ./cmd/kelompok-api
@@ -165,6 +169,12 @@ Frontend defaults:
 
 - Web app port: `4622`
 - API base: `http://localhost:4621`
+
+Alpha admin access:
+
+- API and web server both need `KELOMPOK_ADMIN_API_KEY`
+- The web server forwards the key to the API server-side; the browser never receives it
+- `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` can restrict an admin key to specific organization slugs
 
 ## Development Principles
 
