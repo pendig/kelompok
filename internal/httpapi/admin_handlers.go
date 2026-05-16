@@ -31,6 +31,10 @@ func (s *Server) handleCreateOrganizationClaim(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleListAdminOrganizations(w http.ResponseWriter, r *http.Request) {
+	if item, ok := principalFromContext(r); ok && !item.AdminKey && item.User.Role != "superadmin" {
+		writeError(w, http.StatusForbidden, "admin_org_scope_required", "User sessions must use organization-scoped endpoints", nil)
+		return
+	}
 	if s.adminScopeConfigured() {
 		writeError(w, http.StatusForbidden, "admin_org_scope_required", "Scoped admin keys must use organization-scoped endpoints", nil)
 		return
@@ -55,7 +59,7 @@ func (s *Server) handleCreateAdminOrganization(w http.ResponseWriter, r *http.Re
 	if !decodeJSONBody(w, r, &input) {
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, input.Slug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, input.Slug) {
 		return
 	}
 
@@ -69,7 +73,7 @@ func (s *Server) handleCreateAdminOrganization(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleGetAdminOrganization(w http.ResponseWriter, r *http.Request) {
-	if !s.ensureAdminOrganizationSlug(w, r.PathValue("slug")) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, r.PathValue("slug")) {
 		return
 	}
 
@@ -91,10 +95,10 @@ func (s *Server) handleUpdateAdminOrganization(w http.ResponseWriter, r *http.Re
 	if !decodeJSONBody(w, r, &input) {
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, r.PathValue("slug")) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, r.PathValue("slug")) {
 		return
 	}
-	if input.Slug != "" && !s.ensureAdminOrganizationSlug(w, input.Slug) {
+	if input.Slug != "" && !s.ensureAdminOrganizationSlugForRequest(w, r, input.Slug) {
 		return
 	}
 
@@ -112,7 +116,7 @@ func (s *Server) handleUpdateAdminOrganization(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleListOrganizationClaims(w http.ResponseWriter, r *http.Request) {
-	if !s.ensureAdminOrganizationSlug(w, r.PathValue("slug")) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, r.PathValue("slug")) {
 		return
 	}
 	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
@@ -133,8 +137,78 @@ func (s *Server) handleListOrganizationClaims(w http.ResponseWriter, r *http.Req
 	})
 }
 
+func (s *Server) handleApproveOrganizationClaim(w http.ResponseWriter, r *http.Request) {
+	s.handleReviewOrganizationClaim(w, r, "approve")
+}
+
+func (s *Server) handleRejectOrganizationClaim(w http.ResponseWriter, r *http.Request) {
+	s.handleReviewOrganizationClaim(w, r, "reject")
+}
+
+func (s *Server) handleReviewOrganizationClaim(w http.ResponseWriter, r *http.Request, decision string) {
+	claim, organizationSlug, err := s.organizations.FindClaimByID(r.Context(), r.PathValue("id"))
+	if errors.Is(err, organizations.ErrClaimNotFound) {
+		writeError(w, http.StatusNotFound, "claim_not_found", "Claim request not found", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "claim_lookup_failed", err.Error(), nil)
+		return
+	}
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, organizationSlug) {
+		return
+	}
+
+	item, principal := claim, principal{}
+	if current, ok := principalFromContext(r); ok {
+		principal = current
+	}
+	reviewerUserID := principal.User.ID
+	if decision == "approve" {
+		item, err = s.organizations.ApproveClaim(r.Context(), claim.ID, reviewerUserID)
+	} else {
+		item, err = s.organizations.RejectClaim(r.Context(), claim.ID, reviewerUserID)
+	}
+	if errors.Is(err, organizations.ErrClaimNotFound) {
+		writeError(w, http.StatusNotFound, "claim_not_found", "Claim request not found", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrClaimNotPending) {
+		writeError(w, http.StatusConflict, "claim_not_pending", "Only pending claim requests can be reviewed", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "claim_review_failed", err.Error(), nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{Data: item, Message: "ok"})
+}
+
+func (s *Server) handleListOrganizationAuditLogs(w http.ResponseWriter, r *http.Request) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, r.PathValue("slug")) {
+		return
+	}
+	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
+		return
+	}
+
+	limit := limitFromRequest(r, 30, 100)
+	items, err := s.audit.ListByOrganizationSlug(r.Context(), r.PathValue("slug"), limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "audit_logs_list_failed", "Failed to list audit logs", nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Data:    items,
+		Meta:    map[string]any{"count": len(items), "limit": limit},
+		Message: "ok",
+	})
+}
+
 func (s *Server) handleListOrganizationMembers(w http.ResponseWriter, r *http.Request) {
-	if !s.ensureAdminOrganizationSlug(w, r.PathValue("slug")) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, r.PathValue("slug")) {
 		return
 	}
 	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
@@ -160,7 +234,7 @@ func (s *Server) handleCreateOrganizationMember(w http.ResponseWriter, r *http.R
 	if !decodeJSONBody(w, r, &input) {
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, r.PathValue("slug")) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, r.PathValue("slug")) {
 		return
 	}
 
@@ -188,7 +262,7 @@ func (s *Server) handleUpdateAdminMember(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "member_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, existing.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, existing.OrganizationSlug) {
 		return
 	}
 
@@ -215,7 +289,7 @@ func (s *Server) handleDeleteAdminMember(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "member_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, existing.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, existing.OrganizationSlug) {
 		return
 	}
 
@@ -233,7 +307,7 @@ func (s *Server) handleDeleteAdminMember(w http.ResponseWriter, r *http.Request)
 func (s *Server) handleListAdminPosts(w http.ResponseWriter, r *http.Request) {
 	limit := limitFromRequest(r, 50, 100)
 	organizationSlug := r.URL.Query().Get("organization_slug")
-	if !s.ensureAdminListScope(w, organizationSlug) {
+	if !s.ensureAdminListScope(w, r, organizationSlug) {
 		return
 	}
 
@@ -263,7 +337,7 @@ func (s *Server) handleCreateAdminPost(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSONBody(w, r, &input) {
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, input.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, input.OrganizationSlug) {
 		return
 	}
 
@@ -291,7 +365,7 @@ func (s *Server) handleUpdateAdminPost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "post_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, existing.OrganizationSlug) || !s.ensureAdminOrganizationSlug(w, input.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, existing.OrganizationSlug) || !s.ensureAdminOrganizationSlugForRequest(w, r, input.OrganizationSlug) {
 		return
 	}
 
@@ -318,7 +392,7 @@ func (s *Server) handlePublishAdminPost(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "post_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, existing.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, existing.OrganizationSlug) {
 		return
 	}
 
@@ -345,7 +419,7 @@ func (s *Server) handleArchiveAdminPost(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "post_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, existing.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, existing.OrganizationSlug) {
 		return
 	}
 
@@ -365,7 +439,7 @@ func (s *Server) handleArchiveAdminPost(w http.ResponseWriter, r *http.Request) 
 func (s *Server) handleListAdminImpactReports(w http.ResponseWriter, r *http.Request) {
 	limit := limitFromRequest(r, 50, 100)
 	organizationSlug := r.URL.Query().Get("organization_slug")
-	if !s.ensureAdminListScope(w, organizationSlug) {
+	if !s.ensureAdminListScope(w, r, organizationSlug) {
 		return
 	}
 
@@ -395,7 +469,7 @@ func (s *Server) handleCreateAdminImpactReport(w http.ResponseWriter, r *http.Re
 	if !decodeJSONBody(w, r, &input) {
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, input.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, input.OrganizationSlug) {
 		return
 	}
 
@@ -423,7 +497,7 @@ func (s *Server) handleUpdateAdminImpactReport(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusBadRequest, "impact_report_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, existing.OrganizationSlug) || !s.ensureAdminOrganizationSlug(w, input.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, existing.OrganizationSlug) || !s.ensureAdminOrganizationSlugForRequest(w, r, input.OrganizationSlug) {
 		return
 	}
 
@@ -450,7 +524,7 @@ func (s *Server) handlePublishAdminImpactReport(w http.ResponseWriter, r *http.R
 		writeError(w, http.StatusBadRequest, "impact_report_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, existing.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, existing.OrganizationSlug) {
 		return
 	}
 
@@ -477,7 +551,7 @@ func (s *Server) handleArchiveAdminImpactReport(w http.ResponseWriter, r *http.R
 		writeError(w, http.StatusBadRequest, "impact_report_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlug(w, existing.OrganizationSlug) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, existing.OrganizationSlug) {
 		return
 	}
 
@@ -494,9 +568,13 @@ func (s *Server) handleArchiveAdminImpactReport(w http.ResponseWriter, r *http.R
 	writeJSON(w, http.StatusOK, response{Data: item, Message: "ok"})
 }
 
-func (s *Server) ensureAdminListScope(w http.ResponseWriter, organizationSlug string) bool {
+func (s *Server) ensureAdminListScope(w http.ResponseWriter, r *http.Request, organizationSlug string) bool {
 	if organizationSlug != "" {
-		return s.ensureAdminOrganizationSlug(w, organizationSlug)
+		return s.ensureAdminOrganizationSlugForRequest(w, r, organizationSlug)
+	}
+	if item, ok := principalFromContext(r); ok && !item.AdminKey && item.User.Role != "superadmin" {
+		writeError(w, http.StatusForbidden, "admin_org_scope_required", "User sessions must include organization_slug", nil)
+		return false
 	}
 	if !s.adminScopeConfigured() {
 		return true

@@ -14,6 +14,11 @@ import (
 	"github.com/pendig/kelompok/internal/jsonvalue"
 )
 
+var (
+	ErrClaimNotFound   = errors.New("claim request not found")
+	ErrClaimNotPending = errors.New("claim request is not pending")
+)
+
 type AdminInput struct {
 	Slug          string          `json:"slug"`
 	Name          string          `json:"name"`
@@ -354,6 +359,130 @@ func (r *Repository) ListClaimsByOrganizationSlug(ctx context.Context, organizat
 	return items, rows.Err()
 }
 
+func (r *Repository) FindClaimByID(ctx context.Context, claimID string) (ClaimRequest, string, error) {
+	row := r.db.QueryRow(ctx, `
+		SELECT
+			cr.id::text,
+			cr.organization_id::text,
+			cr.user_id::text,
+			cr.method,
+			cr.target,
+			cr.status,
+			COALESCE(cr.evidence::text, '{}'),
+			cr.reviewed_by_user_id::text,
+			cr.reviewed_at,
+			cr.created_at,
+			cr.updated_at,
+			o.slug
+		FROM claim_requests cr
+		JOIN organizations o ON o.id = cr.organization_id
+		WHERE cr.id = $1
+	`, claimID)
+
+	var organizationSlug string
+	item, err := scanClaimWithSlug(row, &organizationSlug)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ClaimRequest{}, "", ErrClaimNotFound
+	}
+	return item, organizationSlug, err
+}
+
+func (r *Repository) ApproveClaim(ctx context.Context, claimID string, reviewerUserID string) (ClaimRequest, error) {
+	return r.reviewClaim(ctx, claimID, reviewerUserID, "approved")
+}
+
+func (r *Repository) RejectClaim(ctx context.Context, claimID string, reviewerUserID string) (ClaimRequest, error) {
+	return r.reviewClaim(ctx, claimID, reviewerUserID, "rejected")
+}
+
+func (r *Repository) reviewClaim(ctx context.Context, claimID string, reviewerUserID string, status string) (ClaimRequest, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return ClaimRequest{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	row := tx.QueryRow(ctx, `
+		UPDATE claim_requests
+		SET
+			status = $2,
+			reviewed_by_user_id = NULLIF($3, '')::uuid,
+			reviewed_at = now(),
+			updated_at = now()
+		WHERE id = $1
+			AND status = 'pending'
+		RETURNING
+			id::text,
+			organization_id::text,
+			user_id::text,
+			method,
+			target,
+			status,
+			COALESCE(evidence::text, '{}'),
+			reviewed_by_user_id::text,
+			reviewed_at,
+			created_at,
+			updated_at
+	`, claimID, status, reviewerUserID)
+
+	item, err := scanClaim(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		var exists bool
+		if lookupErr := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM claim_requests WHERE id = $1)`, claimID).Scan(&exists); lookupErr != nil {
+			return ClaimRequest{}, lookupErr
+		}
+		if exists {
+			return ClaimRequest{}, ErrClaimNotPending
+		}
+		return ClaimRequest{}, ErrClaimNotFound
+	}
+	if err != nil {
+		return ClaimRequest{}, err
+	}
+
+	if status == "approved" {
+		if _, err := tx.Exec(ctx, `
+			UPDATE organizations
+			SET
+				claim_status = 'claimed',
+				claimed_by_user_id = $2,
+				claimed_at = now(),
+				updated_at = now()
+			WHERE id = $1
+		`, item.OrganizationID, item.UserID); err != nil {
+			return ClaimRequest{}, err
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO organization_user_roles (organization_id, user_id, role)
+			VALUES ($1, $2, 'owner')
+			ON CONFLICT (organization_id, user_id) DO UPDATE SET
+				role = 'owner',
+				updated_at = now()
+		`, item.OrganizationID, item.UserID); err != nil {
+			return ClaimRequest{}, err
+		}
+	} else if _, err := tx.Exec(ctx, `
+		UPDATE organizations
+		SET
+			claim_status = 'rejected',
+			updated_at = now()
+		WHERE id = $1
+			AND claim_status <> 'claimed'
+	`, item.OrganizationID); err != nil {
+		return ClaimRequest{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return ClaimRequest{}, err
+	}
+
+	_ = audit.Record(ctx, r.db, reviewerUserID, "claim_request", item.ID, status, nil, item, map[string]any{
+		"organization_id": item.OrganizationID,
+		"user_id":         item.UserID,
+	})
+	return item, nil
+}
+
 func (r *Repository) ensureDemoUser(ctx context.Context, email string) (string, error) {
 	var userID string
 	if err := r.db.QueryRow(ctx, `
@@ -368,6 +497,46 @@ func (r *Repository) ensureDemoUser(ctx context.Context, email string) (string, 
 	}
 
 	return userID, nil
+}
+
+func scanClaim(row interface{ Scan(dest ...any) error }) (ClaimRequest, error) {
+	return scanClaimWithSlug(row, nil)
+}
+
+func scanClaimWithSlug(row interface{ Scan(dest ...any) error }, organizationSlug *string) (ClaimRequest, error) {
+	var item ClaimRequest
+	var evidence string
+	var reviewedByUser sql.NullString
+	var reviewedAt sql.NullTime
+	dest := []any{
+		&item.ID,
+		&item.OrganizationID,
+		&item.UserID,
+		&item.Method,
+		&item.Target,
+		&item.Status,
+		&evidence,
+		&reviewedByUser,
+		&reviewedAt,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	}
+	if organizationSlug != nil {
+		dest = append(dest, organizationSlug)
+	}
+	if err := row.Scan(dest...); err != nil {
+		return ClaimRequest{}, err
+	}
+	item.Evidence = jsonvalue.Raw(evidence, "{}")
+	if reviewedByUser.Valid {
+		value := reviewedByUser.String
+		item.ReviewedByUser = &value
+	}
+	if reviewedAt.Valid {
+		value := reviewedAt.Time
+		item.ReviewedAt = &value
+	}
+	return item, nil
 }
 
 var slugPattern = regexp.MustCompile(`[^a-z0-9]+`)

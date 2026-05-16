@@ -59,6 +59,7 @@
 	const postSummary = $derived(data.posts || []);
 	const impactSummary = $derived(data.impactReports || []);
 	const selectedOrg = $derived(data.selectedOrganization);
+	const currentUser = $derived(data.session?.user);
 	const selectedProfile = $derived(selectedOrg?.profile_data || {});
 	const selectedSdgs = $derived(selectedOrg?.sdgs_data || {});
 	const readinessCount = $derived(data.checks?.filter((check) => check.status === "pass").length ?? 0);
@@ -93,6 +94,41 @@
 		<span>{form.action}</span>
 	</p>
 {/if}
+
+<section class="section">
+	<div class="admin-panel session-panel">
+		<div>
+			<p class="eyebrow">{$t("admin.session")}</p>
+			<h2>{data.isAuthenticated ? $t("admin.sessionActive") : $t("admin.loginTitle")}</h2>
+			<p class="section-note">
+				{#if currentUser}
+					{currentUser.name} · {currentUser.email}
+				{:else if data.isAuthenticated}
+					{$t("admin.adminKeyMode")}
+				{:else}
+					{$t("admin.loginSubtitle")}
+				{/if}
+			</p>
+		</div>
+		{#if currentUser}
+			<form method="POST" action="?/logout">
+				<button class="ghost-button" type="submit">{$t("admin.logout")}</button>
+			</form>
+		{:else if !data.isAuthenticated}
+			<form class="login-form" method="POST" action="?/login">
+				<label>
+					<span>{$t("admin.email")}</span>
+					<input name="email" type="email" required autocomplete="email" />
+				</label>
+				<label>
+					<span>{$t("admin.password")}</span>
+					<input name="password" type="password" required autocomplete="current-password" />
+				</label>
+				<button class="btn primary" type="submit">{$t("admin.login")}</button>
+			</form>
+		{/if}
+	</div>
+</section>
 
 <section class="section">
 	<div class="section-head">
@@ -468,6 +504,68 @@
 						<p class="muted small">{member.position || "-"}</p>
 					</div>
 					<p class="small">{member.email || member.phone || member.bio || "-"}</p>
+				</div>
+			{/each}
+		{/if}
+	</div>
+</section>
+
+<section class="section">
+	<div class="section-head">
+		<div>
+			<p class="eyebrow">{$t("admin.claims")}</p>
+			<h2 class="section-title">{$t("admin.claimRequests")}</h2>
+		</div>
+		<p class="section-note">{selectedOrg?.name || $t("admin.noOrganizations")}</p>
+	</div>
+	<div class="surface-card admin-list">
+		{#if data.claims.length === 0}
+			<p class="empty">{$t("admin.noClaims")}</p>
+		{:else}
+			{#each data.claims as claim}
+				<div class="admin-list-item">
+					<div class="admin-list-item__meta">
+						<p class="label">{claim.method} · {claim.target}</p>
+						<span class="mini-badge">{claim.status}</span>
+					</div>
+					<p class="small">{claim.id}</p>
+					{#if claim.status === "pending"}
+						<div class="inline-actions">
+							<form method="POST" action="?/approveClaim" class="inline-form">
+								<input type="hidden" name="id" value={claim.id} />
+								<button class="ghost-button" type="submit">{$t("admin.approve")}</button>
+							</form>
+							<form method="POST" action="?/rejectClaim" class="inline-form">
+								<input type="hidden" name="id" value={claim.id} />
+								<button class="ghost-button danger" type="submit">{$t("admin.reject")}</button>
+							</form>
+						</div>
+					{/if}
+				</div>
+			{/each}
+		{/if}
+	</div>
+</section>
+
+<section class="section">
+	<div class="section-head">
+		<div>
+			<p class="eyebrow">{$t("admin.audit")}</p>
+			<h2 class="section-title">{$t("admin.auditLogs")}</h2>
+		</div>
+		<p class="section-note">{selectedOrg?.name || $t("admin.noOrganizations")}</p>
+	</div>
+	<div class="surface-card admin-list">
+		{#if data.auditLogs.length === 0}
+			<p class="empty">{$t("admin.noAuditLogs")}</p>
+		{:else}
+			{#each data.auditLogs as log}
+				<div class="admin-list-item">
+					<div class="admin-list-item__meta">
+						<p class="label">{log.entity_type} · {log.action}</p>
+						<span class="mini-badge">{new Date(log.created_at).toLocaleDateString($locale === "id" ? "id-ID" : "en-US")}</span>
+					</div>
+					<p class="small">{log.id}</p>
 				</div>
 			{/each}
 		{/if}

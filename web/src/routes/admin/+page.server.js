@@ -1,26 +1,29 @@
-import { fail } from "@sveltejs/kit";
+import { fail, redirect } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
-import { fetchJSON, fetchJSONResult } from "../../lib/api.js";
+import { fetchJSON } from "../../lib/api.js";
 
 const ADMIN_API_KEY = `${env.KELOMPOK_ADMIN_API_KEY || ""}`.trim();
+const SESSION_COOKIE = "kelompok_session";
 
-function adminHeaders(headers = {}) {
+function adminHeaders(cookies, headers = {}) {
+	const sessionToken = cookies?.get(SESSION_COOKIE) || "";
 	return {
 		...headers,
-		...(ADMIN_API_KEY ? { "x-kelompok-admin-key": ADMIN_API_KEY } : {}),
+		...(sessionToken ? { authorization: `Bearer ${sessionToken}` } : {}),
+		...(!sessionToken && ADMIN_API_KEY ? { "x-kelompok-admin-key": ADMIN_API_KEY } : {}),
 	};
 }
 
-function adminFetchJSON(path, init = {}) {
+function adminFetchJSON(path, init = {}, cookies = null) {
 	return fetchJSON(path, {
 		...init,
-		headers: adminHeaders(init.headers || {}),
+		headers: adminHeaders(cookies, init.headers || {}),
 	});
 }
 
-async function adminFetchJSONResult(path, fallbackData = []) {
+async function adminFetchJSONResult(path, fallbackData = [], cookies = null) {
 	try {
-		const payload = await adminFetchJSON(path);
+		const payload = await adminFetchJSON(path, {}, cookies);
 		return {
 			data: payload.data ?? fallbackData,
 			error: null,
@@ -82,14 +85,14 @@ function jsonArray(source, fallback = []) {
 	return parsed;
 }
 
-async function mutate(path, body, method = "POST") {
+async function mutate(path, body, method = "POST", cookies = null) {
 	return adminFetchJSON(path, {
 		method,
 		headers: {
 			"content-type": "application/json",
 		},
 		body: JSON.stringify(body),
-	});
+	}, cookies);
 }
 
 function organizationInput(form) {
@@ -186,11 +189,31 @@ function actionError(error) {
 	});
 }
 
-export async function load({ url }) {
+async function loadSession(cookies) {
+	const token = cookies.get(SESSION_COOKIE);
+	if (!token) {
+		return null;
+	}
+
+	try {
+		const payload = await fetchJSON("/api/v1/auth/me", {
+			headers: {
+				authorization: `Bearer ${token}`,
+			},
+		});
+		return payload.data ?? null;
+	} catch {
+		cookies.delete(SESSION_COOKIE, { path: "/" });
+		return null;
+	}
+}
+
+export async function load({ url, cookies }) {
+	const session = await loadSession(cookies);
 	const [orgPayload, postPayload, impactPayload, health, ready, root] = await Promise.all([
-		adminFetchJSONResult("/api/v1/org-admin/organizations?limit=50"),
-		adminFetchJSONResult("/api/v1/org-admin/posts?limit=50"),
-		adminFetchJSONResult("/api/v1/org-admin/impact-reports?limit=50"),
+		adminFetchJSONResult("/api/v1/org-admin/organizations?limit=50", [], cookies),
+		adminFetchJSONResult("/api/v1/org-admin/posts?limit=50", [], cookies),
+		adminFetchJSONResult("/api/v1/org-admin/impact-reports?limit=50", [], cookies),
 		checkEndpoint("/healthz"),
 		checkEndpoint("/readyz"),
 		checkEndpoint("/"),
@@ -202,15 +225,17 @@ export async function load({ url }) {
 	const requestedSlug = url.searchParams.get("org");
 	const selectedSlug = requestedSlug || organizations[0]?.slug || "";
 
-	const [selectedPayload, memberPayload, claimPayload] =
+	const [selectedPayload, memberPayload, claimPayload, auditPayload] =
 		selectedSlug ?
 			await Promise.all([
-				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}`, null),
-				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/members?limit=30`),
-				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/claims?limit=20`),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}`, null, cookies),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/members?limit=30`, [], cookies),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/claims?limit=20`, [], cookies),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/audit-logs?limit=20`, [], cookies),
 			])
 		:	[
 				{ data: null, error: null },
+				{ data: [], error: null },
 				{ data: [], error: null },
 				{ data: [], error: null },
 			];
@@ -284,10 +309,13 @@ export async function load({ url }) {
 
 	return {
 		organizations,
+		session,
+		isAuthenticated: Boolean(session || ADMIN_API_KEY),
 		posts,
 		impactReports,
 		members: memberPayload.data ?? [],
 		claims: claimPayload.data ?? [],
+		auditLogs: auditPayload.data ?? [],
 		selectedOrganization: selectedPayload.data,
 		selectedSlug,
 		health,
@@ -302,6 +330,7 @@ export async function load({ url }) {
 			selectedPayload.error,
 			memberPayload.error,
 			claimPayload.error,
+			auditPayload.error,
 			health.ok ? null : health.error,
 			ready.ok ? null : ready.error,
 			root.ok ? null : root.error,
@@ -311,16 +340,58 @@ export async function load({ url }) {
 }
 
 export const actions = {
-	createOrganization: async ({ request }) => {
+	login: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
-			const payload = await mutate("/api/v1/org-admin/organizations", organizationInput(form));
+			const payload = await fetchJSON("/api/v1/auth/login", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+				},
+				body: JSON.stringify({
+					email: value(form, "email"),
+					password: value(form, "password"),
+				}),
+			});
+			cookies.set(SESSION_COOKIE, payload.data.token, {
+				path: "/",
+				httpOnly: true,
+				sameSite: "lax",
+				secure: env.NODE_ENV === "production",
+				expires: new Date(payload.data.expires_at),
+			});
+			return { ok: true, action: "login" };
+		} catch (error) {
+			return actionError(error);
+		}
+	},
+	logout: async ({ cookies }) => {
+		const token = cookies.get(SESSION_COOKIE);
+		if (token) {
+			try {
+				await fetchJSON("/api/v1/auth/logout", {
+					method: "POST",
+					headers: {
+						authorization: `Bearer ${token}`,
+					},
+				});
+			} catch {
+				// Local cookie cleanup should still happen if the API session is already gone.
+			}
+		}
+		cookies.delete(SESSION_COOKIE, { path: "/" });
+		throw redirect(303, "/admin");
+	},
+	createOrganization: async ({ request, cookies }) => {
+		try {
+			const form = await request.formData();
+			const payload = await mutate("/api/v1/org-admin/organizations", organizationInput(form), "POST", cookies);
 			return { ok: true, action: "createOrganization", item: payload.data };
 		} catch (error) {
 			return actionError(error);
 		}
 	},
-	updateOrganization: async ({ request }) => {
+	updateOrganization: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
 			const slug = value(form, "current_slug");
@@ -328,45 +399,52 @@ export const actions = {
 				`/api/v1/org-admin/organizations/${encodeURIComponent(slug)}`,
 				organizationInput(form),
 				"PATCH",
+				cookies,
 			);
 			return { ok: true, action: "updateOrganization", item: payload.data };
 		} catch (error) {
 			return actionError(error);
 		}
 	},
-	createMember: async ({ request }) => {
+	createMember: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
 			const slug = value(form, "organization_slug");
 			const payload = await mutate(
 				`/api/v1/org-admin/organizations/${encodeURIComponent(slug)}/members`,
 				memberInput(form),
+				"POST",
+				cookies,
 			);
 			return { ok: true, action: "createMember", item: payload.data };
 		} catch (error) {
 			return actionError(error);
 		}
 	},
-	createPost: async ({ request }) => {
+	createPost: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
 			const organizationSlug = value(form, "organization_slug");
 			const payload = await mutate(
 				`/api/v1/org-admin/posts?organization_slug=${encodeURIComponent(organizationSlug)}`,
 				postInput(form),
+				"POST",
+				cookies,
 			);
 			return { ok: true, action: "createPost", item: payload.data };
 		} catch (error) {
 			return actionError(error);
 		}
 	},
-	createImpactReport: async ({ request }) => {
+	createImpactReport: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
 			const organizationSlug = value(form, "organization_slug");
 			const payload = await mutate(
 				`/api/v1/org-admin/impact-reports?organization_slug=${encodeURIComponent(organizationSlug)}`,
 				impactInput(form),
+				"POST",
+				cookies,
 			);
 			return { ok: true, action: "createImpactReport", item: payload.data };
 		} catch (error) {
@@ -383,21 +461,41 @@ export const actions = {
 			return actionError(error);
 		}
 	},
-	publishPost: async ({ request }) => {
+	approveClaim: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
-			const payload = await mutate(`/api/v1/org-admin/posts/${encodeURIComponent(value(form, "id"))}/publish`, {});
+			const payload = await mutate(`/api/v1/org-admin/claims/${encodeURIComponent(value(form, "id"))}/approve`, {}, "POST", cookies);
+			return { ok: true, action: "approveClaim", item: payload.data };
+		} catch (error) {
+			return actionError(error);
+		}
+	},
+	rejectClaim: async ({ request, cookies }) => {
+		try {
+			const form = await request.formData();
+			const payload = await mutate(`/api/v1/org-admin/claims/${encodeURIComponent(value(form, "id"))}/reject`, {}, "POST", cookies);
+			return { ok: true, action: "rejectClaim", item: payload.data };
+		} catch (error) {
+			return actionError(error);
+		}
+	},
+	publishPost: async ({ request, cookies }) => {
+		try {
+			const form = await request.formData();
+			const payload = await mutate(`/api/v1/org-admin/posts/${encodeURIComponent(value(form, "id"))}/publish`, {}, "POST", cookies);
 			return { ok: true, action: "publishPost", item: payload.data };
 		} catch (error) {
 			return actionError(error);
 		}
 	},
-	publishImpactReport: async ({ request }) => {
+	publishImpactReport: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
 			const payload = await mutate(
 				`/api/v1/org-admin/impact-reports/${encodeURIComponent(value(form, "id"))}/publish`,
 				{},
+				"POST",
+				cookies,
 			);
 			return { ok: true, action: "publishImpactReport", item: payload.data };
 		} catch (error) {
