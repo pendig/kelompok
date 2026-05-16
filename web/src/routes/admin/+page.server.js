@@ -1,6 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
-import { fetchJSON } from "../../lib/api.js";
+import { APIError, fetchJSON } from "../../lib/api.js";
 
 const ADMIN_API_KEY = `${env.KELOMPOK_ADMIN_API_KEY || ""}`.trim();
 const SESSION_COOKIE = "kelompok_session";
@@ -202,8 +202,10 @@ async function loadSession(cookies) {
 			},
 		});
 		return payload.data ?? null;
-	} catch {
-		cookies.delete(SESSION_COOKIE, { path: "/" });
+	} catch (error) {
+		if (error instanceof APIError && (error.status === 401 || error.status === 403)) {
+			cookies.delete(SESSION_COOKIE, { path: "/" });
+		}
 		return null;
 	}
 }
