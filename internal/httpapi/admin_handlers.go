@@ -94,6 +94,10 @@ func (s *Server) handleUpdateAdminOrganization(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleListOrganizationClaims(w http.ResponseWriter, r *http.Request) {
+	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
+		return
+	}
+
 	limit := limitFromRequest(r, 20, 100)
 	items, err := s.organizations.ListClaimsByOrganizationSlug(r.Context(), r.PathValue("slug"), limit)
 	if err != nil {

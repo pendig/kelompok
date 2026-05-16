@@ -93,7 +93,10 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Post, error)
 		return Post{}, err
 	}
 
-	publishedAt := normalizedPublishedAt(input.Status, input.PublishedAt)
+	var publishedAt any
+	if input.PublishedAt != nil {
+		publishedAt = input.PublishedAt
+	}
 
 	row := r.db.QueryRow(ctx, `
 		WITH inserted AS (
@@ -177,7 +180,7 @@ func (r *Repository) UpdateByID(ctx context.Context, id string, input AdminInput
 				status = $8,
 				post_data = $9::jsonb,
 				seo_data = $10::jsonb,
-				published_at = $11,
+				published_at = COALESCE($11, published_at),
 				updated_at = now()
 			WHERE id = $1
 			RETURNING *

@@ -350,7 +350,11 @@ export const actions = {
 	createPost: async ({ request }) => {
 		try {
 			const form = await request.formData();
-			const payload = await mutate("/api/v1/org-admin/posts", postInput(form));
+			const organizationSlug = value(form, "organization_slug");
+			const payload = await mutate(
+				`/api/v1/org-admin/posts?organization_slug=${encodeURIComponent(organizationSlug)}`,
+				postInput(form),
+			);
 			return { ok: true, action: "createPost", item: payload.data };
 		} catch (error) {
 			return actionError(error);
@@ -359,7 +363,11 @@ export const actions = {
 	createImpactReport: async ({ request }) => {
 		try {
 			const form = await request.formData();
-			const payload = await mutate("/api/v1/org-admin/impact-reports", impactInput(form));
+			const organizationSlug = value(form, "organization_slug");
+			const payload = await mutate(
+				`/api/v1/org-admin/impact-reports?organization_slug=${encodeURIComponent(organizationSlug)}`,
+				impactInput(form),
+			);
 			return { ok: true, action: "createImpactReport", item: payload.data };
 		} catch (error) {
 			return actionError(error);

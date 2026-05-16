@@ -62,7 +62,7 @@ func (s *Server) authorizedAdminOrganization(r *http.Request) bool {
 		slug = strings.ToLower(strings.TrimSpace(r.URL.Query().Get("organization_slug")))
 	}
 	if slug == "" {
-		return true
+		return false
 	}
 
 	for _, allowed := range s.config.AdminOrganizationSlugs {

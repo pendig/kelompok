@@ -68,3 +68,20 @@ func TestOrgAdminOrganizationScopeRejectsUnlistedSlug(t *testing.T) {
 		t.Fatalf("missing stable organization scope error: %s", recorder.Body.String())
 	}
 }
+
+func TestOrgAdminOrganizationScopeRejectsGlobalRoutes(t *testing.T) {
+	server := New(config.Config{
+		APIAddr:                ":0",
+		AdminAPIKey:            "test-secret",
+		AdminOrganizationSlugs: []string{"allowed-org"},
+	}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/org-admin/posts", nil)
+	request.Header.Set("X-Kelompok-Admin-Key", "test-secret")
+	recorder := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	}
+}

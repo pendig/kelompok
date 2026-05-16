@@ -212,10 +212,10 @@ func publicJSONObject(raw json.RawMessage, fallback string, allowed map[string]s
 		if _, ok := allowed[key]; !ok {
 			continue
 		}
-		if isSensitivePublicKey(key) {
+		if isSensitivePublicKey(key, "") {
 			continue
 		}
-		cleaned, ok := cleanPublicJSONValue(value)
+		cleaned, ok := cleanPublicJSONValue(value, key)
 		if ok {
 			filtered[key] = cleaned
 		}
@@ -230,7 +230,7 @@ func publicJSON(raw json.RawMessage, fallback string) json.RawMessage {
 		return json.RawMessage(fallback)
 	}
 
-	cleaned, ok := cleanPublicJSONValue(data)
+	cleaned, ok := cleanPublicJSONValue(data, "")
 	if !ok {
 		return json.RawMessage(fallback)
 	}
@@ -238,7 +238,7 @@ func publicJSON(raw json.RawMessage, fallback string) json.RawMessage {
 	return marshalPublicJSON(cleaned, fallback)
 }
 
-func cleanPublicJSONValue(value any) (any, bool) {
+func cleanPublicJSONValue(value any, parentKey string) (any, bool) {
 	switch typed := value.(type) {
 	case nil:
 		return nil, true
@@ -247,7 +247,7 @@ func cleanPublicJSONValue(value any) (any, bool) {
 	case []any:
 		cleaned := make([]any, 0, len(typed))
 		for _, item := range typed {
-			cleanedItem, ok := cleanPublicJSONValue(item)
+			cleanedItem, ok := cleanPublicJSONValue(item, parentKey)
 			if ok {
 				cleaned = append(cleaned, cleanedItem)
 			}
@@ -256,10 +256,10 @@ func cleanPublicJSONValue(value any) (any, bool) {
 	case map[string]any:
 		cleaned := make(map[string]any, len(typed))
 		for key, value := range typed {
-			if isSensitivePublicKey(key) {
+			if isSensitivePublicKey(key, parentKey) {
 				continue
 			}
-			cleanedValue, ok := cleanPublicJSONValue(value)
+			cleanedValue, ok := cleanPublicJSONValue(value, key)
 			if ok {
 				cleaned[key] = cleanedValue
 			}
@@ -278,8 +278,13 @@ func marshalPublicJSON(value any, fallback string) json.RawMessage {
 	return json.RawMessage(encoded)
 }
 
-func isSensitivePublicKey(key string) bool {
+func isSensitivePublicKey(key, parentKey string) bool {
 	normalized := strings.NewReplacer("_", "", "-", "", " ", "").Replace(strings.ToLower(key))
+	parent := strings.NewReplacer("_", "", "-", "", " ", "").Replace(strings.ToLower(parentKey))
+	if parent == "publiccontact" && (normalized == "email" || normalized == "phone") {
+		return false
+	}
+
 	sensitiveFragments := []string{
 		"apikey",
 		"auth",

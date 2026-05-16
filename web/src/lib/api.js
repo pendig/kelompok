@@ -1,6 +1,16 @@
 const DEFAULT_API_BASE_URL = "http://localhost:4621";
 const DEFAULT_FETCH_TIMEOUT_MS = 3500;
 
+export class APIError extends Error {
+	constructor(message, { status, code, details } = {}) {
+		super(message);
+		this.name = "APIError";
+		this.status = status;
+		this.code = code;
+		this.details = details;
+	}
+}
+
 function normalize(path) {
 	if (!path.startsWith("/")) {
 		return `/${path}`;
@@ -25,8 +35,12 @@ async function readResponse(response) {
 
 	const payload = await response.json();
 	if (!response.ok) {
-		const details = payload?.error ? `${payload.error.code}: ${payload.error.message}` : `HTTP ${response.status}`;
-		throw new Error(details);
+		const details = payload?.error;
+		throw new APIError(details ? `${details.code}: ${details.message}` : `HTTP ${response.status}`, {
+			status: response.status,
+			code: details?.code,
+			details: details?.details,
+		});
 	}
 
 	return payload;

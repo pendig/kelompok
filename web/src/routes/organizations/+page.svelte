@@ -10,6 +10,10 @@
 
 		return org.city || org.country || $t("organizationsPage.unknownLocation");
 	}
+
+	function organizationPath(org) {
+		return `/organizations/${encodeURIComponent(org.slug)}`;
+	}
 </script>
 
 <section class="page-heading">
@@ -28,7 +32,7 @@
 	<div class="grid">
 		{#each data.organizations as org}
 			<article class="card">
-				<h3><a href={`/organizations/${org.slug}`}>{org.name}</a></h3>
+				<h3><a href={organizationPath(org)}>{org.name}</a></h3>
 				<p class="small">{org.description || $t("organizationsPage.noDescription")}</p>
 				<p class="small muted">{formatLocation(org)}</p>
 			</article>
