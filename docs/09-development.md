@@ -124,7 +124,7 @@ http://localhost:4622
 If you run API on another host/port, change `VITE_API_BASE_URL` accordingly.
 
 The `/admin` route is the current alpha CRM workspace. It can create and edit organization profiles, create member records, submit claim requests, create posts, and create impact reports through the local API. Treat it as a controlled development interface until full user login, claim ownership verification, and organization roles are added.
-It reads `KELOMPOK_ADMIN_API_KEY` on the server side and sends it to the API as `X-Kelompok-Admin-Key`.
+It can use a login session from `/api/v1/auth/login`. For controlled self-hosted operations, it can also read `KELOMPOK_ADMIN_API_KEY` on the server side and send it to the API as `X-Kelompok-Admin-Key`.
 
 ## API
 
@@ -175,11 +175,18 @@ Public responses are intentionally smaller than the database rows. The API does 
 Alpha admin endpoints:
 
 ```text
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+POST /api/v1/auth/logout
+GET /api/v1/auth/me
 GET /api/v1/org-admin/organizations
 POST /api/v1/org-admin/organizations
 GET /api/v1/org-admin/organizations/{slug}
 PATCH /api/v1/org-admin/organizations/{slug}
 GET /api/v1/org-admin/organizations/{slug}/claims
+POST /api/v1/org-admin/claims/{id}/approve
+POST /api/v1/org-admin/claims/{id}/reject
+GET /api/v1/org-admin/organizations/{slug}/audit-logs
 GET /api/v1/org-admin/organizations/{slug}/members
 POST /api/v1/org-admin/organizations/{slug}/members
 PATCH /api/v1/org-admin/members/{id}
@@ -196,9 +203,9 @@ POST /api/v1/org-admin/impact-reports/{id}/publish
 POST /api/v1/org-admin/impact-reports/{id}/archive
 ```
 
-Do not publish the alpha admin API directly to the internet without setting `KELOMPOK_ADMIN_API_KEY`. For shared environments, also set `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` or place the API behind a stronger auth proxy until full user login is implemented.
+Do not publish the alpha admin API directly to the internet without either user sessions or `KELOMPOK_ADMIN_API_KEY`. For shared environments, prefer user sessions and organization roles. If the fallback key is enabled, also set `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` or place the API behind a stronger auth proxy.
 
-When `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` is set, scoped keys must use organization-scoped routes or include a matching `organization_slug` where supported. Global admin list routes are blocked for scoped keys to avoid cross-organization data leakage.
+When `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` is set, scoped keys must use organization-scoped routes or include a matching `organization_slug` where supported. Global admin list routes are blocked for scoped keys to avoid cross-organization data leakage. Non-superadmin user sessions are also required to use organization-scoped admin routes.
 
 ## Alpha Verification
 
@@ -244,6 +251,10 @@ go run ./cmd/kelompok migrate
 go run ./cmd/kelompok seed demo
 go run ./cmd/kelompok db ping
 go run ./cmd/kelompok db migrate
+go run ./cmd/kelompok org list --json
+go run ./cmd/kelompok org create --name "Green Foundation" --slug green-foundation
+go run ./cmd/kelompok member list --organization green-foundation --json
+go run ./cmd/kelompok member create --organization green-foundation --name "Aisha" --position "Chair"
 ```
 
 Future commands should preserve automation-friendly output and add `--json` where structured responses are needed.

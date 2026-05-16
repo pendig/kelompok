@@ -2,11 +2,13 @@
 	import { fallbackDate } from "../../../lib/api.js";
 	import { locale, t } from "$lib/i18n.js";
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	let org = $derived(data.organization);
 	let profile = $derived(org?.profile_data || {});
 	let sdgs = $derived(org?.sdgs_data || {});
+	let claimSubmitted = $derived(form?.ok && form?.action === "submitClaim");
+	let claimError = $derived(!form?.ok && form?.action === "submitClaim" ? form.error : "");
 
 	function organizationPath(path = "") {
 		return `/organizations/${encodeURIComponent(org.slug)}${path}`;
@@ -54,6 +56,48 @@
 			})
 			.filter((item) => item.value);
 	}
+
+	function firstContactValue(kind) {
+		const contact = profile.public_contact;
+
+		if (!contact) {
+			return "";
+		}
+
+		if (!kind && typeof contact === "string") {
+			return contact;
+		}
+
+		if (!Array.isArray(contact) && typeof contact === "object") {
+			const direct = contact[kind];
+			if (typeof direct === "string") {
+				return direct;
+			}
+			if (direct && typeof direct === "object") {
+				return direct.value || direct.url || direct.email || direct.phone || "";
+			}
+		}
+
+		if (Array.isArray(contact)) {
+			const match = contact.find((item) => {
+				if (typeof item === "string") {
+					return !kind || item.includes("@");
+				}
+				return item.type === kind || item.label === kind || item[kind];
+			});
+
+			if (typeof match === "string") {
+				return match;
+			}
+			return match?.value || match?.url || match?.email || match?.phone || "";
+		}
+
+		return "";
+	}
+
+	function claimTargetDefault() {
+		return firstContactValue("email") || firstContactValue("");
+	}
 </script>
 
 <nav class="breadcrumbs">
@@ -97,6 +141,44 @@
 		{/if}
 	</section>
 </header>
+
+{#if org.claim_status !== "claimed"}
+	<section class="claim-card">
+		<div class="claim-copy">
+			<p class="eyebrow">{$t("organizationDetail.claimEyebrow")}</p>
+			<h2>{$t("organizationDetail.claimTitle")}</h2>
+			<p>{$t("organizationDetail.claimDescription")}</p>
+			{#if claimSubmitted}
+				<p class="success">{$t("organizationDetail.claimSubmitted")}</p>
+			{/if}
+			{#if claimError}
+				<p class="error compact">{$t("organizationDetail.claimError", { message: claimError })}</p>
+			{/if}
+		</div>
+		<form class="claim-form" method="POST" action="?/submitClaim">
+			<label>
+				{$t("organizationDetail.claimMethod")}
+				<select name="method">
+					<option value="official_email">{$t("organizationDetail.claimMethodEmail")}</option>
+					<option value="instagram">{$t("organizationDetail.claimMethodInstagram")}</option>
+				</select>
+			</label>
+			<label>
+				{$t("organizationDetail.claimTarget")}
+				<input name="target" value={claimTargetDefault()} placeholder="admin@example.org" required />
+			</label>
+			<label>
+				{$t("organizationDetail.claimRequesterEmail")}
+				<input name="requester_email" type="email" placeholder="you@example.org" required />
+			</label>
+			<label>
+				{$t("organizationDetail.claimEvidence")}
+				<textarea name="evidence_note" rows="3" placeholder={$t("organizationDetail.claimEvidencePlaceholder")}></textarea>
+			</label>
+			<button class="btn primary" type="submit">{$t("organizationDetail.claimSubmit")}</button>
+		</form>
+	</section>
+{/if}
 
 <section>
 	<div class="actions">

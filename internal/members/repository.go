@@ -208,7 +208,10 @@ func (r *Repository) Create(ctx context.Context, organizationSlug string, input 
 
 	item, err := scanMember(row)
 	if err == nil {
-		_ = audit.Record(ctx, r.db, nil, "member", item.ID, "create", nil, item, map[string]any{"organization_slug": organizationSlug})
+		_ = audit.Record(ctx, r.db, nil, "member", item.ID, "create", nil, item, map[string]any{
+			"organization_id":   item.OrganizationID,
+			"organization_slug": organizationSlug,
+		})
 	}
 	return item, err
 }
@@ -259,7 +262,10 @@ func (r *Repository) UpdateByID(ctx context.Context, id string, input Input) (Me
 		return Member{}, ErrNotFound
 	}
 	if err == nil {
-		_ = audit.Record(ctx, r.db, nil, "member", item.ID, "update", nil, item, nil)
+		_ = audit.Record(ctx, r.db, nil, "member", item.ID, "update", nil, item, map[string]any{
+			"organization_id":   item.OrganizationID,
+			"organization_slug": item.OrganizationSlug,
+		})
 	}
 	return item, err
 }
@@ -278,7 +284,10 @@ func (r *Repository) DeleteByID(ctx context.Context, id string) error {
 		return ErrNotFound
 	}
 
-	_ = audit.Record(ctx, r.db, nil, "member", item.ID, "delete", item, nil, nil)
+	_ = audit.Record(ctx, r.db, nil, "member", item.ID, "delete", item, nil, map[string]any{
+		"organization_id":   item.OrganizationID,
+		"organization_slug": item.OrganizationSlug,
+	})
 	return nil
 }
 

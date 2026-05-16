@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pendig/kelompok/internal/audit"
+	"github.com/pendig/kelompok/internal/auth"
 	"github.com/pendig/kelompok/internal/config"
 	"github.com/pendig/kelompok/internal/database"
 	"github.com/pendig/kelompok/internal/impact"
@@ -21,6 +23,8 @@ type Server struct {
 	config        config.Config
 	db            *pgxpool.Pool
 	mux           *http.ServeMux
+	audit         *audit.Repository
+	auth          *auth.Repository
 	organizations *organizations.Repository
 	posts         *posts.Repository
 	impact        *impact.Repository
@@ -32,6 +36,8 @@ func New(config config.Config, db *pgxpool.Pool) *Server {
 		config:        config,
 		db:            db,
 		mux:           http.NewServeMux(),
+		audit:         audit.NewRepository(db),
+		auth:          auth.NewRepository(db),
 		organizations: organizations.NewRepository(db),
 		posts:         posts.NewRepository(db),
 		impact:        impact.NewRepository(db),
@@ -69,11 +75,19 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/posts", s.handleListPosts)
 	s.mux.HandleFunc("GET /api/v1/posts/{slug}", s.handleGetPost)
 
+	s.mux.HandleFunc("POST /api/v1/auth/register", s.handleRegister)
+	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
+	s.mux.HandleFunc("POST /api/v1/auth/logout", s.requireSession(s.handleLogout))
+	s.mux.HandleFunc("GET /api/v1/auth/me", s.requireSession(s.handleMe))
+
 	s.mux.HandleFunc("GET /api/v1/org-admin/organizations", s.requireAdmin(s.handleListAdminOrganizations))
 	s.mux.HandleFunc("POST /api/v1/org-admin/organizations", s.requireAdmin(s.handleCreateAdminOrganization))
 	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}", s.requireAdmin(s.handleGetAdminOrganization))
 	s.mux.HandleFunc("PATCH /api/v1/org-admin/organizations/{slug}", s.requireAdmin(s.handleUpdateAdminOrganization))
 	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/claims", s.requireAdmin(s.handleListOrganizationClaims))
+	s.mux.HandleFunc("POST /api/v1/org-admin/claims/{id}/approve", s.requireAdmin(s.handleApproveOrganizationClaim))
+	s.mux.HandleFunc("POST /api/v1/org-admin/claims/{id}/reject", s.requireAdmin(s.handleRejectOrganizationClaim))
+	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/audit-logs", s.requireAdmin(s.handleListOrganizationAuditLogs))
 	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/members", s.requireAdmin(s.handleListOrganizationMembers))
 	s.mux.HandleFunc("POST /api/v1/org-admin/organizations/{slug}/members", s.requireAdmin(s.handleCreateOrganizationMember))
 	s.mux.HandleFunc("PATCH /api/v1/org-admin/members/{id}", s.requireAdmin(s.handleUpdateAdminMember))

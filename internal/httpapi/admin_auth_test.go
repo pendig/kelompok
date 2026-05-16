@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/pendig/kelompok/internal/auth"
 	"github.com/pendig/kelompok/internal/config"
 )
 
@@ -83,5 +85,22 @@ func TestOrgAdminOrganizationScopeRejectsGlobalRoutes(t *testing.T) {
 
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	}
+}
+
+func TestOrgAdminListScopeAllowsSuperadminSessionWithScopedAdminKey(t *testing.T) {
+	server := New(config.Config{
+		APIAddr:                ":0",
+		AdminAPIKey:            "test-secret",
+		AdminOrganizationSlugs: []string{"allowed-org"},
+	}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/org-admin/posts", nil)
+	request = request.WithContext(context.WithValue(request.Context(), principalContextKey, principal{
+		User: auth.User{ID: "user-1", Role: "superadmin"},
+	}))
+	recorder := httptest.NewRecorder()
+
+	if !server.ensureAdminListScope(recorder, request, "") {
+		t.Fatalf("expected superadmin session to bypass scoped admin-key global list restriction: %s", recorder.Body.String())
 	}
 }

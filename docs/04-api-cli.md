@@ -136,6 +136,9 @@ POST /api/v1/org-admin/organizations
 GET /api/v1/org-admin/organizations/{slug}
 PATCH /api/v1/org-admin/organizations/{slug}
 GET /api/v1/org-admin/organizations/{slug}/claims
+POST /api/v1/org-admin/claims/{id}/approve
+POST /api/v1/org-admin/claims/{id}/reject
+GET /api/v1/org-admin/organizations/{slug}/audit-logs
 GET /api/v1/org-admin/organizations/{slug}/members
 POST /api/v1/org-admin/organizations/{slug}/members
 PATCH /api/v1/org-admin/members/{id}
@@ -157,9 +160,11 @@ POST /api/v1/org-admin/posts/{id}/publish
 POST /api/v1/org-admin/posts/{id}/archive
 ```
 
-The current alpha admin endpoints require `KELOMPOK_ADMIN_API_KEY`, provided as either `X-Kelompok-Admin-Key` or `Authorization: Bearer <key>`. `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` can restrict access to specific organizations. Scoped keys must use organization-scoped routes or provide a matching `organization_slug` where supported; global list routes are blocked for scoped keys unless a valid `organization_slug` is provided.
+The current alpha admin endpoints accept either a real user session from `POST /api/v1/auth/login` or the operations fallback `KELOMPOK_ADMIN_API_KEY`, provided as `X-Kelompok-Admin-Key`.
 
-This key gate is intentionally small and self-hosting friendly. Before broad public hosting, replace the static alpha key with user login, claim ownership, and organization-level role checks.
+`KELOMPOK_ADMIN_ORGANIZATION_SLUGS` can restrict fallback key access to specific organizations. Scoped keys must use organization-scoped routes or provide a matching `organization_slug` where supported; global list routes are blocked for scoped keys unless a valid `organization_slug` is provided. User sessions are checked against organization roles, and non-superadmin users must use organization-scoped routes.
+
+The static key gate remains intentionally small and self-hosting friendly. Prefer user login and organization roles for normal admin UI workflows.
 
 Event management:
 
@@ -221,6 +226,8 @@ kelompok seed demo
 Organization data:
 
 ```text
+kelompok org list --json
+kelompok org create --name "Green Foundation" --slug green-foundation --official-email hello@example.org
 kelompok org import --file organizations.csv
 kelompok org search "climate foundation"
 kelompok org show {slug} --json
@@ -231,6 +238,8 @@ kelompok org export --format json
 Members:
 
 ```text
+kelompok member list --organization {slug} --json
+kelompok member create --organization {slug} --name "Aisha" --position "Chair"
 kelompok member import --file members.csv --organization {slug}
 kelompok member export --organization {slug} --format json
 ```

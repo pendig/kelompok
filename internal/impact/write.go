@@ -191,7 +191,10 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Report, erro
 
 	item, err := scanReport(row)
 	if err == nil {
-		_ = audit.Record(ctx, r.db, nil, "impact_report", item.ID, "create", nil, item, map[string]any{"organization_slug": input.OrganizationSlug})
+		_ = audit.Record(ctx, r.db, nil, "impact_report", item.ID, "create", nil, item, map[string]any{
+			"organization_id":   item.OrganizationID,
+			"organization_slug": item.OrganizationSlug,
+		})
 	}
 	return item, err
 }
@@ -259,7 +262,10 @@ func (r *Repository) UpdateByID(ctx context.Context, id string, input AdminInput
 		return Report{}, ErrNotFound
 	}
 	if err == nil {
-		_ = audit.Record(ctx, r.db, nil, "impact_report", item.ID, "update", nil, item, nil)
+		_ = audit.Record(ctx, r.db, nil, "impact_report", item.ID, "update", nil, item, map[string]any{
+			"organization_id":   item.OrganizationID,
+			"organization_slug": item.OrganizationSlug,
+		})
 	}
 	return item, err
 }
@@ -317,7 +323,11 @@ func (r *Repository) setStatusByID(ctx context.Context, id, status string, setPu
 		return Report{}, ErrNotFound
 	}
 	if err == nil {
-		_ = audit.Record(ctx, r.db, nil, "impact_report", item.ID, "update_status", nil, item, map[string]any{"status": status})
+		_ = audit.Record(ctx, r.db, nil, "impact_report", item.ID, "update_status", nil, item, map[string]any{
+			"organization_id":   item.OrganizationID,
+			"organization_slug": item.OrganizationSlug,
+			"status":            status,
+		})
 	}
 	return item, err
 }
