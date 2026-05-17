@@ -1,16 +1,24 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
 import { fetchJSON } from "../../lib/api.js";
-import { loadSession, loginWithPassword, logoutSession, SESSION_COOKIE } from "$lib/server/session.js";
+import {
+	loadSession,
+	loginWithPassword,
+	logoutSession,
+	SESSION_COOKIE,
+	SESSION_UNVERIFIED_COOKIE,
+} from "$lib/server/session.js";
 
 const ADMIN_API_KEY = `${env.KELOMPOK_ADMIN_API_KEY || ""}`.trim();
 
 function adminHeaders(cookies, headers = {}) {
 	const sessionToken = cookies?.get(SESSION_COOKIE) || "";
+	const sessionUnverified = cookies?.get(SESSION_UNVERIFIED_COOKIE) === "1";
+	const useSessionToken = sessionToken && !sessionUnverified;
 	return {
 		...headers,
-		...(sessionToken ? { authorization: `Bearer ${sessionToken}` } : {}),
-		...(!sessionToken && ADMIN_API_KEY ? { "x-kelompok-admin-key": ADMIN_API_KEY } : {}),
+		...(useSessionToken ? { authorization: `Bearer ${sessionToken}` } : {}),
+		...(!useSessionToken && ADMIN_API_KEY ? { "x-kelompok-admin-key": ADMIN_API_KEY } : {}),
 	};
 }
 

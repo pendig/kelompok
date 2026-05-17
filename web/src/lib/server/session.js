@@ -2,6 +2,7 @@ import { env } from "$env/dynamic/private";
 import { APIError, fetchJSON } from "$lib/api.js";
 
 export const SESSION_COOKIE = "kelompok_session";
+export const SESSION_UNVERIFIED_COOKIE = "kelompok_session_unverified";
 
 export function sessionCookieOptions(expiresAt) {
 	return {
@@ -13,9 +14,20 @@ export function sessionCookieOptions(expiresAt) {
 	};
 }
 
+function transientSessionCookieOptions() {
+	return {
+		path: "/",
+		httpOnly: true,
+		sameSite: "lax",
+		secure: env.NODE_ENV === "production",
+		maxAge: 300,
+	};
+}
+
 export async function loadSession(cookies) {
 	const token = cookies.get(SESSION_COOKIE);
 	if (!token) {
+		cookies.delete(SESSION_UNVERIFIED_COOKIE, { path: "/" });
 		return null;
 	}
 
@@ -25,10 +37,14 @@ export async function loadSession(cookies) {
 				authorization: `Bearer ${token}`,
 			},
 		});
+		cookies.delete(SESSION_UNVERIFIED_COOKIE, { path: "/" });
 		return payload.data ?? null;
 	} catch (error) {
 		if (error instanceof APIError && (error.status === 401 || error.status === 403)) {
 			cookies.delete(SESSION_COOKIE, { path: "/" });
+			cookies.delete(SESSION_UNVERIFIED_COOKIE, { path: "/" });
+		} else {
+			cookies.set(SESSION_UNVERIFIED_COOKIE, "1", transientSessionCookieOptions());
 		}
 		return null;
 	}
@@ -42,8 +58,14 @@ export async function loginWithPassword(cookies, email, password) {
 		},
 		body: JSON.stringify({ email, password }),
 	});
-	cookies.set(SESSION_COOKIE, payload.data.token, sessionCookieOptions(payload.data.expires_at));
-	return payload.data;
+	const session = payload?.data;
+	if (!session?.token || !session?.expires_at) {
+		throw new Error("Login response is missing session data");
+	}
+
+	cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expires_at));
+	cookies.delete(SESSION_UNVERIFIED_COOKIE, { path: "/" });
+	return session;
 }
 
 export async function logoutSession(cookies) {
@@ -61,4 +83,5 @@ export async function logoutSession(cookies) {
 		}
 	}
 	cookies.delete(SESSION_COOKIE, { path: "/" });
+	cookies.delete(SESSION_UNVERIFIED_COOKIE, { path: "/" });
 }

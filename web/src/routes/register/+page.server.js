@@ -26,8 +26,15 @@ export const actions = {
 	default: async ({ request, cookies }) => {
 		try {
 			const form = await request.formData();
+			const name = value(form, "name");
 			const email = value(form, "email");
 			const password = value(form, "password");
+			if (!name) {
+				return fail(400, {
+					ok: false,
+					error: "name is required",
+				});
+			}
 
 			await fetchJSON("/api/v1/auth/register", {
 				method: "POST",
@@ -35,7 +42,7 @@ export const actions = {
 					"content-type": "application/json",
 				},
 				body: JSON.stringify({
-					name: value(form, "name"),
+					name,
 					email,
 					password,
 				}),

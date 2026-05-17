@@ -19,7 +19,7 @@
 		<form class="auth-form" method="POST">
 			<label>
 				{$t("auth.name")}
-				<input name="name" autocomplete="name" placeholder="Kelompok Admin" />
+				<input name="name" autocomplete="name" placeholder="Kelompok Admin" required />
 			</label>
 			<label>
 				{$t("auth.email")}
