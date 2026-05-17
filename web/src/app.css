@@ -744,6 +744,157 @@ img {
 	border-color: var(--purple-800);
 }
 
+.auth-page {
+	display: grid;
+	grid-template-columns: minmax(320px, 0.72fr) minmax(0, 1fr);
+	gap: 18px;
+	align-items: stretch;
+	padding-top: 36px;
+}
+
+.auth-card,
+.auth-side,
+.account-card,
+.account-role {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface);
+	box-shadow: var(--shadow-sm);
+}
+
+.auth-card {
+	display: grid;
+	gap: 18px;
+	padding: 24px;
+}
+
+.auth-form {
+	display: grid;
+	gap: 12px;
+}
+
+.auth-form label {
+	display: grid;
+	gap: 6px;
+	color: var(--muted);
+	font-size: 13px;
+	font-weight: 750;
+}
+
+.auth-form input {
+	width: 100%;
+	min-height: 44px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: #ffffff;
+	color: var(--text);
+	font: inherit;
+	font-size: 14px;
+	font-weight: 500;
+	padding: 9px 11px;
+	outline: none;
+}
+
+.auth-form input:focus {
+	border-color: var(--purple-600);
+	box-shadow: 0 0 0 3px rgba(111, 53, 191, 0.14);
+}
+
+.auth-form .btn.primary,
+.account-card .btn.primary,
+.account-role .btn.primary {
+	color: #ffffff;
+	background: var(--purple-700);
+	border-color: var(--purple-700);
+}
+
+.auth-form .btn.primary:hover,
+.account-card .btn.primary:hover,
+.account-role .btn.primary:hover {
+	background: var(--purple-800);
+	border-color: var(--purple-800);
+}
+
+.auth-switch {
+	margin: 0;
+	color: var(--muted);
+	font-size: 14px;
+}
+
+.auth-switch a {
+	color: var(--purple-700);
+	font-weight: 800;
+	text-decoration: none;
+}
+
+.auth-side {
+	display: grid;
+	align-content: end;
+	gap: 10px;
+	padding: 24px;
+	color: #ffffff;
+	background:
+		linear-gradient(135deg, rgba(36, 16, 56, 0.98) 0%, rgba(74, 24, 135, 0.98) 58%, rgba(111, 53, 191, 0.98) 100%);
+}
+
+.auth-side .eyebrow {
+	color: rgba(255, 255, 255, 0.78);
+}
+
+.auth-side h2,
+.account-card h2,
+.account-role h3 {
+	margin: 0;
+	line-height: 1.2;
+}
+
+.auth-side p {
+	margin: 0;
+	color: rgba(255, 255, 255, 0.82);
+	line-height: 1.65;
+}
+
+.account-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.account-card,
+.account-role {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 18px;
+}
+
+.account-card {
+	min-height: 180px;
+	flex-direction: column;
+}
+
+.account-card .mini-badge {
+	width: fit-content;
+	margin-top: 12px;
+}
+
+.account-role-list {
+	display: grid;
+	gap: 12px;
+	margin-top: 14px;
+}
+
+.account-empty {
+	display: grid;
+	gap: 10px;
+	margin-top: 14px;
+}
+
+.account-empty p {
+	margin: 0;
+}
+
 .callout {
 	margin-top: 36px;
 	padding: 22px;
@@ -1088,6 +1239,8 @@ button.btn,
 	.content-grid,
 	.two-col,
 	.claim-card,
+	.auth-page,
+	.account-grid,
 	.admin-grid,
 	.admin-workspace,
 	.admin-panel-grid {
@@ -1147,6 +1300,7 @@ button.btn,
 	.preview-head,
 	.mini-head,
 	.card-top,
+	.account-role,
 	.admin-form-head {
 		align-items: flex-start;
 		flex-direction: column;
