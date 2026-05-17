@@ -74,6 +74,39 @@ Fields:
 - `confidence`
 - `created_at`
 
+### Organization Relationship
+
+Represents parent/child and related-organization graph edges without forcing each organization into one parent column.
+
+Fields:
+
+- `id`
+- `parent_organization_id`
+- `child_organization_id`
+- `relationship_type`
+- `label`
+- `status`
+- `started_at`
+- `ended_at`
+- `metadata jsonb`
+- `created_at`
+- `updated_at`
+
+Relationship types:
+
+- `structural_parent` for formal hierarchy
+- `autonomous_body` for autonomous bodies under a broader movement
+- `affiliated_with` for affiliation without direct management
+- `network_member` for federation or network membership
+- `related` for loose public relationships
+
+Rules:
+
+- Parent and child cannot be the same organization.
+- Duplicate `parent + child + relationship_type` rows are rejected.
+- Relationship metadata is kept out of public responses by default.
+- Relationship records do not grant inherited edit permissions in the first slice.
+
 ### Claim Request
 
 Tracks organization claim attempts.

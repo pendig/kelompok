@@ -53,11 +53,13 @@
 	const socialPlaceholder = '{"instagram":"https://instagram.com/example"}';
 	const evidencePlaceholder = '{"note":"manual claim test"}';
 	const metricsPlaceholder = '{"beneficiaries":120}';
+	const metadataPlaceholder = '{"source":"manual"}';
 
 	const checksTotal = $derived(data.checks?.length ?? 0);
 	const orgSummary = $derived(data.organizations || []);
 	const postSummary = $derived(data.posts || []);
 	const impactSummary = $derived(data.impactReports || []);
+	const relationshipSummary = $derived(data.relationships || []);
 	const selectedOrg = $derived(data.selectedOrganization);
 	const currentUser = $derived(data.session?.user);
 	const selectedProfile = $derived(selectedOrg?.profile_data || {});
@@ -340,11 +342,94 @@
 					<div class="admin-actions">
 						<button class="btn primary" type="submit">{$t("admin.update")}</button>
 					</div>
-				</form>
+					</form>
 
-				<div class="admin-panel-grid">
-					<form class="admin-panel" method="POST" action="?/createMember">
-						<h3>{$t("admin.addMember")}</h3>
+					<div class="admin-panel-grid">
+						<form class="admin-panel" method="POST" action="?/createRelationship">
+							<h3>{$t("admin.relationshipEditor")}</h3>
+							<div class="admin-field-grid two">
+								<label>
+									<span>{$t("admin.parentOrganization")}</span>
+									<input name="parent_organization_slug" required placeholder="muhammadiyah" />
+								</label>
+								<label>
+									<span>{$t("admin.childOrganization")}</span>
+									<input name="child_organization_slug" required value={selectedOrg.slug} />
+								</label>
+								<label>
+									<span>{$t("admin.relationshipType")}</span>
+									<select name="relationship_type">
+										<option value="structural_parent">structural_parent</option>
+										<option value="autonomous_body">autonomous_body</option>
+										<option value="affiliated_with">affiliated_with</option>
+										<option value="network_member">network_member</option>
+										<option value="related">related</option>
+									</select>
+								</label>
+								<label>
+									<span>{$t("admin.relationshipStatus")}</span>
+									<select name="status">
+										<option value="active">active</option>
+										<option value="pending">pending</option>
+										<option value="inactive">inactive</option>
+										<option value="archived">archived</option>
+									</select>
+								</label>
+								<label>
+									<span>{$t("admin.startedAt")}</span>
+									<input name="started_at" type="date" />
+								</label>
+								<label>
+									<span>{$t("admin.endedAt")}</span>
+									<input name="ended_at" type="date" />
+								</label>
+							</div>
+							<label>
+								<span>{$t("admin.relationshipLabel")}</span>
+								<input name="label" placeholder="Induk struktural" />
+							</label>
+							<label>
+								<span>{$t("admin.metadata")}</span>
+								<textarea name="metadata" rows="2" placeholder={metadataPlaceholder}></textarea>
+							</label>
+							<button class="btn primary" type="submit">{$t("admin.createRelationship")}</button>
+						</form>
+
+						<div class="admin-panel">
+							<h3>{$t("admin.relationships")}</h3>
+							{#if relationshipSummary.length === 0}
+								<p class="empty">{$t("admin.noRelationships")}</p>
+							{:else}
+								<div class="admin-list compact-list">
+									{#each relationshipSummary as relationship}
+										<div class="admin-list-item">
+											<div class="admin-list-item__meta">
+												<p class="label">{relationship.parent.name} → {relationship.child.name}</p>
+												<span class="mini-badge">{relationship.relationship_type}</span>
+											</div>
+											<p class="small">
+												{relationship.parent.slug} → {relationship.child.slug}
+												{#if relationship.label}
+													· {relationship.label}
+												{/if}
+											</p>
+											<div class="inline-actions">
+												<span class="mini-badge">{relationship.status}</span>
+												<form method="POST" action="?/deleteRelationship" class="inline-form">
+													<input type="hidden" name="id" value={relationship.id} />
+													<button class="ghost-button danger" type="submit">{$t("admin.remove")}</button>
+												</form>
+											</div>
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					</div>
+
+					<div class="admin-panel-grid">
+						<form class="admin-panel" method="POST" action="?/createMember">
+							<h3>{$t("admin.addMember")}</h3>
 						<input name="organization_slug" type="hidden" value={selectedOrg.slug} />
 						<div class="admin-field-grid two">
 							<label>

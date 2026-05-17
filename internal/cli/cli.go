@@ -41,6 +41,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return runDB(ctx, args[1:], stdout)
 	case "organization", "org":
 		return runOrganization(ctx, args[1:], stdout, stderr)
+	case "relationship", "rel":
+		return runRelationship(ctx, args[1:], stdout, stderr)
 	case "member":
 		return runMember(ctx, args[1:], stdout, stderr)
 	default:
@@ -107,6 +109,104 @@ func runOrganization(ctx context.Context, args []string, stdout, stderr io.Write
 		})
 	default:
 		return fmt.Errorf("unknown organization subcommand: %s", args[0])
+	}
+}
+
+func runRelationship(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return errors.New("relationship command requires a subcommand")
+	}
+
+	switch args[0] {
+	case "list":
+		flags := flag.NewFlagSet("relationship list", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		organizationSlug := flags.String("organization", "", "organization slug")
+		limit := flags.Int("limit", 50, "maximum number of relationships")
+		jsonOut := flags.Bool("json", false, "print JSON output")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if strings.TrimSpace(*organizationSlug) == "" {
+			return errors.New("relationship list requires --organization")
+		}
+		return withOrganizationRepository(ctx, func(repo *organizations.Repository) error {
+			items, err := repo.ListRelationshipsByOrganizationSlug(ctx, *organizationSlug, *limit)
+			if err != nil {
+				return err
+			}
+			if *jsonOut {
+				return writeJSONOutput(stdout, items)
+			}
+			for _, item := range items {
+				fmt.Fprintf(stdout, "%s\t%s\t%s -> %s\t%s\n", item.ID, item.RelationshipType, item.Parent.Slug, item.Child.Slug, item.Status)
+			}
+			return nil
+		})
+	case "create":
+		flags := flag.NewFlagSet("relationship create", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		input := organizations.RelationshipInput{}
+		flags.StringVar(&input.ParentOrganizationSlug, "parent", "", "parent organization slug")
+		flags.StringVar(&input.ChildOrganizationSlug, "child", "", "child organization slug")
+		flags.StringVar(&input.RelationshipType, "type", "related", "relationship type")
+		flags.StringVar(&input.Label, "label", "", "public relationship label")
+		flags.StringVar(&input.Status, "status", "active", "relationship status")
+		startedAt := flags.String("started-at", "", "relationship start date (YYYY-MM-DD)")
+		endedAt := flags.String("ended-at", "", "relationship end date (YYYY-MM-DD)")
+		metadata := flags.String("metadata", "{}", "metadata JSON")
+		jsonOut := flags.Bool("json", false, "print JSON output")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		var err error
+		input.StartedAt, err = parseOptionalDate(*startedAt)
+		if err != nil {
+			return err
+		}
+		input.EndedAt, err = parseOptionalDate(*endedAt)
+		if err != nil {
+			return err
+		}
+		input.Metadata, err = parseJSONFlag(*metadata, "{}")
+		if err != nil {
+			return err
+		}
+		return withOrganizationRepository(ctx, func(repo *organizations.Repository) error {
+			item, err := repo.CreateRelationship(ctx, input)
+			if err != nil {
+				return err
+			}
+			if *jsonOut {
+				return writeJSONOutput(stdout, item)
+			}
+			fmt.Fprintf(stdout, "relationship: created id=%s parent=%s child=%s type=%s\n", item.ID, item.Parent.Slug, item.Child.Slug, item.RelationshipType)
+			return nil
+		})
+	case "remove", "delete":
+		flags := flag.NewFlagSet("relationship remove", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		id := flags.String("id", "", "relationship id")
+		jsonOut := flags.Bool("json", false, "print JSON output")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if strings.TrimSpace(*id) == "" {
+			return errors.New("relationship remove requires --id")
+		}
+		return withOrganizationRepository(ctx, func(repo *organizations.Repository) error {
+			item, err := repo.DeleteRelationshipByID(ctx, *id)
+			if err != nil {
+				return err
+			}
+			if *jsonOut {
+				return writeJSONOutput(stdout, item)
+			}
+			fmt.Fprintf(stdout, "relationship: removed id=%s parent=%s child=%s type=%s\n", item.ID, item.Parent.Slug, item.Child.Slug, item.RelationshipType)
+			return nil
+		})
+	default:
+		return fmt.Errorf("unknown relationship subcommand: %s", args[0])
 	}
 }
 
@@ -338,6 +438,29 @@ func writeJSONOutput(stdout io.Writer, value any) error {
 	return encoder.Encode(value)
 }
 
+func parseOptionalDate(value string) (*time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return nil, fmt.Errorf("date must use YYYY-MM-DD: %w", err)
+	}
+	return &parsed, nil
+}
+
+func parseJSONFlag(value string, fallback string) (json.RawMessage, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		value = fallback
+	}
+	if !json.Valid([]byte(value)) {
+		return nil, errors.New("metadata must be valid JSON")
+	}
+	return json.RawMessage(value), nil
+}
+
 func printHelp(stdout io.Writer) {
 	fmt.Fprint(stdout, `Kelompok CLI
 
@@ -350,6 +473,9 @@ Usage:
   kelompok db migrate   Apply pending SQL migrations
   kelompok org list      List organizations
   kelompok org create    Create an organization
+  kelompok rel list      List organization relationships
+  kelompok rel create    Create an organization relationship
+  kelompok rel remove    Remove an organization relationship
   kelompok member list   List organization members
   kelompok member create Create an organization member
   kelompok help         Show this help

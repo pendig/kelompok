@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/pendig/kelompok/internal/impact"
 	"github.com/pendig/kelompok/internal/members"
@@ -111,6 +112,140 @@ func (s *Server) handleUpdateAdminOrganization(w http.ResponseWriter, r *http.Re
 	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "organization_update_failed", err.Error(), nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{Data: item, Message: "ok"})
+}
+
+func (s *Server) handleListOrganizationRelationships(w http.ResponseWriter, r *http.Request) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, r.PathValue("slug")) {
+		return
+	}
+	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
+		return
+	}
+
+	limit := limitFromRequest(r, 50, 100)
+	items, err := s.organizations.ListRelationshipsByOrganizationSlug(r.Context(), r.PathValue("slug"), limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "relationships_list_failed", "Failed to list organization relationships", nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Data:    items,
+		Meta:    map[string]any{"count": len(items), "limit": limit},
+		Message: "ok",
+	})
+}
+
+func (s *Server) handleCreateOrganizationRelationship(w http.ResponseWriter, r *http.Request) {
+	var input organizations.RelationshipInput
+	if !decodeJSONBody(w, r, &input) {
+		return
+	}
+	if !s.ensureAdminAnyOrganizationSlugForRequest(w, r, input.ParentOrganizationSlug, input.ChildOrganizationSlug) {
+		return
+	}
+
+	item, err := s.organizations.CreateRelationship(r.Context(), input)
+	if errors.Is(err, organizations.ErrRelationshipOrganizationNotFound) {
+		writeError(w, http.StatusNotFound, "relationship_organization_not_found", "Parent or child organization not found", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrRelationshipDuplicate) {
+		writeError(w, http.StatusConflict, "relationship_duplicate", "Organization relationship already exists", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrRelationshipSelfLink) {
+		writeError(w, http.StatusBadRequest, "relationship_self_link", "Organization cannot be related to itself", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "relationship_create_failed", err.Error(), nil)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, response{Data: item, Message: "ok"})
+}
+
+func (s *Server) handleUpdateOrganizationRelationship(w http.ResponseWriter, r *http.Request) {
+	existing, err := s.organizations.FindRelationshipByID(r.Context(), r.PathValue("id"))
+	if errors.Is(err, organizations.ErrRelationshipNotFound) {
+		writeError(w, http.StatusNotFound, "relationship_not_found", "Organization relationship not found", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "relationship_lookup_failed", err.Error(), nil)
+		return
+	}
+	if !s.ensureAdminAnyOrganizationSlugForRequest(w, r, existing.Parent.Slug, existing.Child.Slug) {
+		return
+	}
+
+	var input organizations.RelationshipInput
+	if !decodeJSONBody(w, r, &input) {
+		return
+	}
+	parentSlug := strings.TrimSpace(input.ParentOrganizationSlug)
+	if parentSlug == "" {
+		parentSlug = existing.Parent.Slug
+	}
+	childSlug := strings.TrimSpace(input.ChildOrganizationSlug)
+	if childSlug == "" {
+		childSlug = existing.Child.Slug
+	}
+	if !s.ensureAdminAnyOrganizationSlugForRequest(w, r, parentSlug, childSlug) {
+		return
+	}
+
+	item, err := s.organizations.UpdateRelationshipByID(r.Context(), r.PathValue("id"), input)
+	if errors.Is(err, organizations.ErrRelationshipOrganizationNotFound) {
+		writeError(w, http.StatusNotFound, "relationship_organization_not_found", "Parent or child organization not found", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrRelationshipDuplicate) {
+		writeError(w, http.StatusConflict, "relationship_duplicate", "Organization relationship already exists", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrRelationshipSelfLink) {
+		writeError(w, http.StatusBadRequest, "relationship_self_link", "Organization cannot be related to itself", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrRelationshipNotFound) {
+		writeError(w, http.StatusNotFound, "relationship_not_found", "Organization relationship not found", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "relationship_update_failed", err.Error(), nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{Data: item, Message: "ok"})
+}
+
+func (s *Server) handleDeleteOrganizationRelationship(w http.ResponseWriter, r *http.Request) {
+	existing, err := s.organizations.FindRelationshipByID(r.Context(), r.PathValue("id"))
+	if errors.Is(err, organizations.ErrRelationshipNotFound) {
+		writeError(w, http.StatusNotFound, "relationship_not_found", "Organization relationship not found", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "relationship_lookup_failed", err.Error(), nil)
+		return
+	}
+	if !s.ensureAdminAnyOrganizationSlugForRequest(w, r, existing.Parent.Slug, existing.Child.Slug) {
+		return
+	}
+
+	item, err := s.organizations.DeleteRelationshipByID(r.Context(), r.PathValue("id"))
+	if errors.Is(err, organizations.ErrRelationshipNotFound) {
+		writeError(w, http.StatusNotFound, "relationship_not_found", "Organization relationship not found", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "relationship_delete_failed", err.Error(), nil)
 		return
 	}
 

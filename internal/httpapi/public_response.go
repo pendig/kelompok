@@ -11,26 +11,40 @@ import (
 )
 
 type publicOrganizationResponse struct {
-	Slug        string          `json:"slug"`
-	Name        string          `json:"name"`
-	LegalName   string          `json:"legal_name,omitempty"`
-	Description string          `json:"description,omitempty"`
-	History     string          `json:"history,omitempty"`
-	Country     string          `json:"country,omitempty"`
-	Region      string          `json:"region,omitempty"`
-	City        string          `json:"city,omitempty"`
-	WebsiteURL  string          `json:"website_url,omitempty"`
-	ClaimStatus string          `json:"claim_status"`
-	ProfileData json.RawMessage `json:"profile_data"`
-	SDGSData    json.RawMessage `json:"sdgs_data"`
-	ImpactData  json.RawMessage `json:"impact_data"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
+	Slug          string                                   `json:"slug"`
+	Name          string                                   `json:"name"`
+	LegalName     string                                   `json:"legal_name,omitempty"`
+	Description   string                                   `json:"description,omitempty"`
+	History       string                                   `json:"history,omitempty"`
+	Country       string                                   `json:"country,omitempty"`
+	Region        string                                   `json:"region,omitempty"`
+	City          string                                   `json:"city,omitempty"`
+	WebsiteURL    string                                   `json:"website_url,omitempty"`
+	ClaimStatus   string                                   `json:"claim_status"`
+	ProfileData   json.RawMessage                          `json:"profile_data"`
+	SDGSData      json.RawMessage                          `json:"sdgs_data"`
+	ImpactData    json.RawMessage                          `json:"impact_data"`
+	Relationships *publicOrganizationRelationshipsResponse `json:"relationships,omitempty"`
+	CreatedAt     time.Time                                `json:"created_at"`
+	UpdatedAt     time.Time                                `json:"updated_at"`
 }
 
 type publicOrganizationRefResponse struct {
 	Slug string `json:"slug"`
 	Name string `json:"name"`
+}
+
+type publicOrganizationRelationshipResponse struct {
+	Organization     publicOrganizationRefResponse `json:"organization"`
+	RelationshipType string                        `json:"relationship_type"`
+	Label            string                        `json:"label,omitempty"`
+	Status           string                        `json:"status"`
+}
+
+type publicOrganizationRelationshipsResponse struct {
+	Parents  []publicOrganizationRelationshipResponse `json:"parents"`
+	Children []publicOrganizationRelationshipResponse `json:"children"`
+	Related  []publicOrganizationRelationshipResponse `json:"related"`
 }
 
 type publicPostResponse struct {
@@ -136,6 +150,59 @@ func publicOrganization(item organizations.Organization) publicOrganizationRespo
 		CreatedAt:   item.CreatedAt,
 		UpdatedAt:   item.UpdatedAt,
 	}
+}
+
+func publicOrganizationWithRelationships(item organizations.Organization, relationships []organizations.Relationship) publicOrganizationResponse {
+	response := publicOrganization(item)
+	grouped := publicOrganizationRelationships(item.Slug, relationships)
+	response.Relationships = &grouped
+	return response
+}
+
+func publicOrganizationRelationships(slug string, relationships []organizations.Relationship) publicOrganizationRelationshipsResponse {
+	response := publicOrganizationRelationshipsResponse{
+		Parents:  []publicOrganizationRelationshipResponse{},
+		Children: []publicOrganizationRelationshipResponse{},
+		Related:  []publicOrganizationRelationshipResponse{},
+	}
+
+	for _, item := range relationships {
+		if item.Status != "active" {
+			continue
+		}
+		parentRef := publicOrganizationRefResponse{Slug: item.Parent.Slug, Name: item.Parent.Name}
+		childRef := publicOrganizationRefResponse{Slug: item.Child.Slug, Name: item.Child.Name}
+		if item.Child.Slug == slug && isHierarchicalRelationship(item.RelationshipType) {
+			response.Parents = append(response.Parents, publicRelationshipRef(parentRef, item))
+			continue
+		}
+		if item.Parent.Slug == slug && isHierarchicalRelationship(item.RelationshipType) {
+			response.Children = append(response.Children, publicRelationshipRef(childRef, item))
+			continue
+		}
+		if item.Child.Slug == slug {
+			response.Related = append(response.Related, publicRelationshipRef(parentRef, item))
+			continue
+		}
+		if item.Parent.Slug == slug {
+			response.Related = append(response.Related, publicRelationshipRef(childRef, item))
+		}
+	}
+
+	return response
+}
+
+func publicRelationshipRef(organization publicOrganizationRefResponse, item organizations.Relationship) publicOrganizationRelationshipResponse {
+	return publicOrganizationRelationshipResponse{
+		Organization:     organization,
+		RelationshipType: item.RelationshipType,
+		Label:            item.Label,
+		Status:           item.Status,
+	}
+}
+
+func isHierarchicalRelationship(relationshipType string) bool {
+	return relationshipType == "structural_parent" || relationshipType == "autonomous_body"
 }
 
 func publicPosts(items []posts.Post) []publicPostResponse {

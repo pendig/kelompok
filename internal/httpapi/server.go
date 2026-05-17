@@ -84,6 +84,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/org-admin/organizations", s.requireAdmin(s.handleCreateAdminOrganization))
 	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}", s.requireAdmin(s.handleGetAdminOrganization))
 	s.mux.HandleFunc("PATCH /api/v1/org-admin/organizations/{slug}", s.requireAdmin(s.handleUpdateAdminOrganization))
+	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/relationships", s.requireAdmin(s.handleListOrganizationRelationships))
+	s.mux.HandleFunc("POST /api/v1/org-admin/organization-relationships", s.requireAdmin(s.handleCreateOrganizationRelationship))
+	s.mux.HandleFunc("PATCH /api/v1/org-admin/organization-relationships/{id}", s.requireAdmin(s.handleUpdateOrganizationRelationship))
+	s.mux.HandleFunc("DELETE /api/v1/org-admin/organization-relationships/{id}", s.requireAdmin(s.handleDeleteOrganizationRelationship))
 	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/claims", s.requireAdmin(s.handleListOrganizationClaims))
 	s.mux.HandleFunc("POST /api/v1/org-admin/claims/{id}/approve", s.requireAdmin(s.handleApproveOrganizationClaim))
 	s.mux.HandleFunc("POST /api/v1/org-admin/claims/{id}/reject", s.requireAdmin(s.handleRejectOrganizationClaim))
@@ -143,8 +147,14 @@ func (s *Server) handleGetOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	relationships, err := s.organizations.ListRelationshipsByOrganizationSlug(r.Context(), item.Slug, 50)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "organization_relationships_failed", "Failed to load organization relationships", nil)
+		return
+	}
+
 	writeJSON(w, http.StatusOK, response{
-		Data:    publicOrganization(item),
+		Data:    publicOrganizationWithRelationships(item, relationships),
 		Message: "ok",
 	})
 }

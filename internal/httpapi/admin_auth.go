@@ -140,6 +140,43 @@ func (s *Server) ensureAdminOrganizationSlugForRequest(w http.ResponseWriter, r 
 	return s.ensureAdminOrganizationSlugWithPrincipal(w, r, item, slug)
 }
 
+func (s *Server) ensureAdminAnyOrganizationSlugForRequest(w http.ResponseWriter, r *http.Request, slugs ...string) bool {
+	item, ok := principalFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "admin_auth_required", "Admin authorization is required", nil)
+		return false
+	}
+	if !item.AdminKey && item.User.ID != "" {
+		if item.User.Role == "superadmin" {
+			return true
+		}
+		for _, slug := range slugs {
+			if strings.TrimSpace(slug) == "" {
+				continue
+			}
+			allowed, err := s.auth.CanManageOrganization(r.Context(), item.User, slug)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "admin_org_scope_failed", "Failed to check organization access", nil)
+				return false
+			}
+			if allowed {
+				return true
+			}
+		}
+		writeError(w, http.StatusForbidden, "admin_org_forbidden", "User is not authorized for these organizations", nil)
+		return false
+	}
+
+	for _, slug := range slugs {
+		if s.authorizedAdminOrganizationSlug(slug) {
+			return true
+		}
+	}
+
+	writeError(w, http.StatusForbidden, "admin_org_forbidden", "Admin key is not authorized for these organizations", nil)
+	return false
+}
+
 func (s *Server) ensureAdminOrganizationSlugWithPrincipal(w http.ResponseWriter, r *http.Request, item principal, slug string) bool {
 	if !item.AdminKey && item.User.ID != "" {
 		if item.User.Role == "superadmin" {
