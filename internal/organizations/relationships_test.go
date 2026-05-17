@@ -75,3 +75,33 @@ func TestRelationshipAuditMetadataIncludesActorAndOrganizationContext(t *testing
 		t.Fatalf("missing relationship slug context: %+v", metadata)
 	}
 }
+
+func TestRelationshipAuditScopesPreservesRemovedOrganizations(t *testing.T) {
+	before := Relationship{
+		ParentOrganizationID: "old-parent-id",
+		ChildOrganizationID:  "child-id",
+	}
+	after := Relationship{
+		ParentOrganizationID: "new-parent-id",
+		ChildOrganizationID:  "child-id",
+	}
+
+	scopes := relationshipAuditScopes(before, after)
+	got := map[string]string{}
+	for _, scope := range scopes {
+		got[scope.organizationID] = scope.side
+	}
+
+	if got["new-parent-id"] != "parent" {
+		t.Fatalf("missing new parent audit scope: %+v", got)
+	}
+	if got["child-id"] != "child" {
+		t.Fatalf("missing child audit scope: %+v", got)
+	}
+	if got["old-parent-id"] != "previous_parent" {
+		t.Fatalf("missing removed parent audit scope: %+v", got)
+	}
+	if len(scopes) != 3 {
+		t.Fatalf("expected deduplicated scopes, got %+v", scopes)
+	}
+}

@@ -48,7 +48,7 @@
 		"go run ./cmd/kelompok seed demo",
 		"go run ./cmd/kelompok-api",
 		"cd web && npm run build",
-		"git tag -a v1.0-alpha.1 -m \"release: prepare 1.0-alpha.1\"",
+		"git tag -a v1.0-alpha.2 -m \"release: prepare 1.0-alpha.2\"",
 	];
 	const socialPlaceholder = '{"instagram":"https://instagram.com/example"}';
 	const evidencePlaceholder = '{"note":"manual claim test"}';

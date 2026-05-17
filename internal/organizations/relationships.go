@@ -348,7 +348,7 @@ func (r *Repository) UpdateRelationshipByID(ctx context.Context, id string, inpu
 		return Relationship{}, relationshipWriteError(err)
 	}
 
-	r.recordRelationshipAudit(ctx, actor, "update", existing, item, item)
+	r.recordRelationshipUpdateAudit(ctx, actor, existing, item)
 	return item, nil
 }
 
@@ -378,6 +378,44 @@ func (r *Repository) recordRelationshipAudit(ctx context.Context, actor AuditAct
 	}
 	childMetadata := relationshipAuditMetadata(actor, item, item.ChildOrganizationID, "child")
 	_ = audit.Record(ctx, r.db, actor.UserID, "organization_relationship", item.ID, action, beforeData, afterData, childMetadata)
+}
+
+func (r *Repository) recordRelationshipUpdateAudit(ctx context.Context, actor AuditActor, before Relationship, after Relationship) {
+	for _, scope := range relationshipAuditScopes(before, after) {
+		metadata := relationshipAuditMetadata(actor, after, scope.organizationID, scope.side)
+		metadata["previous_parent_organization_id"] = before.ParentOrganizationID
+		metadata["previous_parent_organization_slug"] = before.Parent.Slug
+		metadata["previous_child_organization_id"] = before.ChildOrganizationID
+		metadata["previous_child_organization_slug"] = before.Child.Slug
+		_ = audit.Record(ctx, r.db, actor.UserID, "organization_relationship", after.ID, "update", before, after, metadata)
+	}
+}
+
+type relationshipAuditScope struct {
+	organizationID string
+	side           string
+}
+
+func relationshipAuditScopes(before Relationship, after Relationship) []relationshipAuditScope {
+	scopes := make([]relationshipAuditScope, 0, 4)
+	seen := map[string]struct{}{}
+
+	add := func(organizationID string, side string) {
+		if organizationID == "" {
+			return
+		}
+		if _, ok := seen[organizationID]; ok {
+			return
+		}
+		seen[organizationID] = struct{}{}
+		scopes = append(scopes, relationshipAuditScope{organizationID: organizationID, side: side})
+	}
+
+	add(after.ParentOrganizationID, "parent")
+	add(after.ChildOrganizationID, "child")
+	add(before.ParentOrganizationID, "previous_parent")
+	add(before.ChildOrganizationID, "previous_child")
+	return scopes
 }
 
 func relationshipAuditMetadata(actor AuditActor, item Relationship, organizationID string, relationshipSide string) map[string]any {

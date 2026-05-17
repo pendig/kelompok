@@ -106,6 +106,7 @@ Rules:
 - Duplicate `parent + child + relationship_type` rows are rejected.
 - Relationship metadata is kept out of public responses by default.
 - Relationship records do not grant inherited edit permissions in the first slice.
+- Relationship update audits are written for both current and previous parent/child organization scopes so removed organizations keep historical visibility.
 
 ### Claim Request
 

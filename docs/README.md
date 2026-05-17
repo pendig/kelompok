@@ -15,16 +15,19 @@ The docs keep the alpha release grounded: Kelompok should stay a lean organizati
 - [07 Runtime Decisions](07-runtime-decisions.md)
 - [08 Plugin System](08-plugin-system.md)
 - [09 Development](09-development.md)
+- [10 Release History](10-release-history.md)
 
 ## Current Alpha Summary
 
-Kelompok is preparing `1.0-alpha.1`. The current implementation has:
+Kelompok is on the `1.0-alpha.2` alpha line. The current implementation has:
 
 - Go API and CLI foundation
 - PostgreSQL migrations and demo seed data
+- Basic user registration, login sessions, account view, and logout
 - Public SvelteKit pages for organizations, posts, and impact reports
+- Organization relationship graph for hierarchy, affiliation, and related organization links
 - Alpha `/admin` CRM workspace for controlled deployments
-- Static admin API key protection with optional organization slug scope
+- User-session admin access with static admin API key fallback and optional organization slug scope
 - Plugin architecture documentation and registry skeleton
 
-The alpha is not a full hosted production release yet. Full user login, claim ownership verification, organization roles, practical import plugins, events, and donor management remain later milestones.
+The alpha is not a full hosted production release yet. Email verification, password reset, OAuth/social login, production upload storage, practical import plugins, events, donor management, and a full manual UI/UX polish pass remain later milestones.

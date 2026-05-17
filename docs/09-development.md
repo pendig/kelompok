@@ -84,6 +84,7 @@ The first migration creates the stable CRM tables for:
 
 - users
 - organizations
+- organization relationships
 - source records
 - claim requests
 - members
@@ -123,7 +124,7 @@ http://localhost:4622
 
 If you run API on another host/port, change `VITE_API_BASE_URL` accordingly.
 
-The `/admin` route is the current alpha CRM workspace. It can create and edit organization profiles, create member records, submit claim requests, create posts, and create impact reports through the local API. Treat it as a controlled development interface until full user login, claim ownership verification, and organization roles are added.
+The `/admin` route is the current alpha CRM workspace. It can create and edit organization profiles, create member records, submit/review claim requests, manage organization relationships, create posts, and create impact reports through the local API. Treat it as a controlled development interface until email verification, password reset, production upload storage, and the UI polish pass are complete.
 It can use a login session from `/api/v1/auth/login`. For controlled self-hosted operations, it can also read `KELOMPOK_ADMIN_API_KEY` on the server side and send it to the API as `X-Kelompok-Admin-Key`.
 
 ## API
@@ -183,6 +184,10 @@ GET /api/v1/org-admin/organizations
 POST /api/v1/org-admin/organizations
 GET /api/v1/org-admin/organizations/{slug}
 PATCH /api/v1/org-admin/organizations/{slug}
+GET /api/v1/org-admin/organizations/{slug}/relationships
+POST /api/v1/org-admin/organization-relationships
+PATCH /api/v1/org-admin/organization-relationships/{id}
+DELETE /api/v1/org-admin/organization-relationships/{id}
 GET /api/v1/org-admin/organizations/{slug}/claims
 POST /api/v1/org-admin/claims/{id}/approve
 POST /api/v1/org-admin/claims/{id}/reject
@@ -238,7 +243,15 @@ Then open:
 ```text
 http://localhost:4622/
 http://localhost:4622/admin
+http://localhost:4622/account
 ```
+
+Recommended alpha smoke checks:
+
+- Register, log in, open `/account`, then log out.
+- Submit and approve an organization claim.
+- Create an organization relationship, confirm it appears in `/admin`, and confirm active relationships appear on the public organization profile.
+- Confirm organization, post, impact, claim, member, and relationship write actions appear in the organization audit log.
 
 ## CLI
 

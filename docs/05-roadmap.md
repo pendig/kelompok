@@ -44,9 +44,9 @@ Why this is first:
 Current alpha progress:
 
 - Go API, database migrations, seed data, CLI framework, plugin registry skeleton, and public SvelteKit pages are in place.
-- Organization admin API, member API, claim request creation, post management API, impact report management API, and the `/admin` CRM workspace are in the alpha slice.
-- The current alpha admin API is protected by a static admin key and optional organization slug scope for controlled deployments.
-- Remaining work after `1.0-alpha.1`: full user login, claim ownership workflows, broader CLI coverage for write paths, practical import plugins, and deeper mutation test coverage.
+- Organization admin API, member API, claim request creation/review, post management API, impact report management API, organization relationship API/CLI/UI, basic user sessions, and the `/admin` CRM workspace are in the alpha slice.
+- The current alpha admin API supports user sessions and can fall back to a static admin key with optional organization slug scope for controlled deployments.
+- Remaining work after `1.0-alpha.2`: manual UI polish, password reset/email verification, production-grade uploads, practical import plugins, event management, donor management, broader CLI coverage for write paths, and deeper mutation test coverage.
 
 ## Phase 1: Organization CRM Core
 
@@ -219,7 +219,7 @@ Scope:
 
 `1.0-alpha.1` is targeted once Phase 0, the core organization features from Phase 1, and the public profile/posts/impact surface from Phase 2 are sufficiently implemented for controlled demos.
 
-Included:
+Included in `1.0-alpha.1`:
 
 - Go API server and CLI framework
 - PostgreSQL migration and demo seed data
@@ -229,7 +229,7 @@ Included:
 - Static admin API key with optional organization slug scope
 - Basic CI and local verification commands
 
-Explicitly not included:
+Explicitly not included in `1.0-alpha.1`:
 
 - Full user login
 - Claim approval and ownership workflow
@@ -237,6 +237,26 @@ Explicitly not included:
 - Event management MVP
 - Donor management MVP
 - Practical CSV/JSON import plugins
+
+## `1.0-alpha.2` Cut Line
+
+`1.0-alpha.2` adds the first pass of public auth/account onboarding and organization relationship graph support after `1.0-alpha.1`.
+
+Included scope:
+
+- User registration, login, logout, and account view
+- Claim approval flow that can assign organization ownership
+- Organization parent/child, autonomous body, affiliation, network, and related links
+- Relationship API, CLI, admin UI, and public profile display
+- Review fixes for relationship date clearing, audit actor attribution, public active-relationship filtering, and scoped slug normalization
+- README and docs refresh for the current alpha surface
+
+Release boundary:
+
+- Suitable for controlled alpha demos and early self-hosting tests
+- Not yet a non-alpha release
+- Manual UI/UX review remains tracked in #19
+- Public auth/account onboarding release polish remains tracked in #20
 
 ## Minimal Public MVP Cut Line
 

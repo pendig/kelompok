@@ -8,7 +8,7 @@ The project is built for community groups, NGOs, student organizations, foundati
 
 ## Product Scope
 
-Kelompok focuses on three core areas:
+Kelompok focuses on four core areas:
 
 1. Organization data and public profiles
 2. Posts, articles, and public updates
@@ -33,6 +33,7 @@ The platform starts with organizations first, then expands into events and donor
 - Editable public profile after claim and registration
 - Public impact reporting mapped to SDGS
 - Organization-owned posts, articles, news, and public updates
+- Organization relationship graph for parent, child, autonomous body, affiliation, network, and related organization links
 - Flexible metadata using JSON fields where variables are highly dynamic
 - Structured SQL tables for repeated, query-heavy data
 
@@ -109,19 +110,21 @@ Use uncommon default ports to avoid conflicts with other local projects:
 
 ## Alpha Status
 
-Kelompok is currently preparing `1.0-alpha.1`.
+Kelompok is currently on the `1.0-alpha.2` alpha line.
 
-The current codebase includes a lean Go API/CLI foundation, PostgreSQL migrations and seed data, public SvelteKit pages, and an alpha `/admin` CRM workspace for organization profiles, members, claims, posts, and impact reports.
+The current codebase includes a lean Go API/CLI foundation, PostgreSQL migrations and seed data, public SvelteKit pages, basic user registration/login sessions, claim approval workflows, organization role assignment, organization relationship graphs, and an alpha `/admin` CRM workspace for organization profiles, members, claims, relationships, posts, and impact reports.
 
-The alpha is useful for local development, controlled demos, and early self-hosting tests. It is not yet a full public SaaS release because full user login, claim ownership verification, and organization role management are still intentionally scoped after this alpha.
+The alpha is useful for local development, controlled demos, and early self-hosting tests. It is not yet a full public SaaS release because email verification, password reset, OAuth/social login, production upload storage, broad UI polish, practical import plugins, event management, and donor management are still outside the current alpha.
 
 Included alpha surface:
 
 - Public organization profiles
 - Organization posts and articles
 - Public impact reports
-- Alpha admin screens for editing profile, member, claim, post, and impact records
-- Static admin API key protection for controlled deployments
+- Parent/child and related-organization relationship graph
+- Public registration, login, account, and claim onboarding surface
+- Alpha admin screens for editing profile, member, claim, relationship, post, and impact records
+- User-session admin access with static admin API key fallback for controlled deployments
 
 Event management, donor management, practical import plugins, and advanced integrations can follow after the minimal public MVP.
 
@@ -136,6 +139,7 @@ Event management, donor management, practical import plugins, and advanced integ
 - [Runtime Decisions](docs/07-runtime-decisions.md)
 - [Plugin System](docs/08-plugin-system.md)
 - [Development](docs/09-development.md)
+- [Release History](docs/10-release-history.md)
 
 ## Quick Development Start
 
