@@ -154,6 +154,8 @@ POST /api/v1/org-admin/impact-reports/{id}/publish
 POST /api/v1/org-admin/impact-reports/{id}/archive
 ```
 
+For relationship updates, omit `started_at` or `ended_at` to keep the existing date, or send the field as `null` to clear it.
+
 Post management:
 
 ```text

@@ -173,7 +173,7 @@ func runRelationship(ctx context.Context, args []string, stdout, stderr io.Write
 			return err
 		}
 		return withOrganizationRepository(ctx, func(repo *organizations.Repository) error {
-			item, err := repo.CreateRelationship(ctx, input)
+			item, err := repo.CreateRelationship(ctx, input, organizations.AuditActor{Type: "cli"})
 			if err != nil {
 				return err
 			}
@@ -195,7 +195,7 @@ func runRelationship(ctx context.Context, args []string, stdout, stderr io.Write
 			return errors.New("relationship remove requires --id")
 		}
 		return withOrganizationRepository(ctx, func(repo *organizations.Repository) error {
-			item, err := repo.DeleteRelationshipByID(ctx, *id)
+			item, err := repo.DeleteRelationshipByID(ctx, *id, organizations.AuditActor{Type: "cli"})
 			if err != nil {
 				return err
 			}

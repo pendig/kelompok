@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pendig/kelompok/internal/auth"
+	"github.com/pendig/kelompok/internal/organizations"
 )
 
 type authContextKey string
@@ -151,7 +152,8 @@ func (s *Server) ensureAdminAnyOrganizationSlugForRequest(w http.ResponseWriter,
 			return true
 		}
 		for _, slug := range slugs {
-			if strings.TrimSpace(slug) == "" {
+			slug = organizations.NormalizeSlug(slug)
+			if slug == "" {
 				continue
 			}
 			allowed, err := s.auth.CanManageOrganization(r.Context(), item.User, slug)
@@ -168,6 +170,7 @@ func (s *Server) ensureAdminAnyOrganizationSlugForRequest(w http.ResponseWriter,
 	}
 
 	for _, slug := range slugs {
+		slug = organizations.NormalizeSlug(slug)
 		if s.authorizedAdminOrganizationSlug(slug) {
 			return true
 		}
@@ -212,4 +215,18 @@ func principalFromContext(r *http.Request) (principal, bool) {
 	}
 	item, ok := r.Context().Value(principalContextKey).(principal)
 	return item, ok
+}
+
+func relationshipAuditActorFromRequest(r *http.Request) organizations.AuditActor {
+	item, ok := principalFromContext(r)
+	if !ok {
+		return organizations.AuditActor{}
+	}
+	if item.User.ID != "" {
+		return organizations.AuditActor{UserID: item.User.ID, Type: "user_session"}
+	}
+	if item.AdminKey {
+		return organizations.AuditActor{Type: "admin_key"}
+	}
+	return organizations.AuditActor{}
 }

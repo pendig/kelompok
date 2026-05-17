@@ -149,7 +149,7 @@ func (s *Server) handleCreateOrganizationRelationship(w http.ResponseWriter, r *
 		return
 	}
 
-	item, err := s.organizations.CreateRelationship(r.Context(), input)
+	item, err := s.organizations.CreateRelationship(r.Context(), input, relationshipAuditActorFromRequest(r))
 	if errors.Is(err, organizations.ErrRelationshipOrganizationNotFound) {
 		writeError(w, http.StatusNotFound, "relationship_organization_not_found", "Parent or child organization not found", nil)
 		return
@@ -184,8 +184,8 @@ func (s *Server) handleUpdateOrganizationRelationship(w http.ResponseWriter, r *
 		return
 	}
 
-	var input organizations.RelationshipInput
-	if !decodeJSONBody(w, r, &input) {
+	input, ok := decodeRelationshipPatchBody(w, r)
+	if !ok {
 		return
 	}
 	parentSlug := strings.TrimSpace(input.ParentOrganizationSlug)
@@ -200,7 +200,7 @@ func (s *Server) handleUpdateOrganizationRelationship(w http.ResponseWriter, r *
 		return
 	}
 
-	item, err := s.organizations.UpdateRelationshipByID(r.Context(), r.PathValue("id"), input)
+	item, err := s.organizations.UpdateRelationshipByID(r.Context(), r.PathValue("id"), input, relationshipAuditActorFromRequest(r))
 	if errors.Is(err, organizations.ErrRelationshipOrganizationNotFound) {
 		writeError(w, http.StatusNotFound, "relationship_organization_not_found", "Parent or child organization not found", nil)
 		return
@@ -239,7 +239,7 @@ func (s *Server) handleDeleteOrganizationRelationship(w http.ResponseWriter, r *
 		return
 	}
 
-	item, err := s.organizations.DeleteRelationshipByID(r.Context(), r.PathValue("id"))
+	item, err := s.organizations.DeleteRelationshipByID(r.Context(), r.PathValue("id"), relationshipAuditActorFromRequest(r))
 	if errors.Is(err, organizations.ErrRelationshipNotFound) {
 		writeError(w, http.StatusNotFound, "relationship_not_found", "Organization relationship not found", nil)
 		return
@@ -737,4 +737,58 @@ func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst any) bool {
 		return false
 	}
 	return true
+}
+
+func decodeRelationshipPatchBody(w http.ResponseWriter, r *http.Request) (organizations.RelationshipInput, bool) {
+	defer r.Body.Close()
+
+	var raw map[string]json.RawMessage
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&raw); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON", map[string]string{
+			"error": err.Error(),
+		})
+		return organizations.RelationshipInput{}, false
+	}
+
+	for key := range raw {
+		switch key {
+		case "parent_organization_slug",
+			"child_organization_slug",
+			"relationship_type",
+			"label",
+			"status",
+			"started_at",
+			"ended_at",
+			"metadata":
+		default:
+			writeError(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON", map[string]string{
+				"error": "json: unknown field " + key,
+			})
+			return organizations.RelationshipInput{}, false
+		}
+	}
+
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON", map[string]string{
+			"error": err.Error(),
+		})
+		return organizations.RelationshipInput{}, false
+	}
+
+	var input organizations.RelationshipInput
+	if err := json.Unmarshal(encoded, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON", map[string]string{
+			"error": err.Error(),
+		})
+		return organizations.RelationshipInput{}, false
+	}
+	if value, ok := raw["started_at"]; ok && strings.TrimSpace(string(value)) == "null" {
+		input.ClearStartedAt = true
+	}
+	if value, ok := raw["ended_at"]; ok && strings.TrimSpace(string(value)) == "null" {
+		input.ClearEndedAt = true
+	}
+	return input, true
 }

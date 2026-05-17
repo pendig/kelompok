@@ -52,6 +52,13 @@ type RelationshipInput struct {
 	StartedAt              *time.Time      `json:"started_at"`
 	EndedAt                *time.Time      `json:"ended_at"`
 	Metadata               json.RawMessage `json:"metadata"`
+	ClearStartedAt         bool            `json:"-"`
+	ClearEndedAt           bool            `json:"-"`
+}
+
+type AuditActor struct {
+	UserID string
+	Type   string
 }
 
 type normalizedRelationshipInput struct {
@@ -81,7 +88,15 @@ var allowedRelationshipStatuses = map[string]struct{}{
 }
 
 func (r *Repository) ListRelationshipsByOrganizationSlug(ctx context.Context, organizationSlug string, limit int) ([]Relationship, error) {
-	rows, err := r.db.Query(ctx, `
+	return r.listRelationshipsByOrganizationSlug(ctx, organizationSlug, limit, false)
+}
+
+func (r *Repository) ListActiveRelationshipsByOrganizationSlug(ctx context.Context, organizationSlug string, limit int) ([]Relationship, error) {
+	return r.listRelationshipsByOrganizationSlug(ctx, organizationSlug, limit, true)
+}
+
+func (r *Repository) listRelationshipsByOrganizationSlug(ctx context.Context, organizationSlug string, limit int, activeOnly bool) ([]Relationship, error) {
+	query := `
 		SELECT
 			rel.id::text,
 			parent.id::text,
@@ -101,14 +116,21 @@ func (r *Repository) ListRelationshipsByOrganizationSlug(ctx context.Context, or
 		FROM organization_relationships rel
 		JOIN organizations parent ON parent.id = rel.parent_organization_id
 		JOIN organizations child ON child.id = rel.child_organization_id
-		WHERE parent.slug = $1 OR child.slug = $1
+		WHERE (parent.slug = $1 OR child.slug = $1)
+	`
+	if activeOnly {
+		query += ` AND rel.status = 'active'`
+	}
+	query += `
 		ORDER BY
 			CASE WHEN child.slug = $1 THEN 0 ELSE 1 END,
 			rel.relationship_type ASC,
 			parent.name ASC,
 			child.name ASC
 		LIMIT $2
-	`, organizationSlug, limit)
+	`
+
+	rows, err := r.db.Query(ctx, query, normalizeSlug(organizationSlug), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +148,7 @@ func (r *Repository) ListRelationshipsByOrganizationSlug(ctx context.Context, or
 	return items, rows.Err()
 }
 
-func (r *Repository) CreateRelationship(ctx context.Context, input RelationshipInput) (Relationship, error) {
+func (r *Repository) CreateRelationship(ctx context.Context, input RelationshipInput, actor AuditActor) (Relationship, error) {
 	normalized, err := normalizeRelationshipInput(input)
 	if err != nil {
 		return Relationship{}, err
@@ -196,10 +218,7 @@ func (r *Repository) CreateRelationship(ctx context.Context, input RelationshipI
 		return Relationship{}, relationshipWriteError(err)
 	}
 
-	_ = audit.Record(ctx, r.db, nil, "organization_relationship", item.ID, "create", nil, item, map[string]any{
-		"parent_organization_slug": item.Parent.Slug,
-		"child_organization_slug":  item.Child.Slug,
-	})
+	r.recordRelationshipAudit(ctx, actor, "create", nil, item, item)
 	return item, nil
 }
 
@@ -234,7 +253,7 @@ func (r *Repository) FindRelationshipByID(ctx context.Context, id string) (Relat
 	return item, err
 }
 
-func (r *Repository) UpdateRelationshipByID(ctx context.Context, id string, input RelationshipInput) (Relationship, error) {
+func (r *Repository) UpdateRelationshipByID(ctx context.Context, id string, input RelationshipInput, actor AuditActor) (Relationship, error) {
 	existing, err := r.FindRelationshipByID(ctx, id)
 	if err != nil {
 		return Relationship{}, err
@@ -252,10 +271,10 @@ func (r *Repository) UpdateRelationshipByID(ctx context.Context, id string, inpu
 	if strings.TrimSpace(input.Status) == "" {
 		input.Status = existing.Status
 	}
-	if input.StartedAt == nil {
+	if input.StartedAt == nil && !input.ClearStartedAt {
 		input.StartedAt = existing.StartedAt
 	}
-	if input.EndedAt == nil {
+	if input.EndedAt == nil && !input.ClearEndedAt {
 		input.EndedAt = existing.EndedAt
 	}
 	if len(input.Metadata) == 0 {
@@ -329,14 +348,11 @@ func (r *Repository) UpdateRelationshipByID(ctx context.Context, id string, inpu
 		return Relationship{}, relationshipWriteError(err)
 	}
 
-	_ = audit.Record(ctx, r.db, nil, "organization_relationship", item.ID, "update", existing, item, map[string]any{
-		"parent_organization_slug": item.Parent.Slug,
-		"child_organization_slug":  item.Child.Slug,
-	})
+	r.recordRelationshipAudit(ctx, actor, "update", existing, item, item)
 	return item, nil
 }
 
-func (r *Repository) DeleteRelationshipByID(ctx context.Context, id string) (Relationship, error) {
+func (r *Repository) DeleteRelationshipByID(ctx context.Context, id string, actor AuditActor) (Relationship, error) {
 	existing, err := r.FindRelationshipByID(ctx, id)
 	if err != nil {
 		return Relationship{}, err
@@ -350,11 +366,35 @@ func (r *Repository) DeleteRelationshipByID(ctx context.Context, id string) (Rel
 		return Relationship{}, ErrRelationshipNotFound
 	}
 
-	_ = audit.Record(ctx, r.db, nil, "organization_relationship", existing.ID, "delete", existing, nil, map[string]any{
-		"parent_organization_slug": existing.Parent.Slug,
-		"child_organization_slug":  existing.Child.Slug,
-	})
+	r.recordRelationshipAudit(ctx, actor, "delete", existing, nil, existing)
 	return existing, nil
+}
+
+func (r *Repository) recordRelationshipAudit(ctx context.Context, actor AuditActor, action string, beforeData any, afterData any, item Relationship) {
+	parentMetadata := relationshipAuditMetadata(actor, item, item.ParentOrganizationID, "parent")
+	_ = audit.Record(ctx, r.db, actor.UserID, "organization_relationship", item.ID, action, beforeData, afterData, parentMetadata)
+	if item.ChildOrganizationID == item.ParentOrganizationID {
+		return
+	}
+	childMetadata := relationshipAuditMetadata(actor, item, item.ChildOrganizationID, "child")
+	_ = audit.Record(ctx, r.db, actor.UserID, "organization_relationship", item.ID, action, beforeData, afterData, childMetadata)
+}
+
+func relationshipAuditMetadata(actor AuditActor, item Relationship, organizationID string, relationshipSide string) map[string]any {
+	metadata := map[string]any{
+		"organization_id":           organizationID,
+		"relationship_side":         relationshipSide,
+		"parent_organization_id":    item.ParentOrganizationID,
+		"parent_organization_slug":  item.Parent.Slug,
+		"child_organization_id":     item.ChildOrganizationID,
+		"child_organization_slug":   item.Child.Slug,
+		"relationship_type":         item.RelationshipType,
+		"relationship_public_label": item.Label,
+	}
+	if actor.Type != "" {
+		metadata["actor_type"] = actor.Type
+	}
+	return metadata
 }
 
 func normalizeRelationshipInput(input RelationshipInput) (normalizedRelationshipInput, error) {

@@ -51,3 +51,27 @@ func TestRelationshipWriteErrorMapsDuplicateConstraint(t *testing.T) {
 		t.Fatalf("expected duplicate error, got %v", err)
 	}
 }
+
+func TestRelationshipAuditMetadataIncludesActorAndOrganizationContext(t *testing.T) {
+	item := Relationship{
+		ID:                   "relationship-1",
+		ParentOrganizationID: "parent-id",
+		Parent:               OrganizationRef{Slug: "muhammadiyah", Name: "Muhammadiyah"},
+		ChildOrganizationID:  "child-id",
+		Child:                OrganizationRef{Slug: "ipm", Name: "IPM"},
+		RelationshipType:     "autonomous_body",
+		Label:                "Student organization",
+	}
+
+	metadata := relationshipAuditMetadata(AuditActor{UserID: "user-1", Type: "user_session"}, item, item.ChildOrganizationID, "child")
+
+	if metadata["organization_id"] != "child-id" {
+		t.Fatalf("organization_id = %v", metadata["organization_id"])
+	}
+	if metadata["actor_type"] != "user_session" {
+		t.Fatalf("actor_type = %v", metadata["actor_type"])
+	}
+	if metadata["parent_organization_slug"] != "muhammadiyah" || metadata["child_organization_slug"] != "ipm" {
+		t.Fatalf("missing relationship slug context: %+v", metadata)
+	}
+}

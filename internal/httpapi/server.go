@@ -147,7 +147,7 @@ func (s *Server) handleGetOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	relationships, err := s.organizations.ListRelationshipsByOrganizationSlug(r.Context(), item.Slug, 50)
+	relationships, err := s.organizations.ListActiveRelationshipsByOrganizationSlug(r.Context(), item.Slug, 50)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "organization_relationships_failed", "Failed to load organization relationships", nil)
 		return
