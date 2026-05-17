@@ -7,6 +7,7 @@
 	let org = $derived(data.organization);
 	let profile = $derived(org?.profile_data || {});
 	let sdgs = $derived(org?.sdgs_data || {});
+	let relationships = $derived(org?.relationships || { parents: [], children: [], related: [] });
 	let claimSubmitted = $derived(form?.ok && form?.action === "submitClaim");
 	let claimError = $derived(!form?.ok && form?.action === "submitClaim" ? form.error : "");
 
@@ -16,6 +17,10 @@
 
 	function postPath(post) {
 		return `${organizationPath("/posts")}/${encodeURIComponent(post.slug)}`;
+	}
+
+	function relationshipPath(item) {
+		return `/organizations/${encodeURIComponent(item.organization.slug)}`;
 	}
 
 	function formatLocation() {
@@ -139,11 +144,60 @@
 				{/each}
 			</div>
 		{/if}
-	</section>
-</header>
+		</section>
+	</header>
 
-{#if org.claim_status !== "claimed"}
-	<section class="claim-card">
+	<section>
+		<h2 class="section-title">{$t("organizationDetail.relationships")}</h2>
+		{#if relationships.parents.length === 0 && relationships.children.length === 0 && relationships.related.length === 0}
+			<p class="empty">{$t("organizationDetail.noRelationships")}</p>
+		{:else}
+			<div class="grid">
+				{#if relationships.parents.length}
+					<div class="card">
+						<div class="label">{$t("organizationDetail.parentOrganizations")}</div>
+						<ul class="detail-list">
+							{#each relationships.parents as item}
+								<li>
+									<a href={relationshipPath(item)}>{item.organization.name}</a>
+									<span class="muted"> · {item.label || item.relationship_type}</span>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+				{#if relationships.children.length}
+					<div class="card">
+						<div class="label">{$t("organizationDetail.childOrganizations")}</div>
+						<ul class="detail-list">
+							{#each relationships.children as item}
+								<li>
+									<a href={relationshipPath(item)}>{item.organization.name}</a>
+									<span class="muted"> · {item.label || item.relationship_type}</span>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+				{#if relationships.related.length}
+					<div class="card">
+						<div class="label">{$t("organizationDetail.relatedOrganizations")}</div>
+						<ul class="detail-list">
+							{#each relationships.related as item}
+								<li>
+									<a href={relationshipPath(item)}>{item.organization.name}</a>
+									<span class="muted"> · {item.label || item.relationship_type}</span>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</section>
+
+	{#if org.claim_status !== "claimed"}
+		<section class="claim-card">
 		<div class="claim-copy">
 			<p class="eyebrow">{$t("organizationDetail.claimEyebrow")}</p>
 			<h2>{$t("organizationDetail.claimTitle")}</h2>

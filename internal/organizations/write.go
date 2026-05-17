@@ -550,6 +550,10 @@ func scanClaimWithSlug(row interface{ Scan(dest ...any) error }, organizationSlu
 var slugPattern = regexp.MustCompile(`[^a-z0-9]+`)
 
 func normalizeSlug(value string) string {
+	return NormalizeSlug(value)
+}
+
+func NormalizeSlug(value string) string {
 	trimmed := strings.ToLower(strings.TrimSpace(value))
 	trimmed = slugPattern.ReplaceAllString(trimmed, "-")
 	trimmed = strings.Trim(trimmed, "-")

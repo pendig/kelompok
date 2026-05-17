@@ -92,6 +92,52 @@ func TestPublicOrganizationKeepsReviewedPublicContact(t *testing.T) {
 	}
 }
 
+func TestPublicOrganizationRelationshipsOmitInternalIDsAndInactiveRows(t *testing.T) {
+	item := organizations.Organization{
+		Slug:        "ipm",
+		Name:        "IPM",
+		ClaimStatus: "claimed",
+		ProfileData: json.RawMessage(`{}`),
+		SDGSData:    json.RawMessage(`{}`),
+		ImpactData:  json.RawMessage(`{}`),
+		CreatedAt:   time.Date(2026, 5, 10, 1, 0, 0, 0, time.UTC),
+		UpdatedAt:   time.Date(2026, 5, 10, 1, 0, 0, 0, time.UTC),
+	}
+	relationships := []organizations.Relationship{
+		{
+			ID:                   "relationship-internal-id",
+			ParentOrganizationID: "parent-internal-id",
+			Parent:               organizations.OrganizationRef{ID: "parent-internal-id", Slug: "muhammadiyah", Name: "Muhammadiyah"},
+			ChildOrganizationID:  "child-internal-id",
+			Child:                organizations.OrganizationRef{ID: "child-internal-id", Slug: "ipm", Name: "IPM"},
+			RelationshipType:     "autonomous_body",
+			Label:                "Autonomous student organization",
+			Status:               "active",
+		},
+		{
+			Parent:           organizations.OrganizationRef{Slug: "inactive-parent", Name: "Inactive Parent"},
+			Child:            organizations.OrganizationRef{Slug: "ipm", Name: "IPM"},
+			RelationshipType: "structural_parent",
+			Status:           "inactive",
+		},
+	}
+
+	encoded, err := json.Marshal(publicOrganizationWithRelationships(item, relationships))
+	if err != nil {
+		t.Fatalf("marshal public organization relationships: %v", err)
+	}
+	body := string(encoded)
+
+	for _, forbidden := range []string{"relationship-internal-id", "parent-internal-id", "child-internal-id", "inactive-parent"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("public organization relationship leaked %q in %s", forbidden, body)
+		}
+	}
+	if !strings.Contains(body, `"parents":[{"organization":{"slug":"muhammadiyah","name":"Muhammadiyah"}`) {
+		t.Fatalf("public organization missing parent relationship: %s", body)
+	}
+}
+
 func TestPublicPostOmitsInternalIDsAndFiltersSEOData(t *testing.T) {
 	item := posts.Post{
 		ID:               "post-internal-id",

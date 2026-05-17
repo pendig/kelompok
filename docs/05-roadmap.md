@@ -64,6 +64,7 @@ Scope:
 - Organization admin API
 - Member management API
 - Organization and member CLI commands
+- Organization relationship API, CLI, and UI for parent/child and affiliation links
 - Organization profile editing
 - Claim request model
 - Claim by official email
@@ -251,6 +252,7 @@ Minimum product surface:
 - CLI framework
 - Plugin registry skeleton
 - Organization CRUD
+- Organization hierarchy and relationship graph
 - Member management
 - Public organization profile
 - Public organization profile frontend

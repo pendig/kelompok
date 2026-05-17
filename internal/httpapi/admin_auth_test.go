@@ -104,3 +104,59 @@ func TestOrgAdminListScopeAllowsSuperadminSessionWithScopedAdminKey(t *testing.T
 		t.Fatalf("expected superadmin session to bypass scoped admin-key global list restriction: %s", recorder.Body.String())
 	}
 }
+
+func TestOrgAdminAnyOrganizationScopeAllowsListedRelationshipSide(t *testing.T) {
+	server := New(config.Config{
+		APIAddr:                ":0",
+		AdminAPIKey:            "test-secret",
+		AdminOrganizationSlugs: []string{"allowed-org"},
+	}, nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/org-admin/organization-relationships", nil)
+	request = request.WithContext(context.WithValue(request.Context(), principalContextKey, principal{AdminKey: true}))
+	recorder := httptest.NewRecorder()
+
+	if !server.ensureAdminAnyOrganizationSlugForRequest(recorder, request, " other-org ", " Allowed Org ") {
+		t.Fatalf("expected scoped admin key to manage a relationship with one allowed side: %s", recorder.Body.String())
+	}
+}
+
+func TestOrgAdminAnyOrganizationScopeRejectsUnlistedRelationshipSides(t *testing.T) {
+	server := New(config.Config{
+		APIAddr:                ":0",
+		AdminAPIKey:            "test-secret",
+		AdminOrganizationSlugs: []string{"allowed-org"},
+	}, nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/org-admin/organization-relationships", nil)
+	request = request.WithContext(context.WithValue(request.Context(), principalContextKey, principal{AdminKey: true}))
+	recorder := httptest.NewRecorder()
+
+	if server.ensureAdminAnyOrganizationSlugForRequest(recorder, request, "other-org", "another-org") {
+		t.Fatal("expected scoped admin key to reject relationships without an allowed side")
+	}
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "admin_org_forbidden") {
+		t.Fatalf("missing stable relationship scope error: %s", recorder.Body.String())
+	}
+}
+
+func TestDecodeRelationshipPatchBodyCanClearDates(t *testing.T) {
+	request := httptest.NewRequest(
+		http.MethodPatch,
+		"/api/v1/org-admin/organization-relationships/relationship-1",
+		strings.NewReader(`{"started_at":null,"ended_at":null}`),
+	)
+	recorder := httptest.NewRecorder()
+
+	input, ok := decodeRelationshipPatchBody(recorder, request)
+	if !ok {
+		t.Fatalf("expected relationship patch body to decode: %s", recorder.Body.String())
+	}
+	if !input.ClearStartedAt || !input.ClearEndedAt {
+		t.Fatalf("expected explicit null dates to be marked for clearing: %+v", input)
+	}
+	if input.StartedAt != nil || input.EndedAt != nil {
+		t.Fatalf("expected cleared date values to remain nil: %+v", input)
+	}
+}

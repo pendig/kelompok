@@ -135,6 +135,10 @@ GET /api/v1/org-admin/organizations
 POST /api/v1/org-admin/organizations
 GET /api/v1/org-admin/organizations/{slug}
 PATCH /api/v1/org-admin/organizations/{slug}
+GET /api/v1/org-admin/organizations/{slug}/relationships
+POST /api/v1/org-admin/organization-relationships
+PATCH /api/v1/org-admin/organization-relationships/{id}
+DELETE /api/v1/org-admin/organization-relationships/{id}
 GET /api/v1/org-admin/organizations/{slug}/claims
 POST /api/v1/org-admin/claims/{id}/approve
 POST /api/v1/org-admin/claims/{id}/reject
@@ -149,6 +153,8 @@ PATCH /api/v1/org-admin/impact-reports/{id}
 POST /api/v1/org-admin/impact-reports/{id}/publish
 POST /api/v1/org-admin/impact-reports/{id}/archive
 ```
+
+For relationship updates, omit `started_at` or `ended_at` to keep the existing date, or send the field as `null` to clear it.
 
 Post management:
 
@@ -242,6 +248,15 @@ kelompok member list --organization {slug} --json
 kelompok member create --organization {slug} --name "Aisha" --position "Chair"
 kelompok member import --file members.csv --organization {slug}
 kelompok member export --organization {slug} --format json
+```
+
+Organization relationships:
+
+```text
+kelompok rel list --organization {slug} --json
+kelompok rel create --parent pp-muhammadiyah --child pw-muhammadiyah-dki --type structural_parent
+kelompok rel create --parent muhammadiyah --child ipm --type autonomous_body --label "Autonomous student organization"
+kelompok rel remove --id {relationship_id}
 ```
 
 Posts:
