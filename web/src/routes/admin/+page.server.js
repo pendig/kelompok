@@ -44,12 +44,6 @@ async function adminFetchJSONResult(path, fallbackData = [], cookies = null) {
 	}
 }
 
-function checkEndpoint(path) {
-	return fetchJSON(path)
-		.then((payload) => ({ ok: true, payload }))
-		.catch((error) => ({ ok: false, error: error instanceof Error ? error.message : "Health check failed" }));
-}
-
 function value(form, key) {
 	return `${form.get(key) || ""}`.trim();
 }
@@ -213,13 +207,9 @@ function actionError(error) {
 export async function load({ url, cookies }) {
 	const session = await loadSession(cookies);
 	const isScopedSession = Boolean(session && session.user?.role !== "superadmin");
-	const [health, ready, root] = await Promise.all([
-		checkEndpoint("/healthz"),
-		checkEndpoint("/readyz"),
-		checkEndpoint("/"),
-	]);
-
 	const requestedSlug = url.searchParams.get("org");
+	const requestedView = url.searchParams.get("view");
+	const allowedViews = new Set(["dashboard", "organizations", "organization-edit", "members", "relationships", "posts", "impact", "claims", "audit"]);
 	let orgPayload = { data: [], error: null };
 	let postPayload = { data: [], error: null };
 	let impactPayload = { data: [], error: null };
@@ -293,73 +283,6 @@ export async function load({ url, cookies }) {
 	const posts = postPayload.data ?? [];
 	const impactReports = impactPayload.data ?? [];
 
-	const impactByOrganization = organizations.slice(0, 6).map((org) => {
-		const count = impactReports.filter((item) => item.organization_slug === org.slug).length;
-		const latest = impactReports.find((item) => item.organization_slug === org.slug)?.title || null;
-		return {
-			orgSlug: org.slug,
-			orgName: org.name || "Unnamed org",
-			count,
-			latest,
-			error: null,
-		};
-	});
-
-	const missingClaimStatusOrgs = organizations.filter((item) => item.claim_status === undefined).length;
-	const checks = [
-		{
-			label: "admin.checkApiHealth",
-			status: health.ok ? "pass" : "fail",
-			detail: health.ok ? `status=${health.payload.data?.status || "ok"}` : health.error,
-			needsReview: false,
-		},
-		{
-			label: "admin.checkAdminAuth",
-			status: ADMIN_API_KEY ? "pass" : "fail",
-			detail: ADMIN_API_KEY ? "admin key is configured for server-side admin requests" : "set KELOMPOK_ADMIN_API_KEY",
-			needsReview: !ADMIN_API_KEY,
-		},
-		{
-			label: "admin.checkReadyHealth",
-			status: ready.ok ? "pass" : "warn",
-			detail: ready.ok ? `status=${ready.payload.data?.status || "ready"}` : ready.error,
-			needsReview: !ready.ok,
-		},
-		{
-			label: "admin.checkHasOrganizations",
-			status: organizations.length > 0 ? "pass" : "warn",
-			detail:
-				organizations.length > 0 ? `${organizations.length} orgs visible in admin API` : "No organization data found",
-			needsReview: true,
-		},
-		{
-			label: "admin.checkHasPosts",
-			status: posts.length > 0 ? "pass" : "warn",
-			detail: posts.length > 0 ? `${posts.length} posts loaded` : "No posts found",
-			needsReview: true,
-		},
-		{
-			label: "admin.checkHasImpact",
-			status: impactReports.length > 0 ? "pass" : "warn",
-			detail:
-				impactReports.length > 0 ?
-					`${impactReports.length} impact reports loaded`
-				:	"Impact admin endpoint works, but no data found",
-			needsReview: true,
-		},
-		{
-			label: "admin.checkHasClaimStatus",
-			status: organizations.length > 0 && missingClaimStatusOrgs === 0 ? "pass" : "warn",
-			detail:
-				organizations.length === 0 ?
-					"No organizations loaded yet"
-				: missingClaimStatusOrgs > 0
-				? `${missingClaimStatusOrgs} organization(s) missing claim status`
-				: `${organizations.length} records include claim status`,
-			needsReview: missingClaimStatusOrgs > 0 || organizations.length === 0,
-		},
-	];
-
 	return {
 		organizations,
 		session,
@@ -372,11 +295,7 @@ export async function load({ url, cookies }) {
 		relationships: relationshipPayload.data ?? [],
 		selectedOrganization: selectedPayload.data,
 		selectedSlug,
-		health,
-		ready,
-		root,
-		impactByOrganization,
-		missingClaimStatusOrgs,
+		initialTab: allowedViews.has(requestedView) ? requestedView : requestedSlug ? "organization-edit" : "dashboard",
 		loadErrors: [
 			orgPayload.error,
 			postPayload.error,
@@ -386,11 +305,7 @@ export async function load({ url, cookies }) {
 			claimPayload.error,
 			auditPayload.error,
 			relationshipPayload.error,
-			health.ok ? null : health.error,
-			ready.ok ? null : ready.error,
-			root.ok ? null : root.error,
 		].filter(Boolean),
-		checks,
 	};
 }
 

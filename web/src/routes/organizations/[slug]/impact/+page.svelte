@@ -1,6 +1,7 @@
 <script>
 	import { fallbackDate } from "../../../../lib/api.js";
 	import { locale, t } from "$lib/i18n.js";
+	import { normalizeSdgGoals } from "$lib/sdgs.js";
 
 	let { data } = $props();
 	let org = $derived(data.organization);
@@ -24,6 +25,7 @@
 {:else}
 	<div>
 		{#each data.impactReports as report}
+			{@const reportGoals = normalizeSdgGoals(report.sdgs || [], $locale)}
 			<div class="card list-item">
 				<h3 class="title">{report.title}</h3>
 				<p class="small muted">
@@ -32,6 +34,20 @@
 					{report.report_period_end ? fallbackDate(report.report_period_end, $locale) : "—"}
 				</p>
 				<p>{report.summary || $t("impactPage.noSummary")}</p>
+				{#if reportGoals.length}
+					<div class="sdg-grid compact">
+						{#each reportGoals as goal}
+							<span class="sdg-chip" style={`--sdg-color: ${goal.color}; --sdg-text: ${goal.textColor};`}>
+								{#if goal.icon}
+									<img src={goal.icon} alt="" loading="lazy" />
+								{:else}
+									<span>{goal.code}</span>
+								{/if}
+								{goal.title}
+							</span>
+						{/each}
+					</div>
+				{/if}
 				<p class="meta">
 					{$t("impactPage.status")}: {report.status} · {$t("impactPage.publicAt")}:
 					{fallbackDate(report.published_at, $locale)}

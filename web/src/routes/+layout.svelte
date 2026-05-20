@@ -34,6 +34,7 @@
 		<nav class="nav" aria-label="Primary">
 			<a href="/organizations" class="nav-link">{$t("nav.organizations")}</a>
 			<a href="/posts" class="nav-link">{$t("nav.posts")}</a>
+			<a href="/sdgs" class="nav-link">{$t("nav.sdgs")}</a>
 			{#if currentUser}
 				<a href="/account" class="nav-link">{$t("nav.account")}</a>
 				<a href="/admin" class="nav-link">{$t("nav.admin")}</a>

@@ -1,29 +1,37 @@
 <script>
 	import { locale, t } from "$lib/i18n.js";
+	import { getTheme, getInitials } from "$lib/theme.js";
 
 	let { data, form } = $props();
 
 	let activeTab = $state("dashboard");
+	let expandedSections = $state({
+		organization: false,
+		content: false,
+		governance: false,
+	});
 
-	function statusStyle(status) {
-		switch (status) {
-			case "pass":
-				return "admin-status-pass";
-			case "warn":
-				return "admin-status-warn";
-			default:
-				return "admin-status-fail";
+	const organizationTabs = ["organizations", "organization-edit", "members", "relationships"];
+	const contentTabs = ["posts", "impact"];
+	const governanceTabs = ["claims", "audit"];
+
+	let organizationNavOpen = $derived(expandedSections.organization || organizationTabs.includes(activeTab));
+	let contentNavOpen = $derived(expandedSections.content || contentTabs.includes(activeTab));
+	let governanceNavOpen = $derived(expandedSections.governance || governanceTabs.includes(activeTab));
+
+	$effect.pre(() => {
+		activeTab = data.initialTab || "dashboard";
+	});
+
+	function setActiveTab(tab, section = "") {
+		activeTab = tab;
+		if (section) {
+			expandedSections[section] = true;
 		}
 	}
 
-	function statusText(status) {
-		if (status === "pass") {
-			return $t("admin.pass");
-		}
-		if (status === "warn") {
-			return $t("admin.checksWarn");
-		}
-		return $t("admin.checksFail");
+	function toggleSection(section) {
+		expandedSections[section] = !expandedSections[section];
 	}
 
 	function joinList(value) {
@@ -41,23 +49,20 @@
 		return typeof contact === "object" && !Array.isArray(contact) ? contact[key] || "" : "";
 	}
 
-	function selectedPath(org) {
-		return `/admin?org=${encodeURIComponent(org.slug)}`;
+	function selectedPath(org, view = "organization-edit") {
+		return `/admin?org=${encodeURIComponent(org.slug)}&view=${encodeURIComponent(view)}`;
 	}
 
-	const releaseCommands = [
-		"go run ./cmd/kelompok db migrate",
-		"go run ./cmd/kelompok seed demo",
-		"go run ./cmd/kelompok-api",
-		"cd web && npm run build",
-		"git tag -a v1.0-alpha.2 -m \"release: prepare 1.0-alpha.2\"",
-	];
+	function formatAdminLocation(org) {
+		const parts = [org?.city, org?.region, org?.country].filter(Boolean);
+		return parts.length ? parts.join(", ") : "-";
+	}
+
 	const socialPlaceholder = '{"instagram":"https://instagram.com/example"}';
 	const evidencePlaceholder = '{"note":"manual claim test"}';
 	const metricsPlaceholder = '{"beneficiaries":120}';
 	const metadataPlaceholder = '{"source":"manual"}';
 
-	const checksTotal = $derived(data.checks?.length ?? 0);
 	const orgSummary = $derived(data.organizations || []);
 	const postSummary = $derived(data.posts || []);
 	const impactSummary = $derived(data.impactReports || []);
@@ -66,24 +71,15 @@
 	const currentUser = $derived(data.session?.user);
 	const selectedProfile = $derived(selectedOrg?.profile_data || {});
 	const selectedSdgs = $derived(selectedOrg?.sdgs_data || {});
-	const readinessCount = $derived(data.checks?.filter((check) => check.status === "pass").length ?? 0);
-	const checkedAt = $derived(
-		new Intl.DateTimeFormat($locale === "id" ? "id-ID" : "en-US", {
-			dateStyle: "medium",
-			timeStyle: "short",
-		}).format(new Date()),
-	);
 </script>
 
 <section class="section">
 	<div class="page-heading">
-		<p class="eyebrow">{$t("admin.goal")} - {$t("admin.releaseCandidate")}</p>
-		<h1 class="section-title">{$t("admin.releaseTitle")}</h1>
+		<p class="eyebrow">{$t("admin.workspaceEyebrow")}</p>
+		<h1 class="section-title">{$t("admin.workspaceTitle")}</h1>
 		<p class="section-note">
-			{$t("admin.releaseSubtitle")}
-			- {$t("admin.updatedAt", { date: checkedAt })}
+			{$t("admin.workspaceSubtitle")}
 		</p>
-		<p class="admin-release-note">{$t("admin.releaseNote")}</p>
 	</div>
 </section>
 
@@ -99,24 +95,152 @@
 	</p>
 {/if}
 
-<div class="admin-tabs-nav">
-	<button class="admin-tab-trigger" class:active={activeTab === "dashboard"} onclick={() => activeTab = "dashboard"}>
-		{$t("admin.checks")}
-	</button>
-	<button class="admin-tab-trigger" class:active={activeTab === "organizations"} onclick={() => activeTab = "organizations"}>
-		{$t("admin.orgForm")}
-	</button>
-	<button class="admin-tab-trigger" class:active={activeTab === "relations"} onclick={() => activeTab = "relations"}>
-		{$t("admin.members")} & {$t("admin.relationships")}
-	</button>
-	<button class="admin-tab-trigger" class:active={activeTab === "content"} onclick={() => activeTab = "content"}>
-		{$t("admin.posts")} & {$t("admin.impactReports")}
-	</button>
-	<button class="admin-tab-trigger" class:active={activeTab === "claims"} onclick={() => activeTab = "claims"}>
-		{$t("admin.claims")} & {$t("admin.audit")}
-	</button>
-</div>
+<div class="admin-shell">
+	<aside class="admin-side-nav" aria-label={$t("admin.adminNavigation")}>
+		<p class="label">{$t("admin.adminNavigation")}</p>
 
+		<button
+			class="admin-nav-link"
+			class:active={activeTab === "dashboard"}
+			data-testid="admin-nav-dashboard"
+			type="button"
+			onclick={() => setActiveTab("dashboard")}
+		>
+			<span>{$t("admin.dashboard")}</span>
+		</button>
+
+		<div class="admin-nav-group">
+				<button
+					class="admin-nav-group-trigger"
+					class:active={organizationTabs.includes(activeTab)}
+					data-testid="admin-nav-organization"
+				type="button"
+				aria-expanded={organizationNavOpen}
+				onclick={() => toggleSection("organization")}
+			>
+				<span>{$t("admin.navOrganization")}</span>
+				<span class="admin-nav-chevron" aria-hidden="true">{organizationNavOpen ? "−" : "+"}</span>
+			</button>
+			{#if organizationNavOpen}
+				<div class="admin-nav-submenu">
+						<button
+							class="admin-nav-subitem"
+							class:active={activeTab === "organizations"}
+							data-testid="admin-nav-organization-profile"
+							type="button"
+							onclick={() => setActiveTab("organizations", "organization")}
+						>
+							{$t("admin.orgForm")}
+						</button>
+						{#if selectedOrg}
+							<button
+								class="admin-nav-subitem"
+								class:active={activeTab === "organization-edit"}
+								data-testid="admin-nav-organization-edit"
+								type="button"
+								onclick={() => setActiveTab("organization-edit", "organization")}
+							>
+								{$t("admin.editOrgProfile")}
+							</button>
+						{/if}
+						<button
+							class="admin-nav-subitem"
+							class:active={activeTab === "members"}
+							data-testid="admin-nav-organization-members"
+							type="button"
+							onclick={() => setActiveTab("members", "organization")}
+						>
+							{$t("admin.members")}
+						</button>
+						<button
+							class="admin-nav-subitem"
+							class:active={activeTab === "relationships"}
+							data-testid="admin-nav-organization-relationships"
+							type="button"
+							onclick={() => setActiveTab("relationships", "organization")}
+						>
+							{$t("admin.relationships")}
+						</button>
+					</div>
+				{/if}
+		</div>
+
+		<div class="admin-nav-group">
+				<button
+					class="admin-nav-group-trigger"
+					class:active={contentTabs.includes(activeTab)}
+					data-testid="admin-nav-content"
+				type="button"
+				aria-expanded={contentNavOpen}
+				onclick={() => toggleSection("content")}
+			>
+				<span>{$t("admin.navContent")}</span>
+				<span class="admin-nav-chevron" aria-hidden="true">{contentNavOpen ? "−" : "+"}</span>
+			</button>
+			{#if contentNavOpen}
+				<div class="admin-nav-submenu">
+						<button
+							class="admin-nav-subitem"
+							class:active={activeTab === "posts"}
+							data-testid="admin-nav-content-posts"
+							type="button"
+							onclick={() => setActiveTab("posts", "content")}
+						>
+							{$t("admin.posts")}
+						</button>
+						<button
+							class="admin-nav-subitem"
+							class:active={activeTab === "impact"}
+							data-testid="admin-nav-content-impact"
+							type="button"
+							onclick={() => setActiveTab("impact", "content")}
+						>
+							{$t("admin.impactReports")}
+						</button>
+					</div>
+				{/if}
+		</div>
+
+		<div class="admin-nav-group">
+				<button
+					class="admin-nav-group-trigger"
+					class:active={governanceTabs.includes(activeTab)}
+					data-testid="admin-nav-governance"
+				type="button"
+				aria-expanded={governanceNavOpen}
+				onclick={() => toggleSection("governance")}
+			>
+				<span>{$t("admin.navGovernance")}</span>
+				<span class="admin-nav-chevron" aria-hidden="true">{governanceNavOpen ? "−" : "+"}</span>
+			</button>
+			{#if governanceNavOpen}
+				<div class="admin-nav-submenu">
+						<button
+							class="admin-nav-subitem"
+							class:active={activeTab === "claims"}
+							data-testid="admin-nav-governance-claims"
+							type="button"
+							onclick={() => setActiveTab("claims", "governance")}
+						>
+							{$t("admin.claims")}
+						</button>
+						<button
+							class="admin-nav-subitem"
+							class:active={activeTab === "audit"}
+							data-testid="admin-nav-governance-audit"
+							type="button"
+							onclick={() => setActiveTab("audit", "governance")}
+						>
+							{$t("admin.audit")}
+						</button>
+					</div>
+				{/if}
+		</div>
+
+		<a class="admin-nav-link" href="/admin/developer">{$t("admin.developerPanel")}</a>
+	</aside>
+
+	<div class="admin-content">
 {#if activeTab === "dashboard"}
 	<section class="section">
 		<div class="admin-panel session-panel">
@@ -156,56 +280,34 @@
 	<section class="section">
 		<div class="section-head">
 			<div>
-				<p class="eyebrow">{$t("admin.checks")}</p>
-				<h2 class="section-title">{$t("admin.checkSection")}</h2>
+				<p class="eyebrow">{$t("admin.dataSection")}</p>
+				<h2 class="section-title">{$t("admin.dashboardTitle")}</h2>
 			</div>
-			<span class={["admin-release-badge", readinessCount >= 3 ? "admin-status-pass" : "admin-status-warn"].join(" ")}>
-				{readinessCount}/{checksTotal} {$t("admin.releaseTitle")}
-			</span>
+			<p class="section-note">{$t("admin.dashboardSubtitle")}</p>
 		</div>
 
 		{#if data.loadErrors.length}
 			<p class="error">
-				<strong>{$t("admin.checksFail")}: </strong>
+				<strong>{$t("admin.actionError")}: </strong>
 				{data.loadErrors[0]}
 			</p>
 		{/if}
 
 		<div class="admin-grid">
-			{#each data.checks as check}
-				<article class="admin-card">
-					<div class="admin-card-head">
-						<p class="label">{$t(check.label)}</p>
-						<span class={["admin-status", statusStyle(check.status)].join(" ")}>{statusText(check.status)}</span>
-					</div>
-					<p>{check.detail}</p>
-				</article>
-			{/each}
-		</div>
-	</section>
-
-	<section class="section">
-		<div class="section-head">
-			<div>
-				<p class="eyebrow">{$t("admin.dataSection")}</p>
-				<h2 class="section-title">{$t("admin.publicDataQuality")}</h2>
-			</div>
-		</div>
-		<div class="admin-grid">
 			<article class="card">
 				<p class="label">{$t("admin.totalOrganizations")}</p>
 				<p class="admin-number">{orgSummary.length}</p>
-				<p class="small">{$t("admin.checkHasOrganizations")}</p>
+				<p class="small">{$t("admin.totalOrganizationsHelp")}</p>
 			</article>
 			<article class="card">
 				<p class="label">{$t("admin.totalPosts")}</p>
 				<p class="admin-number">{postSummary.length}</p>
-				<p class="small">{$t("admin.checkHasPosts")}</p>
+				<p class="small">{$t("admin.totalPostsHelp")}</p>
 			</article>
 			<article class="card">
 				<p class="label">{$t("admin.totalImpactPreview")}</p>
 				<p class="admin-number">{impactSummary.length}</p>
-				<p class="small">{$t("admin.checkHasImpact")}</p>
+				<p class="small">{$t("admin.totalImpactHelp")}</p>
 			</article>
 		</div>
 	</section>
@@ -213,45 +315,76 @@
 	<section class="section">
 		<div class="section-head">
 			<div>
-				<p class="eyebrow">{$t("admin.commandSection")}</p>
-				<h2 class="section-title">{$t("admin.cliCommandTitle")}</h2>
+				<p class="eyebrow">{$t("admin.nextActionEyebrow")}</p>
+				<h2 class="section-title">{$t("admin.nextActionTitle")}</h2>
 			</div>
-			<p class="section-note">{$t("admin.cliCommandNotes")}</p>
+			<p class="section-note">{$t("admin.nextActionSubtitle")}</p>
 		</div>
-		<div class="admin-command-list">
-			{#each releaseCommands as command}
-				<pre class="admin-code">{command}</pre>
-			{/each}
+		<div class="admin-grid">
+			<article class="card">
+				<p class="label">{$t("admin.orgForm")}</p>
+				<h3>{$t("admin.manageProfileTitle")}</h3>
+				<p class="small">{$t("admin.manageProfileBody")}</p>
+				<button class="ghost-button" type="button" onclick={() => setActiveTab("organizations", "organization")}>{$t("admin.openSection")}</button>
+			</article>
+			<article class="card">
+				<p class="label">{$t("admin.posts")}</p>
+				<h3>{$t("admin.manageContentTitle")}</h3>
+				<p class="small">{$t("admin.manageContentBody")}</p>
+				<button class="ghost-button" type="button" onclick={() => setActiveTab("posts", "content")}>{$t("admin.openSection")}</button>
+			</article>
+			<article class="card">
+				<p class="label">{$t("admin.claims")}</p>
+				<h3>{$t("admin.manageClaimsTitle")}</h3>
+				<p class="small">{$t("admin.manageClaimsBody")}</p>
+				<button class="ghost-button" type="button" onclick={() => setActiveTab("claims", "governance")}>{$t("admin.openSection")}</button>
+			</article>
 		</div>
-		<p class="small">{$t("admin.cliHelp")}</p>
 	</section>
 {/if}
 
-{#if activeTab === "organizations"}
-	<section class="section">
-		<div class="section-head">
-			<div>
-				<p class="eyebrow">{$t("admin.operationsSection")}</p>
-				<h2 class="section-title">{$t("admin.crmTitle")}</h2>
+	{#if activeTab === "organizations"}
+		<section class="section">
+			<div class="section-head">
+				<div>
+					<p class="eyebrow">{$t("admin.operationsSection")}</p>
+					<h2 class="section-title">{$t("admin.organizationDirectoryTitle")}</h2>
+				</div>
+				<p class="section-note">{$t("admin.organizationDirectorySubtitle")}</p>
 			</div>
-			<p class="section-note">{$t("admin.crmSubtitle")}</p>
-		</div>
 
-		<div class="admin-workspace">
-			<aside class="admin-sidebar">
-				<div class="admin-panel compact">
-					<p class="label">{$t("admin.selectedOrg")}</p>
+			<div class="admin-directory-layout">
+				<div class="admin-org-card-grid">
 					{#if orgSummary.length === 0}
-						<p class="empty">{$t("admin.noOrganizations")}</p>
-					{:else}
-						<div class="admin-org-nav">
-							{#each orgSummary as org}
-								<a class:active={org.slug === data.selectedSlug} href={selectedPath(org)}>
-									<span>{org.name}</span>
-									<small>{org.claim_status}</small>
-								</a>
-							{/each}
+						<div class="admin-empty-state">
+							<h3>{$t("admin.noOrganizations")}</h3>
+							<p>{$t("admin.createOrganizationHint")}</p>
 						</div>
+					{:else}
+						{#each orgSummary as org}
+							{@const theme = getTheme(org.name)}
+							<a
+								class="admin-org-card"
+								class:active={org.slug === data.selectedSlug}
+								href={selectedPath(org, "organization-edit")}
+							>
+								<div class="mini-card-cover" style="background: {theme.cover};"></div>
+								<div class="admin-org-card-body">
+									<div class="admin-org-card-top">
+										<div class="mini-card-avatar" style="width: 48px; height: 48px; font-size: 16px; color: {theme.avatarText}; background: {theme.avatarBg};">
+											{getInitials(org.name)}
+										</div>
+										<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
+											{org.claim_status || "unclaimed"}
+										</span>
+									</div>
+									<h3>{org.name}</h3>
+									<p class="small">{org.description || $t("organizationsPage.noDescription")}</p>
+									<p class="meta">{formatAdminLocation(org)}</p>
+									<span class="admin-org-card-action">{$t("admin.openEditor")}</span>
+								</div>
+							</a>
+						{/each}
 					{/if}
 				</div>
 
@@ -276,133 +409,145 @@
 					<input name="claim_status" type="hidden" value="unclaimed" />
 					<button class="btn primary" type="submit">{$t("admin.create")}</button>
 				</form>
-			</aside>
-
-			<div class="admin-main">
-				{#if selectedOrg}
-					<form class="admin-panel" method="POST" action="?/updateOrganization">
-						<div class="admin-form-head">
-							<div>
-								<p class="eyebrow">{$t("admin.orgForm")}</p>
-								<h3>{selectedOrg.name}</h3>
-							</div>
-							<a class="ghost-button" href={`/organizations/${encodeURIComponent(selectedOrg.slug)}`} target="_blank" rel="noreferrer">
-								{$t("admin.viewPublic")}
-							</a>
-						</div>
-						<input name="current_slug" type="hidden" value={selectedOrg.slug} />
-						<div class="admin-field-grid">
-							<label>
-								<span>{$t("admin.name")}</span>
-								<input name="name" required value={selectedOrg.name || ""} />
-							</label>
-							<label>
-								<span>{$t("admin.slug")}</span>
-								<input name="slug" value={selectedOrg.slug || ""} />
-							</label>
-							<label>
-								<span>{$t("admin.legalName")}</span>
-								<input name="legal_name" value={selectedOrg.legal_name || ""} />
-							</label>
-							<label>
-								<span>{$t("admin.officialEmail")}</span>
-								<input name="official_email" type="email" value={selectedOrg.official_email || ""} />
-							</label>
-							<label>
-								<span>{$t("admin.websiteUrl")}</span>
-								<input name="website_url" type="url" value={selectedOrg.website_url || ""} />
-							</label>
-							<label>
-								<span>{$t("admin.claimStatus")}</span>
-								<select name="claim_status" value={selectedOrg.claim_status || "unclaimed"}>
-									<option value="unclaimed">unclaimed</option>
-									<option value="pending">pending</option>
-									<option value="claimed">claimed</option>
-									<option value="rejected">rejected</option>
-								</select>
-							</label>
-							<label>
-								<span>{$t("admin.country")}</span>
-								<input name="country" value={selectedOrg.country || ""} />
-							</label>
-							<label>
-								<span>{$t("admin.region")}</span>
-								<input name="region" value={selectedOrg.region || ""} />
-							</label>
-							<label>
-								<span>{$t("admin.city")}</span>
-								<input name="city" value={selectedOrg.city || ""} />
-							</label>
-						</div>
-						<div class="admin-field-grid two">
-							<label>
-								<span>{$t("admin.description")}</span>
-								<textarea name="description" rows="4">{selectedOrg.description || ""}</textarea>
-							</label>
-							<label>
-								<span>{$t("admin.history")}</span>
-								<textarea name="history" rows="4">{selectedOrg.history || ""}</textarea>
-							</label>
-							<label>
-								<span>{$t("admin.focus")}</span>
-								<textarea name="focus" rows="3">{joinList(selectedProfile.focus)}</textarea>
-							</label>
-							<label>
-								<span>{$t("admin.programs")}</span>
-								<textarea name="programs" rows="3">{joinList(selectedProfile.programs)}</textarea>
-							</label>
-							<label>
-								<span>{$t("admin.sdgs")}</span>
-								<textarea name="sdgs" rows="3">{joinList(selectedSdgs.primary)}</textarea>
-							</label>
-							<label>
-								<span>{$t("admin.languages")}</span>
-								<textarea name="languages" rows="3">{joinList(selectedProfile.languages)}</textarea>
-							</label>
-						</div>
-						<div class="admin-field-grid">
-							<label>
-								<span>{$t("admin.publicEmail")}</span>
-								<input name="public_contact_email" type="email" value={contactValue(selectedOrg, "email")} />
-							</label>
-							<label>
-								<span>Instagram</span>
-								<input name="public_contact_instagram" value={contactValue(selectedOrg, "instagram")} />
-							</label>
-							<label>
-								<span>{$t("admin.phone")}</span>
-								<input name="public_contact_phone" value={contactValue(selectedOrg, "phone")} />
-							</label>
-						</div>
-						<label>
-							<span>{$t("admin.impactData")}</span>
-							<textarea name="impact_data" rows="3">{JSON.stringify(selectedOrg.impact_data || {}, null, 2)}</textarea>
-						</label>
-						<div class="admin-actions">
-							<button class="btn primary" type="submit">{$t("admin.update")}</button>
-						</div>
-					</form>
-				{:else}
-					<div class="admin-panel" style="padding: 48px 24px; text-align: center; width: 100%;">
-						<p class="empty" style="margin-bottom: 8px;">{$t("admin.noOrganizations")}</p>
-						<p class="small">Pilih organisasi di sidebar kiri untuk mengelola data profil publiknya.</p>
-					</div>
-				{/if}
 			</div>
-		</div>
-	</section>
-{/if}
+		</section>
+	{/if}
 
-{#if activeTab === "relations"}
-	{#if !selectedOrg}
-		<div class="admin-empty-state">
-			<h3>{$t("admin.noOrganizations")}</h3>
-			<p>Pilih organisasi terlebih dahulu di tab <strong>{$t("admin.orgForm")}</strong> untuk mengelola data anggota dan relasi.</p>
-			<button class="btn primary" onclick={() => activeTab = "organizations"}>
-				Pilih Organisasi
-			</button>
-		</div>
-	{:else}
+	{#if activeTab === "organization-edit"}
+		{#if !selectedOrg}
+			<div class="admin-empty-state">
+				<h3>{$t("admin.noOrganizations")}</h3>
+				<p>{$t("admin.selectOrganizationFirst")}</p>
+				<button class="btn primary" onclick={() => setActiveTab("organizations", "organization")}>
+					{$t("admin.chooseOrganization")}
+				</button>
+			</div>
+		{:else}
+			<section class="section">
+				<div class="section-head">
+					<div>
+						<p class="eyebrow">{$t("admin.orgForm")}</p>
+						<h2 class="section-title">{$t("admin.editOrgProfile")}</h2>
+					</div>
+					<p class="section-note">{selectedOrg.name}</p>
+				</div>
+
+				<form class="admin-panel" method="POST" action="?/updateOrganization">
+					<div class="admin-form-head">
+						<div>
+							<p class="eyebrow">{$t("admin.orgForm")}</p>
+							<h3>{selectedOrg.name}</h3>
+						</div>
+						<a class="ghost-button" href={`/organizations/${encodeURIComponent(selectedOrg.slug)}`} target="_blank" rel="noreferrer">
+							{$t("admin.viewPublic")}
+						</a>
+					</div>
+					<input name="current_slug" type="hidden" value={selectedOrg.slug} />
+					<div class="admin-field-grid">
+						<label>
+							<span>{$t("admin.name")}</span>
+							<input name="name" required value={selectedOrg.name || ""} />
+						</label>
+						<label>
+							<span>{$t("admin.slug")}</span>
+							<input name="slug" value={selectedOrg.slug || ""} />
+						</label>
+						<label>
+							<span>{$t("admin.legalName")}</span>
+							<input name="legal_name" value={selectedOrg.legal_name || ""} />
+						</label>
+						<label>
+							<span>{$t("admin.officialEmail")}</span>
+							<input name="official_email" type="email" value={selectedOrg.official_email || ""} />
+						</label>
+						<label>
+							<span>{$t("admin.websiteUrl")}</span>
+							<input name="website_url" type="url" value={selectedOrg.website_url || ""} />
+						</label>
+						<label>
+							<span>{$t("admin.claimStatus")}</span>
+							<select name="claim_status" value={selectedOrg.claim_status || "unclaimed"}>
+								<option value="unclaimed">unclaimed</option>
+								<option value="pending">pending</option>
+								<option value="claimed">claimed</option>
+								<option value="rejected">rejected</option>
+							</select>
+						</label>
+						<label>
+							<span>{$t("admin.country")}</span>
+							<input name="country" value={selectedOrg.country || ""} />
+						</label>
+						<label>
+							<span>{$t("admin.region")}</span>
+							<input name="region" value={selectedOrg.region || ""} />
+						</label>
+						<label>
+							<span>{$t("admin.city")}</span>
+							<input name="city" value={selectedOrg.city || ""} />
+						</label>
+					</div>
+					<div class="admin-field-grid two">
+						<label>
+							<span>{$t("admin.description")}</span>
+							<textarea name="description" rows="4">{selectedOrg.description || ""}</textarea>
+						</label>
+						<label>
+							<span>{$t("admin.history")}</span>
+							<textarea name="history" rows="4">{selectedOrg.history || ""}</textarea>
+						</label>
+						<label>
+							<span>{$t("admin.focus")}</span>
+							<textarea name="focus" rows="3">{joinList(selectedProfile.focus)}</textarea>
+						</label>
+						<label>
+							<span>{$t("admin.programs")}</span>
+							<textarea name="programs" rows="3">{joinList(selectedProfile.programs)}</textarea>
+						</label>
+						<label>
+							<span>{$t("admin.sdgs")}</span>
+							<textarea name="sdgs" rows="3">{joinList(selectedSdgs.primary)}</textarea>
+						</label>
+						<label>
+							<span>{$t("admin.languages")}</span>
+							<textarea name="languages" rows="3">{joinList(selectedProfile.languages)}</textarea>
+						</label>
+					</div>
+					<div class="admin-field-grid">
+						<label>
+							<span>{$t("admin.publicEmail")}</span>
+							<input name="public_contact_email" type="email" value={contactValue(selectedOrg, "email")} />
+						</label>
+						<label>
+							<span>Instagram</span>
+							<input name="public_contact_instagram" value={contactValue(selectedOrg, "instagram")} />
+						</label>
+						<label>
+							<span>{$t("admin.phone")}</span>
+							<input name="public_contact_phone" value={contactValue(selectedOrg, "phone")} />
+						</label>
+					</div>
+					<label>
+						<span>{$t("admin.impactData")}</span>
+						<textarea name="impact_data" rows="3">{JSON.stringify(selectedOrg.impact_data || {}, null, 2)}</textarea>
+					</label>
+					<div class="admin-actions">
+						<button class="btn primary" type="submit">{$t("admin.update")}</button>
+					</div>
+				</form>
+			</section>
+		{/if}
+	{/if}
+
+	{#if activeTab === "relationships"}
+		{#if !selectedOrg}
+			<div class="admin-empty-state">
+				<h3>{$t("admin.noOrganizations")}</h3>
+				<p>{$t("admin.selectOrganizationFirst")}</p>
+				<button class="btn primary" onclick={() => setActiveTab("organizations", "organization")}>
+					{$t("admin.chooseOrganization")}
+				</button>
+			</div>
+		{:else}
 		<section class="section">
 			<div class="section-head">
 				<div>
@@ -493,12 +638,24 @@
 						</div>
 					{/if}
 				</div>
-			</div>
-		</section>
+				</div>
+			</section>
+		{/if}
+	{/if}
 
-		<section class="section">
-			<div class="section-head">
-				<div>
+	{#if activeTab === "members"}
+		{#if !selectedOrg}
+			<div class="admin-empty-state">
+				<h3>{$t("admin.noOrganizations")}</h3>
+				<p>{$t("admin.selectOrganizationFirst")}</p>
+				<button class="btn primary" onclick={() => setActiveTab("organizations", "organization")}>
+					{$t("admin.chooseOrganization")}
+				</button>
+			</div>
+		{:else}
+			<section class="section">
+				<div class="section-head">
+					<div>
 					<p class="eyebrow">{$t("admin.members")}</p>
 					<h2 class="section-title">{$t("admin.members")}</h2>
 				</div>
@@ -556,21 +713,21 @@
 						{/if}
 					</div>
 				</div>
-			</div>
-		</section>
+				</div>
+			</section>
+		{/if}
 	{/if}
-{/if}
 
-{#if activeTab === "content"}
-	{#if !selectedOrg}
-		<div class="admin-empty-state">
-			<h3>{$t("admin.noOrganizations")}</h3>
-			<p>Pilih organisasi terlebih dahulu di tab <strong>{$t("admin.orgForm")}</strong> untuk mengelola artikel dan laporan dampak.</p>
-			<button class="btn primary" onclick={() => activeTab = "organizations"}>
-				Pilih Organisasi
-			</button>
-		</div>
-	{:else}
+	{#if activeTab === "posts"}
+		{#if !selectedOrg}
+			<div class="admin-empty-state">
+				<h3>{$t("admin.noOrganizations")}</h3>
+				<p>{$t("admin.selectOrganizationFirst")}</p>
+				<button class="btn primary" onclick={() => setActiveTab("organizations", "organization")}>
+					{$t("admin.chooseOrganization")}
+				</button>
+			</div>
+		{:else}
 		<section class="section">
 			<div class="section-head">
 				<div>
@@ -640,12 +797,24 @@
 						{/if}
 					</div>
 				</div>
-			</div>
-		</section>
+				</div>
+			</section>
+		{/if}
+	{/if}
 
-		<section class="section">
-			<div class="section-head">
-				<div>
+	{#if activeTab === "impact"}
+		{#if !selectedOrg}
+			<div class="admin-empty-state">
+				<h3>{$t("admin.noOrganizations")}</h3>
+				<p>{$t("admin.selectOrganizationFirst")}</p>
+				<button class="btn primary" onclick={() => setActiveTab("organizations", "organization")}>
+					{$t("admin.chooseOrganization")}
+				</button>
+			</div>
+		{:else}
+			<section class="section">
+				<div class="section-head">
+					<div>
 					<p class="eyebrow">{$t("admin.impactReports")}</p>
 					<h2 class="section-title">{$t("admin.impactReports")}</h2>
 				</div>
@@ -721,16 +890,16 @@
 	{/if}
 {/if}
 
-{#if activeTab === "claims"}
-	{#if !selectedOrg}
-		<div class="admin-empty-state">
-			<h3>{$t("admin.noOrganizations")}</h3>
-			<p>Pilih organisasi terlebih dahulu di tab <strong>{$t("admin.orgForm")}</strong> untuk mengelola klaim atau meninjau log audit.</p>
-			<button class="btn primary" onclick={() => activeTab = "organizations"}>
-				Pilih Organisasi
-			</button>
-		</div>
-	{:else}
+	{#if activeTab === "claims"}
+		{#if !selectedOrg}
+			<div class="admin-empty-state">
+				<h3>{$t("admin.noOrganizations")}</h3>
+				<p>{$t("admin.selectOrganizationFirst")}</p>
+				<button class="btn primary" onclick={() => setActiveTab("organizations", "organization")}>
+					{$t("admin.chooseOrganization")}
+				</button>
+			</div>
+		{:else}
 		<section class="section">
 			<div class="section-head">
 				<div>
@@ -798,12 +967,24 @@
 						{/if}
 					</div>
 				</div>
-			</div>
-		</section>
+				</div>
+			</section>
+		{/if}
+	{/if}
 
-		<section class="section">
-			<div class="section-head">
-				<div>
+	{#if activeTab === "audit"}
+		{#if !selectedOrg}
+			<div class="admin-empty-state">
+				<h3>{$t("admin.noOrganizations")}</h3>
+				<p>{$t("admin.selectOrganizationFirst")}</p>
+				<button class="btn primary" onclick={() => setActiveTab("organizations", "organization")}>
+					{$t("admin.chooseOrganization")}
+				</button>
+			</div>
+		{:else}
+			<section class="section">
+				<div class="section-head">
+					<div>
 					<p class="eyebrow">{$t("admin.audit")}</p>
 					<h2 class="section-title">{$t("admin.auditLogs")}</h2>
 				</div>
@@ -824,7 +1005,8 @@
 					{/each}
 				{/if}
 			</div>
-		</section>
+			</section>
+		{/if}
 	{/if}
-{/if}
-
+		</div>
+	</div>

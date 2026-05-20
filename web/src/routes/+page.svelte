@@ -20,6 +20,10 @@
 	function postPath(post) {
 		return `${organizationPath(post.organization?.slug || post.organization_slug)}/posts/${encodeURIComponent(post.slug)}`;
 	}
+
+	function claimStatusLabel(status) {
+		return status === "claimed" ? $t("organizationDetail.claimStatusClaimed") : $t("organizationDetail.claimStatusUnclaimed");
+	}
 </script>
 
 <section class="hero">
@@ -31,7 +35,8 @@
 
 			<div class="hero-actions">
 				<a class="btn primary" href="/organizations">{$t("home.primaryAction")}</a>
-				<a class="btn secondary" href="/posts">{$t("home.secondaryAction")}</a>
+				<a class="btn secondary" href="/register">{$t("home.secondaryAction")}</a>
+				<a class="btn secondary" href="/sdgs">{$t("home.sdgsAction")}</a>
 			</div>
 
 			<div class="hero-stats">
@@ -63,11 +68,44 @@
 				<span class="preview-chip">{$t("home.previewChip")}</span>
 			</div>
 
-			<img
-				src="/brand/landing-page-pendig.png"
-				alt="Kelompok public profile landing page preview"
-				class="preview-image"
-			/>
+			<div class="preview-profile-card" aria-label={$t("home.previewTitle")}>
+				<div class="preview-profile-cover"></div>
+				<div class="preview-profile-body">
+					<div class="preview-profile-main">
+						<img src="/brand/logo-square.png" alt="" class="preview-profile-avatar" />
+						<div>
+							<p class="preview-profile-name">{$t("home.previewOrgName")}</p>
+							<p class="preview-profile-meta">{$t("home.previewOrgMeta")}</p>
+						</div>
+					</div>
+
+					<div class="preview-profile-tabs" aria-hidden="true">
+						<span>Profil</span>
+						<span>Artikel</span>
+						<span>Dampak</span>
+					</div>
+
+					<div class="preview-profile-grid">
+						<div>
+							<p>{$t("organizationDetail.location")}</p>
+							<strong>{$t("home.previewLocation")}</strong>
+						</div>
+						<div>
+							<p>{$t("home.previewSdgLabel")}</p>
+							<div class="preview-sdg-row">
+								<span>4</span>
+								<span>11</span>
+								<span>13</span>
+							</div>
+						</div>
+					</div>
+
+					<div class="preview-profile-story">
+						<p>{$t("home.previewPostTitle")}</p>
+						<strong>{$t("home.previewPostBody")}</strong>
+					</div>
+				</div>
+			</div>
 
 			<div class="preview-foot">
 				<div>
@@ -91,6 +129,25 @@
 		<p>{$t("home.noticeBody")}</p>
 	</section>
 {/if}
+
+<section class="section">
+	<div class="section-head">
+		<div>
+			<p class="eyebrow">{$t("home.whyEyebrow")}</p>
+			<h2 class="section-title">{$t("home.whyTitle")}</h2>
+		</div>
+		<p class="section-note">{$t("home.whyNote")}</p>
+	</div>
+
+	<div class="feature-grid">
+		{#each $t("home.whyReasons") as reason}
+			<article class="feature-card quiet">
+				<h3>{reason.title}</h3>
+				<p>{reason.copy}</p>
+			</article>
+		{/each}
+	</div>
+</section>
 
 <section class="section">
 	<div class="section-head">
@@ -145,7 +202,7 @@
 								</div>
 								{#if org.claim_status}
 									<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}" style="font-size: 9.5px; padding: 2px 8px;">
-										{org.claim_status}
+										{claimStatusLabel(org.claim_status)}
 									</span>
 								{/if}
 							</div>

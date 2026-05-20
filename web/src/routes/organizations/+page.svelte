@@ -15,6 +15,10 @@
 	function organizationPath(org) {
 		return `/organizations/${encodeURIComponent(org.slug)}`;
 	}
+
+	function claimStatusLabel(status) {
+		return status === "claimed" ? $t("organizationDetail.claimStatusClaimed") : $t("organizationDetail.claimStatusUnclaimed");
+	}
 </script>
 
 <nav class="breadcrumbs">
@@ -50,7 +54,7 @@
 					</div>
 					{#if org.claim_status}
 						<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}" style="font-size: 9.5px; padding: 2px 8px;">
-							{org.claim_status}
+							{claimStatusLabel(org.claim_status)}
 						</span>
 					{/if}
 				</div>

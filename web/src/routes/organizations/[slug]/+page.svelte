@@ -1,6 +1,7 @@
 <script>
 	import { fallbackDate } from "../../../lib/api.js";
 	import { locale, t } from "$lib/i18n.js";
+	import { normalizeSdgGoals } from "$lib/sdgs.js";
 	import { getTheme, getInitials } from "../../../lib/theme.js";
 
 	let { data, form } = $props();
@@ -8,6 +9,7 @@
 	let org = $derived(data.organization);
 	let profile = $derived(org?.profile_data || {});
 	let sdgs = $derived(org?.sdgs_data || {});
+	let visibleSdgGoals = $derived(normalizeSdgGoals(sdgs.primary || [], $locale));
 	let relationships = $derived(org?.relationships || { parents: [], children: [], related: [] });
 	let claimSubmitted = $derived(form?.ok && form?.action === "submitClaim");
 	let claimError = $derived(!form?.ok && form?.action === "submitClaim" ? form.error : "");
@@ -107,6 +109,10 @@
 	function claimTargetDefault() {
 		return firstContactValue("email") || firstContactValue("");
 	}
+
+	function claimStatusLabel(status) {
+		return status === "claimed" ? $t("organizationDetail.claimStatusClaimed") : $t("organizationDetail.claimStatusUnclaimed");
+	}
 </script>
 
 <nav class="breadcrumbs">
@@ -142,7 +148,7 @@
 
 	<!-- Modern Profile Details Block (Completely on White Background, Slug Removed) -->
 	<div class="profile-info-block" style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
-		<h1 style="margin: 0; font-size: 32px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; line-height: 1.1;">{org.name}</h1>
+		<h1 style="margin: 0; font-size: 32px; font-weight: 800; color: var(--text); line-height: 1.1;">{org.name}</h1>
 		{#if org.legal_name}
 			<p style="margin: 0; font-size: 14.5px; color: var(--muted); font-weight: 500;">{org.legal_name}</p>
 		{/if}
@@ -151,14 +157,31 @@
 			<span class="profile-meta-badge">
 				<strong>📍 {$t("organizationDetail.location")}:</strong> {formatLocation()}
 			</span>
-			<span class="profile-meta-badge">
-				<strong>🛡️ {$t("organizationDetail.claim")}:</strong>
-				<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
-					{org.claim_status === 'claimed' ? 'claimed' : 'unclaimed'}
+				<span class="profile-meta-badge">
+					<strong>🛡️ {$t("organizationDetail.claim")}:</strong>
+					<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
+						{claimStatusLabel(org.claim_status)}
+					</span>
 				</span>
-			</span>
+				{#if visibleSdgGoals.length}
+					<span class="profile-meta-badge sdg-meta-badge">
+						<strong>SDGs:</strong>
+						<span class="profile-sdg-strip" aria-label="SDG focus">
+							{#each visibleSdgGoals.slice(0, 5) as goal}
+								{#if goal.icon}
+									<img src={goal.icon} alt={`SDG ${goal.number}: ${goal.title}`} loading="lazy" />
+								{:else}
+									<span>{goal.code}</span>
+								{/if}
+							{/each}
+							{#if visibleSdgGoals.length > 5}
+								<small>+{visibleSdgGoals.length - 5}</small>
+							{/if}
+						</span>
+					</span>
+				{/if}
+			</div>
 		</div>
-	</div>
 
 	<!-- Tab Switcher Navigation -->
 	<nav class="profile-tabs-nav">
@@ -171,9 +194,12 @@
 		<button class="profile-tab-trigger" class:active={activeTab === 'sdg'} onclick={() => activeTab = 'sdg'}>
 			SDGs & Program
 		</button>
-		<button class="profile-tab-trigger" class:active={activeTab === 'content'} onclick={() => activeTab = 'content'}>
-			Artikel & Laporan
-		</button>
+			<button class="profile-tab-trigger" class:active={activeTab === 'posts'} onclick={() => activeTab = 'posts'}>
+				{$t("organizationDetail.recentPosts")}
+			</button>
+			<button class="profile-tab-trigger" class:active={activeTab === 'impact'} onclick={() => activeTab = 'impact'}>
+				{$t("organizationDetail.impactReports")}
+			</button>
 		{#if org.claim_status !== "claimed"}
 			<button class="profile-tab-trigger" class:active={activeTab === 'claim'} onclick={() => activeTab = 'claim'}>
 				Klaim
@@ -285,12 +311,23 @@
 		<div class="tab-panel">
 			<div class="admin-panel-grid">
 				<div class="card">
-					<h3 class="section-title" style="margin-top: 0; font-size: 20px;">SDGs Focus</h3>
+					<h3 class="section-title" style="margin-top: 0; font-size: 20px;">{$t("organizationDetail.sdgsFocus")}</h3>
 					<div class="label" style="margin-top: 12px">{$t("organizationDetail.focus")}</div>
-					{#if sdgs.primary?.length}
-						<div class="pill-row" style="margin-top: 10px">
-							{#each sdgs.primary as goal}
-								<span class="pill">{goal}</span>
+					{#if visibleSdgGoals.length}
+							<div class="sdg-grid sdg-grid-icons" style="margin-top: 12px">
+							{#each visibleSdgGoals as goal}
+								<article
+									class="sdg-card"
+									style={`--sdg-color: ${goal.color}; --sdg-text: ${goal.textColor};`}
+									aria-label={`SDG ${goal.number || goal.raw}: ${goal.title}`}
+								>
+									{#if goal.icon}
+										<img class="sdg-card-icon" src={goal.icon} alt={`SDG ${goal.number}: ${goal.title}`} loading="lazy" />
+									{:else}
+										<span class="sdg-card-number">{goal.code}</span>
+										<span class="sdg-card-label">{goal.title}</span>
+									{/if}
+								</article>
 							{/each}
 						</div>
 					{:else}
@@ -315,9 +352,8 @@
 		</div>
 	{/if}
 
-	{#if activeTab === 'content'}
-		<div class="tab-panel">
-			<div class="admin-panel-grid">
+		{#if activeTab === 'posts'}
+			<div class="tab-panel">
 				<div class="card">
 					<div class="mini-head" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
 						<h3 class="section-title" style="margin: 0; font-size: 20px;">{$t("organizationDetail.recentPosts")}</h3>
@@ -338,7 +374,11 @@
 						</div>
 					{/if}
 				</div>
+			</div>
+		{/if}
 
+		{#if activeTab === 'impact'}
+			<div class="tab-panel">
 				<div class="card">
 					<div class="mini-head" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
 						<h3 class="section-title" style="margin: 0; font-size: 20px;">{$t("organizationDetail.impactReports")}</h3>
@@ -358,8 +398,7 @@
 					{/if}
 				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
 
 	{#if activeTab === 'claim' && org.claim_status !== 'claimed'}
 		<div class="tab-panel">
