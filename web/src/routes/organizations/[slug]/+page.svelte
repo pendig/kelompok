@@ -1,6 +1,7 @@
 <script>
 	import { fallbackDate } from "../../../lib/api.js";
 	import { locale, t } from "$lib/i18n.js";
+	import { getTheme, getInitials } from "../../../lib/theme.js";
 
 	let { data, form } = $props();
 
@@ -12,6 +13,7 @@
 	let claimError = $derived(!form?.ok && form?.action === "submitClaim" ? form.error : "");
 
 	let activeTab = $state("profile");
+	let theme = $derived(getTheme(org.name));
 
 	function organizationPath(path = "") {
 		return `/organizations/${encodeURIComponent(org.slug)}${path}`;
@@ -28,16 +30,6 @@
 	function formatLocation() {
 		const parts = [org.city, org.region, org.country].filter(Boolean);
 		return parts.length ? parts.join(", ") : $t("organizationDetail.unknownLocation");
-	}
-
-	function getInitials(name) {
-		if (!name) return "O";
-		return name
-			.split(" ")
-			.map((word) => word[0])
-			.slice(0, 2)
-			.join("")
-			.toUpperCase();
 	}
 
 	function contactItems() {
@@ -126,50 +118,45 @@
 </nav>
 
 <div class="page" style="margin-top: 1.5rem">
-	<!-- Modern Profile Cover Banner -->
-	<div class="profile-cover"></div>
+	<!-- Modern Profile Cover Banner (Deterministic Gradient) -->
+	<div class="profile-cover" style="background: {theme.cover};"></div>
 
-	<!-- Modern Profile Details Block -->
-	<div class="profile-header-container">
-		<div class="profile-avatar">
+	<!-- Modern Profile Header Actions Row -->
+	<div class="profile-header-row">
+		<div class="profile-avatar" style="color: {theme.avatarText}; background: {theme.avatarBg}; flex-shrink: 0; box-shadow: var(--shadow-lg);">
 			{getInitials(org.name)}
 		</div>
-		<div class="profile-header-details">
-			<div class="profile-title-row">
-				<div>
-					<h1 class="profile-title">{org.name}</h1>
-					{#if org.legal_name}
-						<p class="profile-tagline">{org.legal_name}</p>
-					{/if}
-				</div>
-				<div class="inline-actions">
-					{#if org.website_url}
-						<a href={org.website_url} target="_blank" rel="noreferrer" class="btn secondary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
-							{$t("organizationDetail.website")}
-						</a>
-					{/if}
-					{#if org.claim_status !== "claimed"}
-						<button onclick={() => activeTab = "claim"} class="btn primary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
-							{$t("organizationDetail.claimTitle")}
-						</button>
-					{/if}
-				</div>
-			</div>
-			
-			<div class="profile-meta-row">
-				<span class="profile-meta-badge">
-					<strong>📍 {$t("organizationDetail.location")}:</strong> {formatLocation()}
+		<div class="inline-actions" style="margin-bottom: 8px;">
+			{#if org.website_url}
+				<a href={org.website_url} target="_blank" rel="noreferrer" class="btn secondary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
+					{$t("organizationDetail.website")}
+				</a>
+			{/if}
+			{#if org.claim_status !== "claimed"}
+				<button onclick={() => activeTab = "claim"} class="btn primary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
+					{$t("organizationDetail.claimTitle")}
+				</button>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Modern Profile Details Block (Completely on White Background, Slug Removed) -->
+	<div class="profile-info-block" style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
+		<h1 style="margin: 0; font-size: 32px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; line-height: 1.1;">{org.name}</h1>
+		{#if org.legal_name}
+			<p style="margin: 0; font-size: 14.5px; color: var(--muted); font-weight: 500;">{org.legal_name}</p>
+		{/if}
+		
+		<div class="profile-meta-row" style="margin-top: 4px;">
+			<span class="profile-meta-badge">
+				<strong>📍 {$t("organizationDetail.location")}:</strong> {formatLocation()}
+			</span>
+			<span class="profile-meta-badge">
+				<strong>🛡️ {$t("organizationDetail.claim")}:</strong>
+				<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
+					{org.claim_status === 'claimed' ? 'claimed' : 'unclaimed'}
 				</span>
-				<span class="profile-meta-badge">
-					<strong>🏷️ Slug:</strong> <span class="code">{org.slug}</span>
-				</span>
-				<span class="profile-meta-badge">
-					<strong>🛡️ {$t("organizationDetail.claim")}:</strong>
-					<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
-						{org.claim_status === 'claimed' ? 'claimed' : 'unclaimed'}
-					</span>
-				</span>
-			</div>
+			</span>
 		</div>
 	</div>
 

@@ -1541,13 +1541,13 @@ button.btn,
 	pointer-events: none;
 }
 
-.profile-header-container {
+.profile-header-row {
 	position: relative;
 	margin-top: -60px;
 	padding-inline: 24px;
-	padding-bottom: 24px;
 	display: flex;
 	align-items: flex-end;
+	justify-content: space-between;
 	gap: 24px;
 	z-index: 10;
 }
@@ -1702,11 +1702,17 @@ button.btn,
 }
 
 @media (max-width: 720px) {
-	.profile-header-container {
+	.profile-header-row {
 		flex-direction: column;
 		align-items: center;
-		text-align: center;
 		margin-top: -50px;
+		gap: 12px;
+	}
+
+	.profile-info-block {
+		align-items: center;
+		text-align: center;
+		padding-inline: 16px;
 	}
 
 	.profile-avatar {
@@ -1727,4 +1733,35 @@ button.btn,
 		grid-template-columns: 1fr;
 	}
 }
+
+/* Card Modern Cover & Avatar Styling for Home & Directory Pages */
+.mini-card-cover {
+	position: relative;
+	height: 80px;
+	width: 100%;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	transition: opacity 180ms ease;
+}
+
+.surface-card:hover .mini-card-cover,
+.card:hover .mini-card-cover {
+	opacity: 0.95;
+}
+
+.mini-card-avatar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 12px;
+	font-weight: 800;
+	border: 3px solid var(--surface);
+	box-shadow: var(--shadow-sm);
+	transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.surface-card:hover .mini-card-avatar,
+.card:hover .mini-card-avatar {
+	transform: scale(1.05);
+}
+
 
