@@ -11,6 +11,8 @@
 	let claimSubmitted = $derived(form?.ok && form?.action === "submitClaim");
 	let claimError = $derived(!form?.ok && form?.action === "submitClaim" ? form.error : "");
 
+	let activeTab = $state("profile");
+
 	function organizationPath(path = "") {
 		return `/organizations/${encodeURIComponent(org.slug)}${path}`;
 	}
@@ -26,6 +28,16 @@
 	function formatLocation() {
 		const parts = [org.city, org.region, org.country].filter(Boolean);
 		return parts.length ? parts.join(", ") : $t("organizationDetail.unknownLocation");
+	}
+
+	function getInitials(name) {
+		if (!name) return "O";
+		return name
+			.split(" ")
+			.map((word) => word[0])
+			.slice(0, 2)
+			.join("")
+			.toUpperCase();
 	}
 
 	function contactItems() {
@@ -113,210 +125,292 @@
 	<span>{org.name}</span>
 </nav>
 
-<header class="two-col" style="margin-top: 1rem">
-	<section class="card">
-		<h1>{org.name}</h1>
-		<p class="muted">Slug: <span class="code">{org.slug}</span></p>
-		<p>{org.description || $t("organizationDetail.noDescription")}</p>
-		<p class="small muted">{$t("organizationDetail.tagline")}: {org.legal_name || "—"}</p>
-		<p class="small">
-			{$t("organizationDetail.updatedAt", { date: fallbackDate(org.updated_at, $locale) })}
-		</p>
-	</section>
+<div class="page" style="margin-top: 1.5rem">
+	<!-- Modern Profile Cover Banner -->
+	<div class="profile-cover"></div>
 
-	<section class="card">
-		<div class="label">{$t("organizationDetail.info")}</div>
-		<p class="value"><strong>{$t("organizationDetail.location")}:</strong> {formatLocation()}</p>
-		<p class="value">
-			<strong>{$t("organizationDetail.website")}:</strong>
-			{#if org.website_url}
-				<a href={org.website_url} target="_blank" rel="noreferrer">{org.website_url}</a>
-			{:else}
-				—
-			{/if}
-		</p>
-		<p class="value"><strong>{$t("organizationDetail.claim")}:</strong> {org.claim_status}</p>
-		{#if profile.languages?.length}
-			<div class="label">{$t("organizationDetail.languages")}</div>
-			<div class="pill-row">
-				{#each profile.languages as language}
-					<span class="pill">{language}</span>
-				{/each}
-			</div>
-		{/if}
-		</section>
-	</header>
-
-	<section>
-		<h2 class="section-title">{$t("organizationDetail.relationships")}</h2>
-		{#if relationships.parents.length === 0 && relationships.children.length === 0 && relationships.related.length === 0}
-			<p class="empty">{$t("organizationDetail.noRelationships")}</p>
-		{:else}
-			<div class="grid">
-				{#if relationships.parents.length}
-					<div class="card">
-						<div class="label">{$t("organizationDetail.parentOrganizations")}</div>
-						<ul class="detail-list">
-							{#each relationships.parents as item}
-								<li>
-									<a href={relationshipPath(item)}>{item.organization.name}</a>
-									<span class="muted"> · {item.label || item.relationship_type}</span>
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/if}
-				{#if relationships.children.length}
-					<div class="card">
-						<div class="label">{$t("organizationDetail.childOrganizations")}</div>
-						<ul class="detail-list">
-							{#each relationships.children as item}
-								<li>
-									<a href={relationshipPath(item)}>{item.organization.name}</a>
-									<span class="muted"> · {item.label || item.relationship_type}</span>
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/if}
-				{#if relationships.related.length}
-					<div class="card">
-						<div class="label">{$t("organizationDetail.relatedOrganizations")}</div>
-						<ul class="detail-list">
-							{#each relationships.related as item}
-								<li>
-									<a href={relationshipPath(item)}>{item.organization.name}</a>
-									<span class="muted"> · {item.label || item.relationship_type}</span>
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/if}
-			</div>
-		{/if}
-	</section>
-
-	{#if org.claim_status !== "claimed"}
-		<section class="claim-card">
-		<div class="claim-copy">
-			<p class="eyebrow">{$t("organizationDetail.claimEyebrow")}</p>
-			<h2>{$t("organizationDetail.claimTitle")}</h2>
-			<p>{$t("organizationDetail.claimDescription")}</p>
-			{#if claimSubmitted}
-				<p class="success">{$t("organizationDetail.claimSubmitted")}</p>
-			{/if}
-			{#if claimError}
-				<p class="error compact">{$t("organizationDetail.claimError", { message: claimError })}</p>
-			{/if}
+	<!-- Modern Profile Details Block -->
+	<div class="profile-header-container">
+		<div class="profile-avatar">
+			{getInitials(org.name)}
 		</div>
-		<form class="claim-form" method="POST" action="?/submitClaim">
-			<label>
-				{$t("organizationDetail.claimMethod")}
-				<select name="method">
-					<option value="official_email">{$t("organizationDetail.claimMethodEmail")}</option>
-					<option value="instagram">{$t("organizationDetail.claimMethodInstagram")}</option>
-				</select>
-			</label>
-			<label>
-				{$t("organizationDetail.claimTarget")}
-				<input name="target" value={claimTargetDefault()} placeholder="admin@example.org" required />
-			</label>
-			<label>
-				{$t("organizationDetail.claimRequesterEmail")}
-				<input name="requester_email" type="email" placeholder="you@example.org" required />
-			</label>
-			<label>
-				{$t("organizationDetail.claimEvidence")}
-				<textarea name="evidence_note" rows="3" placeholder={$t("organizationDetail.claimEvidencePlaceholder")}></textarea>
-			</label>
-			<button class="btn primary" type="submit">{$t("organizationDetail.claimSubmit")}</button>
-		</form>
-	</section>
-{/if}
-
-<section>
-	<div class="actions">
-		<a href={organizationPath("/posts")}>{$t("organizationDetail.allPosts")}</a>
-		<a href={organizationPath("/impact")}>{$t("organizationDetail.impactReports")}</a>
-	</div>
-
-	<h2 class="section-title">{$t("organizationDetail.vision")}</h2>
-	<div class="grid">
-		<div class="card">
-			<div class="label">{$t("organizationDetail.history")}</div>
-			<p class="small">{org.history || $t("organizationDetail.noHistory")}</p>
-		</div>
-		<div class="card">
-			<div class="label">{$t("organizationDetail.publicContact")}</div>
-			{#if contactItems().length}
-				<ul class="detail-list">
-					{#each contactItems() as item}
-						<li><strong>{item.label}:</strong> {item.value}</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="small">{$t("organizationDetail.noContact")}</p>
-			{/if}
-		</div>
-	</div>
-</section>
-
-<section>
-	<h2 class="section-title">SDGS</h2>
-	<div class="grid">
-		<div class="card">
-			<div class="label">{$t("organizationDetail.focus")}</div>
-			{#if sdgs.primary?.length}
-				<div class="pill-row">
-					{#each sdgs.primary as goal}
-						<span class="pill">{goal}</span>
-					{/each}
+		<div class="profile-header-details">
+			<div class="profile-title-row">
+				<div>
+					<h1 class="profile-title">{org.name}</h1>
+					{#if org.legal_name}
+						<p class="profile-tagline">{org.legal_name}</p>
+					{/if}
 				</div>
-			{:else}
-				<p class="small">{$t("organizationDetail.noSdgs")}</p>
-			{/if}
-		</div>
-		<div class="card">
-			<div class="label">{$t("organizationDetail.programs")}</div>
-			{#if profile.programs?.length}
-				<ul>
-					{#each profile.programs as item}
-						<li>{item}</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="small">{$t("organizationDetail.noPrograms")}</p>
-			{/if}
-		</div>
-	</div>
-</section>
-
-<section>
-	<h2 class="section-title">{$t("organizationDetail.recentPosts")}</h2>
-	{#if data.posts.length === 0}
-		<p class="empty">{$t("organizationDetail.noPosts")}</p>
-	{:else}
-		{#each data.posts.slice(0, 6) as post}
-			<div class="list-item">
-				<a class="title" href={postPath(post)}>{post.title}</a>
-				<div class="meta">
-					{fallbackDate(post.published_at, $locale)} · {post.summary || "—"}
+				<div class="inline-actions">
+					{#if org.website_url}
+						<a href={org.website_url} target="_blank" rel="noreferrer" class="btn secondary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
+							{$t("organizationDetail.website")}
+						</a>
+					{/if}
+					{#if org.claim_status !== "claimed"}
+						<button onclick={() => activeTab = "claim"} class="btn primary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
+							{$t("organizationDetail.claimTitle")}
+						</button>
+					{/if}
 				</div>
 			</div>
-		{/each}
-	{/if}
-</section>
-
-<section>
-	<h2 class="section-title">{$t("organizationDetail.impactReports")}</h2>
-	{#if data.impactReports.length === 0}
-		<p class="empty">{$t("organizationDetail.noReports")}</p>
-	{:else}
-		{#each data.impactReports.slice(0, 6) as report}
-			<div class="list-item">
-				<div class="title">{report.title}</div>
-				<div class="meta">{fallbackDate(report.published_at, $locale)} · {report.summary || "—"}</div>
+			
+			<div class="profile-meta-row">
+				<span class="profile-meta-badge">
+					<strong>📍 {$t("organizationDetail.location")}:</strong> {formatLocation()}
+				</span>
+				<span class="profile-meta-badge">
+					<strong>🏷️ Slug:</strong> <span class="code">{org.slug}</span>
+				</span>
+				<span class="profile-meta-badge">
+					<strong>🛡️ {$t("organizationDetail.claim")}:</strong>
+					<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
+						{org.claim_status === 'claimed' ? 'claimed' : 'unclaimed'}
+					</span>
+				</span>
 			</div>
-		{/each}
+		</div>
+	</div>
+
+	<!-- Tab Switcher Navigation -->
+	<nav class="profile-tabs-nav">
+		<button class="profile-tab-trigger" class:active={activeTab === 'profile'} onclick={() => activeTab = 'profile'}>
+			Profil
+		</button>
+		<button class="profile-tab-trigger" class:active={activeTab === 'relationships'} onclick={() => activeTab = 'relationships'}>
+			Relasi
+		</button>
+		<button class="profile-tab-trigger" class:active={activeTab === 'sdg'} onclick={() => activeTab = 'sdg'}>
+			SDGs & Program
+		</button>
+		<button class="profile-tab-trigger" class:active={activeTab === 'content'} onclick={() => activeTab = 'content'}>
+			Artikel & Laporan
+		</button>
+		{#if org.claim_status !== "claimed"}
+			<button class="profile-tab-trigger" class:active={activeTab === 'claim'} onclick={() => activeTab = 'claim'}>
+				Klaim
+			</button>
+		{/if}
+	</nav>
+
+	<!-- Conditional Tab Panels -->
+	{#if activeTab === 'profile'}
+		<div class="tab-panel">
+			<div class="profile-info-grid">
+				<div class="card">
+					<h3 class="section-title" style="margin-top: 0; font-size: 20px;">{$t("organizationDetail.vision")}</h3>
+					<p style="font-size: 15px; line-height: 1.7; margin-top: 10px;">{org.description || $t("organizationDetail.noDescription")}</p>
+					
+					<h3 class="section-title" style="margin-top: 32px; font-size: 20px;">{$t("organizationDetail.history")}</h3>
+					<p class="small" style="line-height: 1.7; margin-top: 10px;">{org.history || $t("organizationDetail.noHistory")}</p>
+				</div>
+				
+				<div style="display: grid; gap: 16px; align-content: start;">
+					{#if profile.languages?.length}
+						<div class="card" style="padding: 18px;">
+							<div class="label">{$t("organizationDetail.languages")}</div>
+							<div class="pill-row" style="margin-top: 8px">
+								{#each profile.languages as language}
+									<span class="pill">{language}</span>
+								{/each}
+							</div>
+						</div>
+					{/if}
+					
+					<div class="card" style="padding: 18px;">
+						<div class="label">{$t("organizationDetail.publicContact")}</div>
+						{#if contactItems().length}
+							<ul class="detail-list" style="margin-top: 8px">
+								{#each contactItems() as item}
+									<li><strong>{item.label}:</strong> {item.value}</li>
+								{/each}
+							</ul>
+						{:else}
+							<p class="small" style="margin-top: 8px;">{$t("organizationDetail.noContact")}</p>
+						{/if}
+					</div>
+
+					<div class="card" style="padding: 14px 18px;">
+						<span class="muted" style="font-size: 12px; font-weight: 500;">
+							{$t("organizationDetail.updatedAt", { date: fallbackDate(org.updated_at, $locale) })}
+						</span>
+					</div>
+				</div>
+			</div>
+		</div>
 	{/if}
-</section>
+
+	{#if activeTab === 'relationships'}
+		<div class="tab-panel">
+			<div class="mini-head">
+				<h2 class="section-title" style="margin: 0; font-size: 22px;">{$t("organizationDetail.relationships")}</h2>
+			</div>
+			{#if relationships.parents.length === 0 && relationships.children.length === 0 && relationships.related.length === 0}
+				<p class="empty">{$t("organizationDetail.noRelationships")}</p>
+			{:else}
+				<div class="grid">
+					{#if relationships.parents.length}
+						<div class="card">
+							<div class="label">{$t("organizationDetail.parentOrganizations")}</div>
+							<ul class="detail-list" style="margin-top: 12px">
+								{#each relationships.parents as item}
+									<li>
+										<a href={relationshipPath(item)}>{item.organization.name}</a>
+										<span class="muted"> · {item.label || item.relationship_type}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if relationships.children.length}
+						<div class="card">
+							<div class="label">{$t("organizationDetail.childOrganizations")}</div>
+							<ul class="detail-list" style="margin-top: 12px">
+								{#each relationships.children as item}
+									<li>
+										<a href={relationshipPath(item)}>{item.organization.name}</a>
+										<span class="muted"> · {item.label || item.relationship_type}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if relationships.related.length}
+						<div class="card">
+							<div class="label">{$t("organizationDetail.relatedOrganizations")}</div>
+							<ul class="detail-list" style="margin-top: 12px">
+								{#each relationships.related as item}
+									<li>
+										<a href={relationshipPath(item)}>{item.organization.name}</a>
+										<span class="muted"> · {item.label || item.relationship_type}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	{#if activeTab === 'sdg'}
+		<div class="tab-panel">
+			<div class="admin-panel-grid">
+				<div class="card">
+					<h3 class="section-title" style="margin-top: 0; font-size: 20px;">SDGs Focus</h3>
+					<div class="label" style="margin-top: 12px">{$t("organizationDetail.focus")}</div>
+					{#if sdgs.primary?.length}
+						<div class="pill-row" style="margin-top: 10px">
+							{#each sdgs.primary as goal}
+								<span class="pill">{goal}</span>
+							{/each}
+						</div>
+					{:else}
+						<p class="small" style="margin-top: 10px">{$t("organizationDetail.noSdgs")}</p>
+					{/if}
+				</div>
+				
+				<div class="card">
+					<h3 class="section-title" style="margin-top: 0; font-size: 20px;">{$t("organizationDetail.programs")}</h3>
+					<div class="label" style="margin-top: 12px">Program Kerja</div>
+					{#if profile.programs?.length}
+						<ul style="margin-top: 12px; padding-left: 20px; line-height: 1.8;">
+							{#each profile.programs as item}
+								<li>{item}</li>
+							{/each}
+						</ul>
+					{:else}
+						<p class="small" style="margin-top: 12px">{$t("organizationDetail.noPrograms")}</p>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if activeTab === 'content'}
+		<div class="tab-panel">
+			<div class="admin-panel-grid">
+				<div class="card">
+					<div class="mini-head" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+						<h3 class="section-title" style="margin: 0; font-size: 20px;">{$t("organizationDetail.recentPosts")}</h3>
+						<a href={organizationPath("/posts")} class="ghost-button">{$t("organizationDetail.allPosts")}</a>
+					</div>
+					{#if data.posts.length === 0}
+						<p class="empty">{$t("organizationDetail.noPosts")}</p>
+					{:else}
+						<div style="display: grid; gap: 12px;">
+							{#each data.posts.slice(0, 6) as post}
+								<div class="list-item" style="padding: 12px; margin-bottom: 0;">
+									<a class="title" style="font-size: 15px;" href={postPath(post)}>{post.title}</a>
+									<div class="meta" style="margin-top: 4px;">
+										{fallbackDate(post.published_at, $locale)} · {post.summary || "—"}
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				<div class="card">
+					<div class="mini-head" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+						<h3 class="section-title" style="margin: 0; font-size: 20px;">{$t("organizationDetail.impactReports")}</h3>
+						<a href={organizationPath("/impact")} class="ghost-button">{$t("organizationDetail.impactReports")}</a>
+					</div>
+					{#if data.impactReports.length === 0}
+						<p class="empty">{$t("organizationDetail.noReports")}</p>
+					{:else}
+						<div style="display: grid; gap: 12px;">
+							{#each data.impactReports.slice(0, 6) as report}
+								<div class="list-item" style="padding: 12px; margin-bottom: 0;">
+									<div class="title" style="font-size: 15px; font-weight: 700;">{report.title}</div>
+									<div class="meta" style="margin-top: 4px;">{fallbackDate(report.published_at, $locale)} · {report.summary || "—"}</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if activeTab === 'claim' && org.claim_status !== 'claimed'}
+		<div class="tab-panel">
+			<div class="claim-card" style="margin-top: 0;">
+				<div class="claim-copy">
+					<p class="eyebrow">{$t("organizationDetail.claimEyebrow")}</p>
+					<h2>{$t("organizationDetail.claimTitle")}</h2>
+					<p>{$t("organizationDetail.claimDescription")}</p>
+					{#if claimSubmitted}
+						<p class="success" style="margin-top: 16px;">{$t("organizationDetail.claimSubmitted")}</p>
+					{/if}
+					{#if claimError}
+						<p class="error compact" style="margin-top: 16px;">{$t("organizationDetail.claimError", { message: claimError })}</p>
+					{/if}
+				</div>
+				<form class="claim-form" method="POST" action="?/submitClaim">
+					<label>
+						{$t("organizationDetail.claimMethod")}
+						<select name="method">
+							<option value="official_email">{$t("organizationDetail.claimMethodEmail")}</option>
+							<option value="instagram">{$t("organizationDetail.claimMethodInstagram")}</option>
+						</select>
+					</label>
+					<label>
+						{$t("organizationDetail.claimTarget")}
+						<input name="target" value={claimTargetDefault()} placeholder="admin@example.org" required />
+					</label>
+					<label>
+						{$t("organizationDetail.claimRequesterEmail")}
+						<input name="requester_email" type="email" placeholder="you@example.org" required />
+					</label>
+					<label>
+						{$t("organizationDetail.claimEvidence")}
+						<textarea name="evidence_note" rows="3" placeholder={$t("organizationDetail.claimEvidencePlaceholder")}></textarea>
+					</label>
+					<button class="btn primary" type="submit">{$t("organizationDetail.claimSubmit")}</button>
+				</form>
+			</div>
+		</div>
+	{/if}
+</div>
