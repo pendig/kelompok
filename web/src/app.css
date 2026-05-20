@@ -1764,4 +1764,75 @@ button.btn,
 	transform: scale(1.05);
 }
 
+/* Admin Tab Switcher */
+.admin-tabs-nav {
+	display: flex;
+	border-bottom: 1px solid var(--border);
+	gap: 8px;
+	margin-top: 16px;
+	margin-bottom: 24px;
+	overflow-x: auto;
+	padding-bottom: 1px;
+	scrollbar-width: none;
+}
+
+.admin-tabs-nav::-webkit-scrollbar {
+	display: none;
+}
+
+.admin-tab-trigger {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	padding: 0 16px;
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--muted);
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: all 180ms ease;
+}
+
+.admin-tab-trigger:hover {
+	color: var(--purple-700);
+}
+
+.admin-tab-trigger.active {
+	color: var(--purple-700);
+	border-bottom-color: var(--purple-700);
+}
+
+/* Empty State / Notice Card */
+.admin-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	padding: 48px 24px;
+	background: var(--surface);
+	border: 1px dashed var(--border);
+	border-radius: 16px;
+	margin: 24px 0;
+	box-shadow: var(--shadow-sm);
+}
+
+.admin-empty-state p {
+	color: var(--muted);
+	margin-bottom: 16px;
+	max-width: 420px;
+	font-size: 14px;
+}
+
+.admin-empty-state h3 {
+	font-size: 18px;
+	font-weight: 700;
+	color: var(--foreground);
+	margin-bottom: 8px;
+}
+
+
 
