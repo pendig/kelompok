@@ -4,7 +4,8 @@
 
 	let { data, form } = $props();
 
-	let activeTab = $state("dashboard");
+	// svelte-ignore state_referenced_locally
+	let activeTab = $state(data.initialTab || "dashboard");
 	let expandedSections = $state({
 		organization: false,
 		content: false,
@@ -51,6 +52,18 @@
 
 	function selectedPath(org, view = "organization-edit") {
 		return `/admin?org=${encodeURIComponent(org.slug)}&view=${encodeURIComponent(view)}`;
+	}
+
+	function actionPath(action, view = activeTab) {
+		const params = new URLSearchParams();
+		if (selectedOrg?.slug) {
+			params.set("org", selectedOrg.slug);
+		}
+		if (view) {
+			params.set("view", view);
+		}
+		const query = params.toString();
+		return `?${query ? `${query}&` : ""}/${action}`;
 	}
 
 	function formatAdminLocation(org) {
@@ -388,7 +401,7 @@
 					{/if}
 				</div>
 
-				<form class="admin-panel compact" method="POST" action="?/createOrganization">
+				<form class="admin-panel compact" method="POST" action={actionPath("createOrganization", "organizations")}>
 					<h3>{$t("admin.createOrg")}</h3>
 					<label>
 						<span>{$t("admin.name")}</span>
@@ -432,7 +445,7 @@
 					<p class="section-note">{selectedOrg.name}</p>
 				</div>
 
-				<form class="admin-panel" method="POST" action="?/updateOrganization">
+				<form class="admin-panel" method="POST" action={actionPath("updateOrganization", "organization-edit")}>
 					<div class="admin-form-head">
 						<div>
 							<p class="eyebrow">{$t("admin.orgForm")}</p>
@@ -558,7 +571,7 @@
 			</div>
 
 			<div class="admin-panel-grid">
-				<form class="admin-panel" method="POST" action="?/createRelationship">
+				<form class="admin-panel" method="POST" action={actionPath("createRelationship", "relationships")}>
 					<h3>{$t("admin.relationshipEditor")}</h3>
 					<div class="admin-field-grid two">
 						<label>
@@ -628,7 +641,7 @@
 									</p>
 									<div class="inline-actions">
 										<span class="mini-badge">{relationship.status}</span>
-										<form method="POST" action="?/deleteRelationship" class="inline-form">
+										<form method="POST" action={actionPath("deleteRelationship", "relationships")} class="inline-form">
 											<input type="hidden" name="id" value={relationship.id} />
 											<button class="ghost-button danger" type="submit">{$t("admin.remove")}</button>
 										</form>
@@ -663,7 +676,7 @@
 			</div>
 
 			<div class="admin-panel-grid">
-				<form class="admin-panel" method="POST" action="?/createMember">
+				<form class="admin-panel" method="POST" action={actionPath("createMember", "members")}>
 					<h3>{$t("admin.addMember")}</h3>
 					<input name="organization_slug" type="hidden" value={selectedOrg.slug} />
 					<div class="admin-field-grid two">
@@ -738,7 +751,7 @@
 			</div>
 
 			<div class="admin-panel-grid">
-				<form class="admin-panel" method="POST" action="?/createPost">
+				<form class="admin-panel" method="POST" action={actionPath("createPost", "posts")}>
 					<h3>{$t("admin.createPost")}</h3>
 					<input name="organization_slug" type="hidden" value={selectedOrg.slug} />
 					<div class="admin-field-grid two">
@@ -787,7 +800,7 @@
 									</div>
 									<p class="small">{post.organization_name} - {post.summary || "-"}</p>
 									{#if post.status !== "published"}
-										<form method="POST" action="?/publishPost" class="inline-form" style="margin-top: 8px;">
+										<form method="POST" action={actionPath("publishPost", "posts")} class="inline-form" style="margin-top: 8px;">
 											<input type="hidden" name="id" value={post.id} />
 											<button class="ghost-button" type="submit">{$t("admin.publish")}</button>
 										</form>
@@ -822,7 +835,7 @@
 			</div>
 
 			<div class="admin-panel-grid">
-				<form class="admin-panel" method="POST" action="?/createImpactReport">
+				<form class="admin-panel" method="POST" action={actionPath("createImpactReport", "impact")}>
 					<h3>{$t("admin.createImpact")}</h3>
 					<input name="organization_slug" type="hidden" value={selectedOrg.slug} />
 					<div class="admin-field-grid two">
@@ -875,7 +888,7 @@
 									</div>
 									<p class="small">{report.organization_name} - {report.summary || "-"}</p>
 									{#if report.status !== "published"}
-										<form method="POST" action="?/publishImpactReport" class="inline-form" style="margin-top: 8px;">
+										<form method="POST" action={actionPath("publishImpactReport", "impact")} class="inline-form" style="margin-top: 8px;">
 											<input type="hidden" name="id" value={report.id} />
 											<button class="ghost-button" type="submit">{$t("admin.publish")}</button>
 										</form>
@@ -910,7 +923,7 @@
 			</div>
 
 			<div class="admin-panel-grid">
-				<form class="admin-panel" method="POST" action="?/createClaim">
+				<form class="admin-panel" method="POST" action={actionPath("createClaim", "claims")}>
 					<h3>{$t("admin.claimRequest")}</h3>
 					<input name="organization_slug" type="hidden" value={selectedOrg.slug} />
 					<div class="admin-field-grid two">
@@ -952,11 +965,11 @@
 									<p class="small">{claim.id}</p>
 									{#if claim.status === "pending"}
 										<div class="inline-actions" style="margin-top: 8px;">
-											<form method="POST" action="?/approveClaim" class="inline-form">
+											<form method="POST" action={actionPath("approveClaim", "claims")} class="inline-form">
 												<input type="hidden" name="id" value={claim.id} />
 												<button class="ghost-button" type="submit">{$t("admin.approve")}</button>
 											</form>
-											<form method="POST" action="?/rejectClaim" class="inline-form">
+											<form method="POST" action={actionPath("rejectClaim", "claims")} class="inline-form">
 												<input type="hidden" name="id" value={claim.id} />
 												<button class="ghost-button danger" type="submit">{$t("admin.reject")}</button>
 											</form>

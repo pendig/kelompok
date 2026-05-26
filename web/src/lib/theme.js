@@ -43,12 +43,12 @@ export function getTheme(name = "") {
 
 export function getInitials(name) {
 	if (!name) return "O";
-	const words = name.replace(/[^a-zA-Z0-9\s]/g, "").trim().split(/\s+/);
+	const words = name.replace(/[^\p{L}\p{N}\s]/gu, "").trim().split(/\s+/).filter(Boolean);
 	if (words.length === 0 || !words[0]) return "O";
 	
 	if (words.length === 1) {
-		return words[0].slice(0, 2).toUpperCase();
+		return Array.from(words[0]).slice(0, 2).join("").toLocaleUpperCase();
 	}
 	
-	return (words[0][0] + words[1][0]).toUpperCase();
+	return `${Array.from(words[0])[0]}${Array.from(words[1])[0]}`.toLocaleUpperCase();
 }

@@ -14,8 +14,15 @@
 	let claimSubmitted = $derived(form?.ok && form?.action === "submitClaim");
 	let claimError = $derived(!form?.ok && form?.action === "submitClaim" ? form.error : "");
 
-	let activeTab = $state("profile");
+	// svelte-ignore state_referenced_locally
+	let activeTab = $state(form?.action === "submitClaim" ? "claim" : "profile");
 	let theme = $derived(getTheme(org.name));
+
+	$effect.pre(() => {
+		if (form?.action === "submitClaim") {
+			activeTab = "claim";
+		}
+	});
 
 	function organizationPath(path = "") {
 		return `/organizations/${encodeURIComponent(org.slug)}${path}`;
@@ -111,7 +118,14 @@
 	}
 
 	function claimStatusLabel(status) {
-		return status === "claimed" ? $t("organizationDetail.claimStatusClaimed") : $t("organizationDetail.claimStatusUnclaimed");
+		const labels = {
+			claimed: $t("organizationDetail.claimStatusClaimed"),
+			pending: $t("organizationDetail.claimStatusPending"),
+			rejected: $t("organizationDetail.claimStatusRejected"),
+			unclaimed: $t("organizationDetail.claimStatusUnclaimed"),
+		};
+
+		return labels[status] || status || $t("organizationDetail.claimStatusUnclaimed");
 	}
 </script>
 
@@ -186,13 +200,13 @@
 	<!-- Tab Switcher Navigation -->
 	<nav class="profile-tabs-nav">
 		<button class="profile-tab-trigger" class:active={activeTab === 'profile'} onclick={() => activeTab = 'profile'}>
-			Profil
+			{$t("organizationDetail.tabProfile")}
 		</button>
 		<button class="profile-tab-trigger" class:active={activeTab === 'relationships'} onclick={() => activeTab = 'relationships'}>
-			Relasi
+			{$t("organizationDetail.tabRelationships")}
 		</button>
 		<button class="profile-tab-trigger" class:active={activeTab === 'sdg'} onclick={() => activeTab = 'sdg'}>
-			SDGs & Program
+			{$t("organizationDetail.tabSdgs")}
 		</button>
 			<button class="profile-tab-trigger" class:active={activeTab === 'posts'} onclick={() => activeTab = 'posts'}>
 				{$t("organizationDetail.recentPosts")}
@@ -202,7 +216,7 @@
 			</button>
 		{#if org.claim_status !== "claimed"}
 			<button class="profile-tab-trigger" class:active={activeTab === 'claim'} onclick={() => activeTab = 'claim'}>
-				Klaim
+				{$t("organizationDetail.tabClaim")}
 			</button>
 		{/if}
 	</nav>
@@ -337,7 +351,7 @@
 				
 				<div class="card">
 					<h3 class="section-title" style="margin-top: 0; font-size: 20px;">{$t("organizationDetail.programs")}</h3>
-					<div class="label" style="margin-top: 12px">Program Kerja</div>
+					<div class="label" style="margin-top: 12px">{$t("organizationDetail.programWork")}</div>
 					{#if profile.programs?.length}
 						<ul style="margin-top: 12px; padding-left: 20px; line-height: 1.8;">
 							{#each profile.programs as item}

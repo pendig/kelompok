@@ -17,7 +17,14 @@
 	}
 
 	function claimStatusLabel(status) {
-		return status === "claimed" ? $t("organizationDetail.claimStatusClaimed") : $t("organizationDetail.claimStatusUnclaimed");
+		const labels = {
+			claimed: $t("organizationDetail.claimStatusClaimed"),
+			pending: $t("organizationDetail.claimStatusPending"),
+			rejected: $t("organizationDetail.claimStatusRejected"),
+			unclaimed: $t("organizationDetail.claimStatusUnclaimed"),
+		};
+
+		return labels[status] || status || $t("organizationDetail.claimStatusUnclaimed");
 	}
 </script>
 
