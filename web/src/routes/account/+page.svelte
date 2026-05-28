@@ -15,9 +15,10 @@
 	let isUpdateProfile = $derived(form?.action === "updateProfile");
 	let updateSuccess = $derived(isUpdateProfile && form?.ok === true);
 	let updateError = $derived(isUpdateProfile && form?.ok === false ? form.error : null);
+	let updateErrorCode = $derived(isUpdateProfile && form?.ok === false ? form.code : null);
 
-	function profileErrorMessage(code) {
-		if (!code) return null;
+	function profileErrorMessage(code, message) {
+		if (!code && !message) return null;
 		const known = [
 			"name_required",
 			"profile_name_required",
@@ -27,7 +28,7 @@
 		if (known.includes(code)) {
 			return $t(`account.errors.${code}`);
 		}
-		return $t("account.errors.generic", { message: code });
+		return $t("account.errors.generic", { message: message || code });
 	}
 </script>
 
@@ -103,7 +104,7 @@
 			{#if updateSuccess}
 				<p class="success compact">{$t("account.profileUpdated")}</p>
 			{:else if updateError}
-				<p class="error compact">{profileErrorMessage(updateError)}</p>
+				<p class="error compact">{profileErrorMessage(updateErrorCode, updateError)}</p>
 			{/if}
 		</div>
 

@@ -27,18 +27,21 @@ function actionError(error) {
 			return fail(error.status, {
 				ok: false,
 				action: "updateProfile",
+				code: "session_expired",
 				error: "session_expired",
 			});
 		}
 		return fail(error.status || 400, {
 			ok: false,
 			action: "updateProfile",
-			error: error.code || error.message || "profile_update_failed",
+			code: error.code || "profile_update_failed",
+			error: error.apiMessage || error.message || "Unable to update profile",
 		});
 	}
 	return fail(400, {
 		ok: false,
 		action: "updateProfile",
+		code: "profile_update_failed",
 		error: error instanceof Error ? error.message : "profile_update_failed",
 	});
 }
@@ -55,6 +58,7 @@ export const actions = {
 			return fail(400, {
 				ok: false,
 				action: "updateProfile",
+				code: "name_required",
 				error: "name_required",
 			});
 		}

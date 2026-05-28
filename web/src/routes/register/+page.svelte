@@ -6,7 +6,6 @@
 	const FRIENDLY_CODES = new Set([
 		"user_exists",
 		"name_required",
-		"register_failed",
 	]);
 
 	function registerErrorMessage() {
