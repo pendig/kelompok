@@ -72,6 +72,25 @@ type OrganizationRole struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+// OrganizationClaim is a per-user, organization-scoped view of a claim
+// request that surfaces only the fields the account page needs to render
+// the claim journey (status, timestamps, organization context). It is
+// intentionally narrower than organizations.ClaimRequest so the public
+// /auth/me payload never leaks reviewer-only metadata or evidence.
+type OrganizationClaim struct {
+	ID                      string     `json:"id"`
+	OrganizationID          string     `json:"organization_id"`
+	OrganizationSlug        string     `json:"organization_slug"`
+	OrganizationName        string     `json:"organization_name"`
+	OrganizationClaimStatus string     `json:"organization_claim_status"`
+	Method                  string     `json:"method"`
+	Target                  string     `json:"target"`
+	Status                  string     `json:"status"`
+	CreatedAt               time.Time  `json:"created_at"`
+	UpdatedAt               time.Time  `json:"updated_at"`
+	ReviewedAt              *time.Time `json:"reviewed_at,omitempty"`
+}
+
 func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
@@ -299,6 +318,58 @@ func (r *Repository) RolesByUserID(ctx context.Context, userID string) ([]Organi
 	for rows.Next() {
 		var item OrganizationRole
 		if err := rows.Scan(&item.OrganizationID, &item.OrganizationSlug, &item.OrganizationName, &item.Role, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// ClaimsByUserID returns every organization claim request submitted by the
+// given user, joined with the organization context the account page needs
+// to render the claim journey (organization name/slug + the organization's
+// current claim_status). The list is ordered by recency so the account UI
+// can always show the most recent submission first without re-sorting.
+func (r *Repository) ClaimsByUserID(ctx context.Context, userID string) ([]OrganizationClaim, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			cr.id::text,
+			cr.organization_id::text,
+			o.slug,
+			o.name,
+			o.claim_status,
+			cr.method,
+			cr.target,
+			cr.status,
+			cr.reviewed_at,
+			cr.created_at,
+			cr.updated_at
+		FROM claim_requests cr
+		JOIN organizations o ON o.id = cr.organization_id
+		WHERE cr.user_id = $1
+		ORDER BY cr.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]OrganizationClaim, 0)
+	for rows.Next() {
+		var item OrganizationClaim
+		if err := rows.Scan(
+			&item.ID,
+			&item.OrganizationID,
+			&item.OrganizationSlug,
+			&item.OrganizationName,
+			&item.OrganizationClaimStatus,
+			&item.Method,
+			&item.Target,
+			&item.Status,
+			&item.ReviewedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
