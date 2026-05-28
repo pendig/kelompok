@@ -1,4 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
+import { APIError } from "$lib/api.js";
 import { loginWithPassword, loadSession } from "$lib/server/session.js";
 
 function value(form, key) {
@@ -14,8 +15,16 @@ function safeReturnTo(source) {
 }
 
 function actionError(error) {
+	if (error instanceof APIError) {
+		return fail(error.status || 400, {
+			ok: false,
+			code: error.code || "login_failed",
+			error: error.apiMessage || error.message || "Unable to log in",
+		});
+	}
 	return fail(400, {
 		ok: false,
+		code: "login_failed",
 		error: error instanceof Error ? error.message : "Unable to log in",
 	});
 }
