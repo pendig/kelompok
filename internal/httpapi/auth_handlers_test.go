@@ -76,10 +76,10 @@ func TestLoginRejectsInvalidJSONBody(t *testing.T) {
 }
 
 // requireSession must reject any request whose Authorization header is missing
-// or malformed BEFORE consulting the DB. The auth_handlers wire /logout and
-// /me through requireSession; if a regression let an empty/blank/wrong-scheme
-// header through, the next call (UserBySessionToken) would either crash
-// against the nil pool or silently treat the empty token as valid.
+// or malformed BEFORE consulting the DB. The auth_handlers wire /logout, /me,
+// and PATCH /me through requireSession; if a regression let an empty/blank/
+// wrong-scheme header through, the next call would either crash against the
+// nil pool or silently treat the empty token as valid.
 func TestSessionGuardedRoutesRejectMissingOrMalformedBearer(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -97,12 +97,18 @@ func TestSessionGuardedRoutesRejectMissingOrMalformedBearer(t *testing.T) {
 		{"me blank bearer", http.MethodGet, "/api/v1/auth/me", "Bearer    "},
 		{"me wrong scheme", http.MethodGet, "/api/v1/auth/me", "Token abcd"},
 		{"me token-only", http.MethodGet, "/api/v1/auth/me", "raw-token-abcd"},
+		// PATCH /me
+		{"update me no auth", http.MethodPatch, "/api/v1/auth/me", ""},
+		{"update me blank bearer", http.MethodPatch, "/api/v1/auth/me", "Bearer    "},
+		{"update me wrong scheme", http.MethodPatch, "/api/v1/auth/me", "Token abcd"},
+		{"update me token-only", http.MethodPatch, "/api/v1/auth/me", "raw-token-abcd"},
 	}
 
 	server := newAuthTestServer()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			request := httptest.NewRequest(tc.method, tc.path, nil)
+			request := httptest.NewRequest(tc.method, tc.path, strings.NewReader(`{"name":"New Name"}`))
+			request.Header.Set("Content-Type", "application/json")
 			if tc.header != "" {
 				request.Header.Set("Authorization", tc.header)
 			}
@@ -127,7 +133,7 @@ func TestSessionGuardedRoutesRejectMissingOrMalformedBearer(t *testing.T) {
 // API-key-shaped header through the session path).
 func TestBearerTokenAcceptsValidSchemesAndRejectsInvalid(t *testing.T) {
 	if got := bearerToken("Bearer abc-token"); got != "abc-token" {
-		t.Fatalf("Bearer abc-token → %q", got)
+		t.Fatalf("Bearer abc-token -> %q", got)
 	}
 	if got := bearerToken("bearer abc-token"); got != "abc-token" {
 		t.Fatalf("case-insensitive scheme failed: %q", got)
