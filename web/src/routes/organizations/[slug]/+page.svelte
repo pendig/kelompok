@@ -12,7 +12,10 @@
 	let visibleSdgGoals = $derived(normalizeSdgGoals(sdgs.primary || [], $locale));
 	let relationships = $derived(org?.relationships || { parents: [], children: [], related: [] });
 	let claimSubmitted = $derived(form?.ok && form?.action === "submitClaim");
+	let submittedClaim = $derived(claimSubmitted ? form?.item : null);
 	let claimError = $derived(!form?.ok && form?.action === "submitClaim" ? form.error : "");
+	let sessionUser = $derived(data?.session?.user ?? null);
+	let requesterEmailDefault = $derived(sessionUser?.email ?? "");
 
 	// svelte-ignore state_referenced_locally
 	let activeTab = $state(form?.action === "submitClaim" ? "claim" : "profile");
@@ -422,7 +425,28 @@
 					<h2>{$t("organizationDetail.claimTitle")}</h2>
 					<p>{$t("organizationDetail.claimDescription")}</p>
 					{#if claimSubmitted}
-						<p class="success" style="margin-top: 16px;">{$t("organizationDetail.claimSubmitted")}</p>
+						<div class="claim-submitted-card" role="status" aria-live="polite">
+							<p class="success" style="margin: 0;">
+								{$t("organizationDetail.claimSubmitted")}
+							</p>
+							{#if submittedClaim?.id}
+								<p class="muted small claim-submitted-id">
+									{$t("organizationDetail.claimSubmittedClaimId", { id: submittedClaim.id })}
+								</p>
+							{/if}
+							<p class="muted small">
+								{$t("organizationDetail.claimSubmittedReviewExpectation")}
+							</p>
+							{#if submittedClaim?.id}
+								<a class="ghost-button" href={`/account?claim=${encodeURIComponent(submittedClaim.id)}`}>
+									{$t("organizationDetail.claimSubmittedAccountLink")}
+								</a>
+							{:else}
+								<a class="ghost-button" href="/account">
+									{$t("organizationDetail.claimSubmittedAccountLink")}
+								</a>
+							{/if}
+						</div>
 					{/if}
 					{#if claimError}
 						<p class="error compact" style="margin-top: 16px;">{$t("organizationDetail.claimError", { message: claimError })}</p>
@@ -442,7 +466,13 @@
 					</label>
 					<label>
 						{$t("organizationDetail.claimRequesterEmail")}
-						<input name="requester_email" type="email" placeholder="you@example.org" required />
+						<input
+							name="requester_email"
+							type="email"
+							value={requesterEmailDefault}
+							placeholder="you@example.org"
+							required
+						/>
 					</label>
 					<label>
 						{$t("organizationDetail.claimEvidence")}
@@ -454,3 +484,37 @@
 		</div>
 	{/if}
 </div>
+
+
+<style>
+	.claim-submitted-card {
+		display: grid;
+		gap: 8px;
+		margin-top: 16px;
+		padding: 14px 16px;
+		border: 1px solid hsl(142, 70%, 85%);
+		border-radius: 12px;
+		background: hsl(142, 70%, 98%);
+	}
+
+	.claim-submitted-card .ghost-button {
+		justify-self: start;
+		margin-top: 4px;
+	}
+
+	.claim-submitted-id {
+		font-family:
+			ui-monospace,
+			SFMono-Regular,
+			"SF Mono",
+			Consolas,
+			"Liberation Mono",
+			Menlo,
+			monospace;
+		word-break: break-all;
+	}
+
+	.muted.small {
+		font-size: 12.5px;
+	}
+</style>

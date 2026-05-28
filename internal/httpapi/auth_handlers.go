@@ -63,10 +63,17 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, err := s.auth.ClaimsByUserID(r.Context(), item.User.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "claims_lookup_failed", "Failed to load organization claims", nil)
+		return
+	}
+
 	writeJSON(w, http.StatusOK, response{
 		Data: map[string]any{
-			"user":               item.User,
-			"organization_roles": roles,
+			"user":                item.User,
+			"organization_roles":  roles,
+			"organization_claims": claims,
 		},
 		Message: "ok",
 	})
