@@ -156,6 +156,8 @@ POST /api/v1/org-admin/impact-reports/{id}/archive
 
 For relationship updates, omit `started_at` or `ended_at` to keep the existing date, or send the field as `null` to clear it.
 
+`POST /api/v1/org-admin/organizations` and `PATCH /api/v1/org-admin/organizations/{slug}` accept the release admin organization fields: `slug`, `name`, `legal_name`, `description`, `history`, `country`, `region`, `city`, `website_url`, `official_email`, `claim_status`, `profile_data`, `source_data`, `sdgs_data`, and `impact_data`.
+
 Post management:
 
 ```text
@@ -233,7 +235,7 @@ Organization data:
 
 ```text
 kelompok org list --json
-kelompok org create --name "Green Foundation" --slug green-foundation --official-email hello@example.org
+kelompok org create --name "Green Foundation" --slug green-foundation --official-email hello@example.org --source-data '{"source":"manual"}' --sdgs-data '{"primary":["13"]}'
 kelompok org import --file organizations.csv
 kelompok org search "climate foundation"
 kelompok org show {slug} --json

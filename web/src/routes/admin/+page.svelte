@@ -75,6 +75,7 @@
 	const evidencePlaceholder = '{"note":"manual claim test"}';
 	const metricsPlaceholder = '{"beneficiaries":120}';
 	const metadataPlaceholder = '{"source":"manual"}';
+	const sourceDataPlaceholder = '{"source":"manual-admin"}';
 
 	const orgSummary = $derived(data.organizations || []);
 	const postSummary = $derived(data.posts || []);
@@ -403,23 +404,99 @@
 
 				<form class="admin-panel compact" method="POST" action={actionPath("createOrganization", "organizations")}>
 					<h3>{$t("admin.createOrg")}</h3>
-					<label>
-						<span>{$t("admin.name")}</span>
-						<input name="name" required placeholder="Kelompok Nusantara" />
-					</label>
-					<label>
-						<span>{$t("admin.slug")}</span>
-						<input name="slug" placeholder="kelompok-nusantara" />
-					</label>
-					<label>
-						<span>{$t("admin.officialEmail")}</span>
-						<input name="official_email" type="email" placeholder="hello@example.org" />
-					</label>
-					<label>
-						<span>{$t("admin.city")}</span>
-						<input name="city" placeholder="Jakarta" />
-					</label>
-					<input name="claim_status" type="hidden" value="unclaimed" />
+					<div class="admin-field-grid">
+						<label>
+							<span>{$t("admin.name")}</span>
+							<input name="name" required placeholder="Kelompok Nusantara" />
+						</label>
+						<label>
+							<span>{$t("admin.slug")}</span>
+							<input name="slug" placeholder="kelompok-nusantara" />
+						</label>
+						<label>
+							<span>{$t("admin.legalName")}</span>
+							<input name="legal_name" placeholder="Yayasan Kelompok Nusantara" />
+						</label>
+						<label>
+							<span>{$t("admin.officialEmail")}</span>
+							<input name="official_email" type="email" placeholder="hello@example.org" />
+						</label>
+						<label>
+							<span>{$t("admin.websiteUrl")}</span>
+							<input name="website_url" type="url" placeholder="https://example.org" />
+						</label>
+						<label>
+							<span>{$t("admin.claimStatus")}</span>
+							<select name="claim_status">
+								<option value="unclaimed">unclaimed</option>
+								<option value="pending">pending</option>
+								<option value="claimed">claimed</option>
+								<option value="rejected">rejected</option>
+							</select>
+						</label>
+						<label>
+							<span>{$t("admin.country")}</span>
+							<input name="country" placeholder="Indonesia" />
+						</label>
+						<label>
+							<span>{$t("admin.region")}</span>
+							<input name="region" placeholder="DKI Jakarta" />
+						</label>
+						<label>
+							<span>{$t("admin.city")}</span>
+							<input name="city" placeholder="Jakarta" />
+						</label>
+					</div>
+					<div class="admin-field-grid two">
+						<label>
+							<span>{$t("admin.description")}</span>
+							<textarea name="description" rows="3"></textarea>
+						</label>
+						<label>
+							<span>{$t("admin.history")}</span>
+							<textarea name="history" rows="3"></textarea>
+						</label>
+						<label>
+							<span>{$t("admin.focus")}</span>
+							<textarea name="focus" rows="2" placeholder="education, climate"></textarea>
+						</label>
+						<label>
+							<span>{$t("admin.programs")}</span>
+							<textarea name="programs" rows="2"></textarea>
+						</label>
+						<label>
+							<span>{$t("admin.sdgs")}</span>
+							<textarea name="sdgs" rows="2" placeholder="4, 13"></textarea>
+						</label>
+						<label>
+							<span>{$t("admin.languages")}</span>
+							<textarea name="languages" rows="2" placeholder="id, en"></textarea>
+						</label>
+					</div>
+					<div class="admin-field-grid">
+						<label>
+							<span>{$t("admin.publicEmail")}</span>
+							<input name="public_contact_email" type="email" placeholder="contact@example.org" />
+						</label>
+						<label>
+							<span>Instagram</span>
+							<input name="public_contact_instagram" placeholder="@kelompok" />
+						</label>
+						<label>
+							<span>{$t("admin.phone")}</span>
+							<input name="public_contact_phone" placeholder="+62..." />
+						</label>
+					</div>
+					<div class="admin-field-grid two">
+						<label>
+							<span>{$t("admin.sourceData")}</span>
+							<textarea name="source_data" rows="3" placeholder={sourceDataPlaceholder}></textarea>
+						</label>
+						<label>
+							<span>{$t("admin.impactData")}</span>
+							<textarea name="impact_data" rows="3" placeholder={metricsPlaceholder}></textarea>
+						</label>
+					</div>
 					<button class="btn primary" type="submit">{$t("admin.create")}</button>
 				</form>
 			</div>
@@ -539,6 +616,10 @@
 							<input name="public_contact_phone" value={contactValue(selectedOrg, "phone")} />
 						</label>
 					</div>
+					<label>
+						<span>{$t("admin.sourceData")}</span>
+						<textarea name="source_data" rows="3">{JSON.stringify(selectedOrg.source_data || {}, null, 2)}</textarea>
+					</label>
 					<label>
 						<span>{$t("admin.impactData")}</span>
 						<textarea name="impact_data" rows="3">{JSON.stringify(selectedOrg.impact_data || {}, null, 2)}</textarea>

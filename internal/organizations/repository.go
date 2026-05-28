@@ -31,6 +31,7 @@ type Organization struct {
 	OfficialEmail string          `json:"official_email,omitempty"`
 	ClaimStatus   string          `json:"claim_status"`
 	ProfileData   json.RawMessage `json:"profile_data"`
+	SourceData    json.RawMessage `json:"source_data"`
 	SDGSData      json.RawMessage `json:"sdgs_data"`
 	ImpactData    json.RawMessage `json:"impact_data"`
 	CreatedAt     time.Time       `json:"created_at"`
@@ -57,6 +58,7 @@ func (r *Repository) ListPublic(ctx context.Context, limit int) ([]Organization,
 			COALESCE(official_email, ''),
 			claim_status,
 			COALESCE(profile_data::text, '{}'),
+			COALESCE(source_data::text, '{}'),
 			COALESCE(sdgs_data::text, '{}'),
 			COALESCE(impact_data::text, '{}'),
 			created_at,
@@ -98,6 +100,7 @@ func (r *Repository) FindBySlug(ctx context.Context, slug string) (Organization,
 			COALESCE(official_email, ''),
 			claim_status,
 			COALESCE(profile_data::text, '{}'),
+			COALESCE(source_data::text, '{}'),
 			COALESCE(sdgs_data::text, '{}'),
 			COALESCE(impact_data::text, '{}'),
 			created_at,
@@ -120,6 +123,7 @@ type organizationRow interface {
 func scanOrganization(row organizationRow) (Organization, error) {
 	var item Organization
 	var profileData string
+	var sourceData string
 	var sdgsData string
 	var impactData string
 
@@ -137,6 +141,7 @@ func scanOrganization(row organizationRow) (Organization, error) {
 		&item.OfficialEmail,
 		&item.ClaimStatus,
 		&profileData,
+		&sourceData,
 		&sdgsData,
 		&impactData,
 		&item.CreatedAt,
@@ -147,6 +152,7 @@ func scanOrganization(row organizationRow) (Organization, error) {
 	}
 
 	item.ProfileData = jsonvalue.Raw(profileData, "{}")
+	item.SourceData = jsonvalue.Raw(sourceData, "{}")
 	item.SDGSData = jsonvalue.Raw(sdgsData, "{}")
 	item.ImpactData = jsonvalue.Raw(impactData, "{}")
 

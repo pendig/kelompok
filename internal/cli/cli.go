@@ -86,14 +86,36 @@ func runOrganization(ctx context.Context, args []string, stdout, stderr io.Write
 		flags.StringVar(&input.Name, "name", "", "organization name")
 		flags.StringVar(&input.LegalName, "legal-name", "", "legal name")
 		flags.StringVar(&input.Description, "description", "", "description")
+		flags.StringVar(&input.History, "history", "", "history")
 		flags.StringVar(&input.Country, "country", "", "country")
 		flags.StringVar(&input.Region, "region", "", "region")
 		flags.StringVar(&input.City, "city", "", "city")
 		flags.StringVar(&input.WebsiteURL, "website-url", "", "website URL")
 		flags.StringVar(&input.OfficialEmail, "official-email", "", "official email")
 		flags.StringVar(&input.ClaimStatus, "claim-status", "unclaimed", "claim status")
+		profileData := flags.String("profile-data", "{}", "profile_data JSON object")
+		sourceData := flags.String("source-data", "{}", "source_data JSON object")
+		sdgsData := flags.String("sdgs-data", "{}", "sdgs_data JSON object")
+		impactData := flags.String("impact-data", "{}", "impact_data JSON object")
 		jsonOut := flags.Bool("json", false, "print JSON output")
 		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		var err error
+		input.ProfileData, err = parseJSONFlag(*profileData, "{}")
+		if err != nil {
+			return err
+		}
+		input.SourceData, err = parseJSONFlag(*sourceData, "{}")
+		if err != nil {
+			return err
+		}
+		input.SDGSData, err = parseJSONFlag(*sdgsData, "{}")
+		if err != nil {
+			return err
+		}
+		input.ImpactData, err = parseJSONFlag(*impactData, "{}")
+		if err != nil {
 			return err
 		}
 		return withOrganizationRepository(ctx, func(repo *organizations.Repository) error {
@@ -456,7 +478,7 @@ func parseJSONFlag(value string, fallback string) (json.RawMessage, error) {
 		value = fallback
 	}
 	if !json.Valid([]byte(value)) {
-		return nil, errors.New("metadata must be valid JSON")
+		return nil, errors.New("JSON flag must be valid JSON")
 	}
 	return json.RawMessage(value), nil
 }

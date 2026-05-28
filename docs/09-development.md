@@ -265,7 +265,7 @@ go run ./cmd/kelompok seed demo
 go run ./cmd/kelompok db ping
 go run ./cmd/kelompok db migrate
 go run ./cmd/kelompok org list --json
-go run ./cmd/kelompok org create --name "Green Foundation" --slug green-foundation
+go run ./cmd/kelompok org create --name "Green Foundation" --slug green-foundation --source-data '{"source":"manual"}'
 go run ./cmd/kelompok member list --organization green-foundation --json
 go run ./cmd/kelompok member create --organization green-foundation --name "Aisha" --position "Chair"
 ```
