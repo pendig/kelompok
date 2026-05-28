@@ -18,7 +18,12 @@
 
 	function profileErrorMessage(code) {
 		if (!code) return null;
-		const known = ["name_required", "session_expired"];
+		const known = [
+			"name_required",
+			"profile_name_required",
+			"profile_name_too_long",
+			"session_expired",
+		];
 		if (known.includes(code)) {
 			return $t(`account.errors.${code}`);
 		}

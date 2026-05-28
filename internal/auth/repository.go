@@ -10,6 +10,7 @@ import (
 	"net/mail"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,10 +19,12 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrInvalidSession     = errors.New("invalid session")
-	ErrNotFound           = errors.New("user not found")
-	ErrUserExists         = errors.New("user already has a password")
+	ErrInvalidCredentials  = errors.New("invalid email or password")
+	ErrInvalidSession      = errors.New("invalid session")
+	ErrNotFound            = errors.New("user not found")
+	ErrUserExists          = errors.New("user already has a password")
+	ErrProfileNameRequired = errors.New("profile name is required")
+	ErrProfileNameTooLong  = errors.New("profile name must be at most 120 characters")
 )
 
 const SessionTTL = 30 * 24 * time.Hour
@@ -241,10 +244,10 @@ func (r *Repository) FindUserByID(ctx context.Context, id string) (User, error) 
 func (r *Repository) UpdateProfile(ctx context.Context, userID string, input UpdateProfileInput) (User, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return User{}, errors.New("name is required")
+		return User{}, ErrProfileNameRequired
 	}
-	if len(name) > 120 {
-		return User{}, errors.New("name must be at most 120 characters")
+	if utf8.RuneCountInString(name) > 120 {
+		return User{}, ErrProfileNameTooLong
 	}
 
 	before, err := r.FindUserByID(ctx, userID)

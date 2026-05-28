@@ -85,8 +85,16 @@ func (s *Server) handleUpdateMe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "session_invalid", "Session is invalid or expired", nil)
 		return
 	}
+	if errors.Is(err, auth.ErrProfileNameRequired) {
+		writeError(w, http.StatusBadRequest, "profile_name_required", "Name is required", nil)
+		return
+	}
+	if errors.Is(err, auth.ErrProfileNameTooLong) {
+		writeError(w, http.StatusBadRequest, "profile_name_too_long", "Name must be at most 120 characters", nil)
+		return
+	}
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "profile_update_failed", err.Error(), nil)
+		writeError(w, http.StatusInternalServerError, "profile_update_failed", "Failed to update profile", nil)
 		return
 	}
 

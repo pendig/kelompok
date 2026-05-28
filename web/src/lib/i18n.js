@@ -81,6 +81,8 @@ const dictionaries = {
 			profileUpdated: "Profil berhasil diperbarui.",
 			errors: {
 				name_required: "Nama wajib diisi.",
+				profile_name_required: "Nama wajib diisi.",
+				profile_name_too_long: "Nama maksimal 120 karakter.",
 				session_expired:
 					"Sesi sudah berakhir. Silakan masuk ulang untuk melanjutkan.",
 				generic: "Gagal memperbarui profil: {message}",
@@ -502,6 +504,8 @@ const dictionaries = {
 			profileUpdated: "Profile updated.",
 			errors: {
 				name_required: "Name is required.",
+				profile_name_required: "Name is required.",
+				profile_name_too_long: "Name must be at most 120 characters.",
 				session_expired: "Session expired. Please log in again to continue.",
 				generic: "Could not update the profile: {message}",
 			},
