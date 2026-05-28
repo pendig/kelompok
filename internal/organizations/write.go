@@ -58,14 +58,9 @@ type ClaimRequest struct {
 }
 
 func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization, error) {
-	name := strings.TrimSpace(input.Name)
-	if name == "" {
-		return Organization{}, errors.New("organization name is required")
-	}
-
-	slug := normalizeSlug(input.Slug)
-	if slug == "" {
-		slug = normalizeSlug(name)
+	normalized, err := normalizeAdminInput(input, AdminInput{})
+	if err != nil {
+		return Organization{}, err
 	}
 
 	row := r.db.QueryRow(ctx, `
@@ -120,20 +115,20 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 			created_at,
 			updated_at
 	`,
-		slug,
-		name,
-		input.LegalName,
-		input.Description,
-		input.History,
-		input.Country,
-		input.Region,
-		input.City,
-		input.WebsiteURL,
-		input.OfficialEmail,
-		input.ClaimStatus,
-		jsonOrFallback(input.ProfileData),
-		jsonOrFallback(input.SDGSData),
-		jsonOrFallback(input.ImpactData),
+		normalized.Slug,
+		normalized.Name,
+		normalized.LegalName,
+		normalized.Description,
+		normalized.History,
+		normalized.Country,
+		normalized.Region,
+		normalized.City,
+		normalized.WebsiteURL,
+		normalized.OfficialEmail,
+		normalized.ClaimStatus,
+		jsonOrFallback(normalized.ProfileData),
+		jsonOrFallback(normalized.SDGSData),
+		jsonOrFallback(normalized.ImpactData),
 	)
 
 	item, err := scanOrganization(row)
@@ -144,6 +139,14 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 }
 
 func (r *Repository) UpdateBySlug(ctx context.Context, slug string, input AdminInput) (Organization, error) {
+	defaults := AdminInput{
+		Slug: slug,
+	}
+	normalized, err := normalizeAdminInput(input, defaults)
+	if err != nil {
+		return Organization{}, err
+	}
+
 	row := r.db.QueryRow(ctx, `
 		UPDATE organizations
 		SET
@@ -183,20 +186,20 @@ func (r *Repository) UpdateBySlug(ctx context.Context, slug string, input AdminI
 			updated_at
 	`,
 		slug,
-		normalizeSlug(input.Slug),
-		strings.TrimSpace(input.Name),
-		input.LegalName,
-		input.Description,
-		input.History,
-		input.Country,
-		input.Region,
-		input.City,
-		input.WebsiteURL,
-		input.OfficialEmail,
-		input.ClaimStatus,
-		jsonOrFallback(input.ProfileData),
-		jsonOrFallback(input.SDGSData),
-		jsonOrFallback(input.ImpactData),
+		normalized.Slug,
+		normalized.Name,
+		normalized.LegalName,
+		normalized.Description,
+		normalized.History,
+		normalized.Country,
+		normalized.Region,
+		normalized.City,
+		normalized.WebsiteURL,
+		normalized.OfficialEmail,
+		normalized.ClaimStatus,
+		jsonOrFallback(normalized.ProfileData),
+		jsonOrFallback(normalized.SDGSData),
+		jsonOrFallback(normalized.ImpactData),
 	)
 
 	item, err := scanOrganization(row)
@@ -549,6 +552,26 @@ func scanClaimWithSlug(row interface{ Scan(dest ...any) error }, organizationSlu
 
 var slugPattern = regexp.MustCompile(`[^a-z0-9]+`)
 
+// allowedClaimStatuses mirrors the CHECK constraint on organizations.claim_status
+// from migration 000001_init.sql. Empty string is also accepted because the
+// repository update path treats it as "do not change".
+var allowedClaimStatuses = map[string]struct{}{
+	"":          {},
+	"unclaimed": {},
+	"pending":   {},
+	"claimed":   {},
+	"rejected":  {},
+}
+
+// urlSchemePattern accepts http and https URLs only. Empty values are tolerated
+// because website_url is optional at the database level.
+var urlSchemePattern = regexp.MustCompile(`(?i)^https?://`)
+
+// emailLikePattern is intentionally lenient — it only rejects values that
+// clearly don't look like an email address. The authoritative validation
+// still happens at the SMTP layer when the email is actually used.
+var emailLikePattern = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+
 func normalizeSlug(value string) string {
 	return NormalizeSlug(value)
 }
@@ -558,6 +581,60 @@ func NormalizeSlug(value string) string {
 	trimmed = slugPattern.ReplaceAllString(trimmed, "-")
 	trimmed = strings.Trim(trimmed, "-")
 	return trimmed
+}
+
+// normalizeAdminInput trims, validates, and prepares an AdminInput payload for
+// the Create/UpdateBySlug repository methods. It is exported via the package
+// internal helpers so it can be unit-tested without a database.
+//
+// `defaults` provides fallback values used when the input leaves a field
+// blank — for example, the update path passes the existing slug so an empty
+// slug input does not blank the row.
+func normalizeAdminInput(input AdminInput, defaults AdminInput) (AdminInput, error) {
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return AdminInput{}, errors.New("organization name is required")
+	}
+
+	slug := normalizeSlug(input.Slug)
+	if slug == "" {
+		slug = normalizeSlug(defaults.Slug)
+	}
+	if slug == "" {
+		slug = normalizeSlug(name)
+	}
+	if slug == "" {
+		return AdminInput{}, errors.New("organization slug could not be derived from name")
+	}
+
+	claimStatus := strings.TrimSpace(input.ClaimStatus)
+	if _, ok := allowedClaimStatuses[claimStatus]; !ok {
+		return AdminInput{}, errors.New("organization claim_status is invalid")
+	}
+
+	websiteURL := strings.TrimSpace(input.WebsiteURL)
+	if websiteURL != "" && !urlSchemePattern.MatchString(websiteURL) {
+		return AdminInput{}, errors.New("organization website_url must start with http:// or https://")
+	}
+
+	officialEmail := strings.TrimSpace(input.OfficialEmail)
+	if officialEmail != "" && !emailLikePattern.MatchString(officialEmail) {
+		return AdminInput{}, errors.New("organization official_email is not a valid email address")
+	}
+
+	normalized := input
+	normalized.Name = name
+	normalized.Slug = slug
+	normalized.LegalName = strings.TrimSpace(input.LegalName)
+	normalized.Description = strings.TrimSpace(input.Description)
+	normalized.History = strings.TrimSpace(input.History)
+	normalized.Country = strings.TrimSpace(input.Country)
+	normalized.Region = strings.TrimSpace(input.Region)
+	normalized.City = strings.TrimSpace(input.City)
+	normalized.WebsiteURL = websiteURL
+	normalized.OfficialEmail = officialEmail
+	normalized.ClaimStatus = claimStatus
+	return normalized, nil
 }
 
 func jsonOrFallback(value json.RawMessage) any {

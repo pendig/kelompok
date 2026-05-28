@@ -401,26 +401,204 @@
 					{/if}
 				</div>
 
-				<form class="admin-panel compact" method="POST" action={actionPath("createOrganization", "organizations")}>
-					<h3>{$t("admin.createOrg")}</h3>
-					<label>
-						<span>{$t("admin.name")}</span>
-						<input name="name" required placeholder="Kelompok Nusantara" />
-					</label>
-					<label>
-						<span>{$t("admin.slug")}</span>
-						<input name="slug" placeholder="kelompok-nusantara" />
-					</label>
-					<label>
-						<span>{$t("admin.officialEmail")}</span>
-						<input name="official_email" type="email" placeholder="hello@example.org" />
-					</label>
-					<label>
-						<span>{$t("admin.city")}</span>
-						<input name="city" placeholder="Jakarta" />
-					</label>
-					<input name="claim_status" type="hidden" value="unclaimed" />
-					<button class="btn primary" type="submit">{$t("admin.create")}</button>
+				<form
+					class="admin-panel admin-create-org"
+					method="POST"
+					action={actionPath("createOrganization", "organizations")}
+					aria-labelledby="admin-create-org-heading"
+					aria-describedby="admin-create-org-intro"
+				>
+					<header class="admin-create-org__head">
+						<h3 id="admin-create-org-heading">{$t("admin.createOrgPanelTitle")}</h3>
+						<p id="admin-create-org-intro" class="small section-note">{$t("admin.createOrgIntro")}</p>
+					</header>
+
+					{#if form?.error && form?.action === "createOrganization"}
+						<div class="admin-form-error" role="alert" aria-live="polite">
+							<strong>{$t("admin.createOrgErrorTitle")}: </strong>{form.error}
+						</div>
+					{/if}
+
+					<fieldset class="admin-create-org__group">
+						<legend>{$t("admin.editOrgGroupBasics")}</legend>
+						<div class="admin-field-grid two">
+							<label>
+								<span>
+									{$t("admin.name")}
+									<small class="field-tag required">{$t("admin.createOrgRequired")}</small>
+								</span>
+								<input
+									name="name"
+									required
+									autocomplete="organization"
+									placeholder="Kelompok Nusantara"
+								/>
+							</label>
+							<label>
+								<span>
+									{$t("admin.slug")}
+									<small class="field-tag">{$t("admin.createOrgOptional")}</small>
+								</span>
+								<input
+									name="slug"
+									pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+									placeholder="kelompok-nusantara"
+									aria-describedby="admin-create-slug-help"
+								/>
+								<small id="admin-create-slug-help" class="field-help">
+									{$t("admin.createOrgSlugHelper")}
+								</small>
+							</label>
+							<label>
+								<span>
+									{$t("admin.legalName")}
+									<small class="field-tag">{$t("admin.createOrgOptional")}</small>
+								</span>
+								<input name="legal_name" placeholder="Yayasan Kelompok" />
+							</label>
+							<label>
+								<span>
+									{$t("admin.claimStatus")}
+									<small class="field-tag">{$t("admin.createOrgOptional")}</small>
+								</span>
+								<select name="claim_status">
+									<option value="unclaimed">unclaimed</option>
+									<option value="pending">pending</option>
+									<option value="claimed">claimed</option>
+									<option value="rejected">rejected</option>
+								</select>
+							</label>
+						</div>
+					</fieldset>
+
+					<fieldset class="admin-create-org__group">
+						<legend>{$t("admin.editOrgGroupLocation")}</legend>
+						<div class="admin-field-grid two">
+							<label>
+								<span>{$t("admin.country")}</span>
+								<input name="country" placeholder="Indonesia" autocomplete="country-name" />
+							</label>
+							<label>
+								<span>{$t("admin.region")}</span>
+								<input name="region" placeholder="DKI Jakarta" />
+							</label>
+							<label>
+								<span>{$t("admin.city")}</span>
+								<input name="city" placeholder="Jakarta" />
+							</label>
+							<label>
+								<span>{$t("admin.websiteUrl")}</span>
+								<input
+									name="website_url"
+									type="url"
+									inputmode="url"
+									placeholder="https://kelompok.id"
+									aria-describedby="admin-create-website-help"
+								/>
+								<small id="admin-create-website-help" class="field-help">
+									{$t("admin.createOrgWebsiteHelper")}
+								</small>
+							</label>
+							<label class="admin-field-grid__full">
+								<span>{$t("admin.officialEmail")}</span>
+								<input
+									name="official_email"
+									type="email"
+									autocomplete="email"
+									placeholder="hello@kelompok.id"
+									aria-describedby="admin-create-email-help"
+								/>
+								<small id="admin-create-email-help" class="field-help">
+									{$t("admin.createOrgEmailHelper")}
+								</small>
+							</label>
+						</div>
+					</fieldset>
+
+					<fieldset class="admin-create-org__group">
+						<legend>{$t("admin.editOrgGroupNarrative")}</legend>
+						<label>
+							<span>{$t("admin.description")}</span>
+							<textarea name="description" rows="3" placeholder="Misi dan ringkasan organisasi"></textarea>
+						</label>
+						<label>
+							<span>{$t("admin.history")}</span>
+							<textarea name="history" rows="3" placeholder="Latar belakang dan perjalanan organisasi"></textarea>
+						</label>
+					</fieldset>
+
+					<fieldset class="admin-create-org__group">
+						<legend>{$t("admin.createOrgFocusSection")}</legend>
+						<div class="admin-field-grid two">
+							<label>
+								<span>{$t("admin.focus")}</span>
+								<textarea
+									name="focus"
+									rows="2"
+									placeholder="Pendidikan, Kesehatan"
+									aria-describedby="admin-create-list-help"
+								></textarea>
+							</label>
+							<label>
+								<span>{$t("admin.programs")}</span>
+								<textarea
+									name="programs"
+									rows="2"
+									placeholder="Beasiswa, Kelas literasi"
+									aria-describedby="admin-create-list-help"
+								></textarea>
+							</label>
+							<label>
+								<span>{$t("admin.languages")}</span>
+								<textarea
+									name="languages"
+									rows="2"
+									placeholder="id, en"
+									aria-describedby="admin-create-list-help"
+								></textarea>
+							</label>
+							<label>
+								<span>{$t("admin.sdgs")}</span>
+								<textarea
+									name="sdgs"
+									rows="2"
+									placeholder="SDG 4, SDG 13"
+									aria-describedby="admin-create-list-help"
+								></textarea>
+							</label>
+						</div>
+						<small id="admin-create-list-help" class="field-help">
+							{$t("admin.createOrgListHelper")}
+						</small>
+					</fieldset>
+
+					<fieldset class="admin-create-org__group">
+						<legend>{$t("admin.createOrgPublicContact")}</legend>
+						<p class="small section-note">{$t("admin.createOrgPublicContactHelper")}</p>
+						<div class="admin-field-grid two">
+							<label>
+								<span>{$t("admin.publicEmail")}</span>
+								<input name="public_contact_email" type="email" placeholder="halo@kelompok.id" />
+							</label>
+							<label>
+								<span>Instagram</span>
+								<input name="public_contact_instagram" placeholder="@kelompok" />
+							</label>
+							<label>
+								<span>{$t("admin.phone")}</span>
+								<input name="public_contact_phone" type="tel" placeholder="+62..." />
+							</label>
+						</div>
+					</fieldset>
+
+					<aside class="admin-create-org__deferred" aria-label={$t("admin.createOrgDeferred")}>
+						<p class="label">{$t("admin.createOrgDeferred")}</p>
+						<p class="small">{$t("admin.createOrgDeferredBody")}</p>
+					</aside>
+
+					<div class="admin-actions">
+						<button class="btn primary" type="submit">{$t("admin.create")}</button>
+					</div>
 				</form>
 			</div>
 		</section>
@@ -445,6 +623,12 @@
 					<p class="section-note">{selectedOrg.name}</p>
 				</div>
 
+				{#if data.justCreated}
+					<p class="notice" role="status" aria-live="polite">
+						<strong>{$t("admin.createOrgSuccess")}</strong>
+					</p>
+				{/if}
+
 				<form class="admin-panel" method="POST" action={actionPath("updateOrganization", "organization-edit")}>
 					<div class="admin-form-head">
 						<div>
@@ -455,15 +639,22 @@
 							{$t("admin.viewPublic")}
 						</a>
 					</div>
+					<p class="small section-note">{$t("admin.editOrgPanelIntro")}</p>
 					<input name="current_slug" type="hidden" value={selectedOrg.slug} />
 					<div class="admin-field-grid">
 						<label>
 							<span>{$t("admin.name")}</span>
-							<input name="name" required value={selectedOrg.name || ""} />
+							<input name="name" required value={selectedOrg.name || ""} autocomplete="organization" />
 						</label>
 						<label>
 							<span>{$t("admin.slug")}</span>
-							<input name="slug" value={selectedOrg.slug || ""} />
+							<input
+								name="slug"
+								value={selectedOrg.slug || ""}
+								pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+								aria-describedby="admin-edit-slug-help"
+							/>
+							<small id="admin-edit-slug-help" class="field-help">{$t("admin.createOrgSlugHelper")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.legalName")}</span>
@@ -471,11 +662,18 @@
 						</label>
 						<label>
 							<span>{$t("admin.officialEmail")}</span>
-							<input name="official_email" type="email" value={selectedOrg.official_email || ""} />
+							<input name="official_email" type="email" value={selectedOrg.official_email || ""} autocomplete="email" />
 						</label>
 						<label>
 							<span>{$t("admin.websiteUrl")}</span>
-							<input name="website_url" type="url" value={selectedOrg.website_url || ""} />
+							<input
+								name="website_url"
+								type="url"
+								inputmode="url"
+								value={selectedOrg.website_url || ""}
+								aria-describedby="admin-edit-website-help"
+							/>
+							<small id="admin-edit-website-help" class="field-help">{$t("admin.createOrgWebsiteHelper")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.claimStatus")}</span>
@@ -488,7 +686,7 @@
 						</label>
 						<label>
 							<span>{$t("admin.country")}</span>
-							<input name="country" value={selectedOrg.country || ""} />
+							<input name="country" value={selectedOrg.country || ""} autocomplete="country-name" />
 						</label>
 						<label>
 							<span>{$t("admin.region")}</span>
@@ -541,8 +739,16 @@
 					</div>
 					<label>
 						<span>{$t("admin.impactData")}</span>
-						<textarea name="impact_data" rows="3">{JSON.stringify(selectedOrg.impact_data || {}, null, 2)}</textarea>
+						<textarea
+							name="impact_data"
+							rows="3"
+							aria-describedby="admin-edit-impact-help">{JSON.stringify(selectedOrg.impact_data || {}, null, 2)}</textarea>
+						<small id="admin-edit-impact-help" class="field-help">{$t("admin.editOrgAdvancedHelper")}</small>
 					</label>
+					<aside class="admin-create-org__deferred" aria-label={$t("admin.createOrgDeferred")}>
+						<p class="label">{$t("admin.createOrgDeferred")}</p>
+						<p class="small">{$t("admin.createOrgDeferredBody")}</p>
+					</aside>
 					<div class="admin-actions">
 						<button class="btn primary" type="submit">{$t("admin.update")}</button>
 					</div>

@@ -17,6 +17,18 @@ type Repository struct {
 	db *pgxpool.Pool
 }
 
+// Organization is the admin/public-facing representation of an organization
+// row. It intentionally omits a few columns that exist on the database table
+// but are not editable through the admin surface today:
+//
+//   - logo_file_id, banner_file_id: still pending a file-upload UX (see
+//     docs/release-org-fields.md).
+//   - source_data: maintained by the ingestion pipeline, not by admins.
+//   - claimed_by_user_id, claimed_at: managed transactionally through the
+//     claim approval flow (see Repository.ApproveClaim / RejectClaim).
+//
+// When any of those fields graduates to admin editing, expand this struct,
+// the AdminInput payload, and the Create / UpdateBySlug SQL alongside it.
 type Organization struct {
 	ID            string          `json:"id"`
 	Slug          string          `json:"slug"`

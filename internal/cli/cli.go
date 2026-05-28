@@ -86,6 +86,7 @@ func runOrganization(ctx context.Context, args []string, stdout, stderr io.Write
 		flags.StringVar(&input.Name, "name", "", "organization name")
 		flags.StringVar(&input.LegalName, "legal-name", "", "legal name")
 		flags.StringVar(&input.Description, "description", "", "description")
+		flags.StringVar(&input.History, "history", "", "history")
 		flags.StringVar(&input.Country, "country", "", "country")
 		flags.StringVar(&input.Region, "region", "", "region")
 		flags.StringVar(&input.City, "city", "", "city")

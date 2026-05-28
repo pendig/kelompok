@@ -209,6 +209,7 @@ export async function load({ url, cookies }) {
 	const isScopedSession = Boolean(session && session.user?.role !== "superadmin");
 	const requestedSlug = url.searchParams.get("org");
 	const requestedView = url.searchParams.get("view");
+	const justCreated = url.searchParams.get("created") === "1";
 	const allowedViews = new Set(["dashboard", "organizations", "organization-edit", "members", "relationships", "posts", "impact", "claims", "audit"]);
 	let orgPayload = { data: [], error: null };
 	let postPayload = { data: [], error: null };
@@ -295,6 +296,7 @@ export async function load({ url, cookies }) {
 		relationships: relationshipPayload.data ?? [],
 		selectedOrganization: selectedPayload.data,
 		selectedSlug,
+		justCreated,
 		initialTab: allowedViews.has(requestedView) ? requestedView : requestedSlug ? "organization-edit" : "dashboard",
 		loadErrors: [
 			orgPayload.error,
@@ -324,13 +326,21 @@ export const actions = {
 		throw redirect(303, "/admin");
 	},
 	createOrganization: async ({ request, cookies }) => {
+		let item;
 		try {
 			const form = await request.formData();
 			const payload = await mutate("/api/v1/org-admin/organizations", organizationInput(form), "POST", cookies);
-			return { ok: true, action: "createOrganization", item: payload.data };
+			item = payload?.data;
 		} catch (error) {
 			return actionError(error);
 		}
+		if (item?.slug) {
+			throw redirect(
+				303,
+				`/admin?org=${encodeURIComponent(item.slug)}&view=organization-edit&created=1`,
+			);
+		}
+		return { ok: true, action: "createOrganization", item };
 	},
 	updateOrganization: async ({ request, cookies }) => {
 		try {
