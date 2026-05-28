@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -316,7 +315,6 @@ func (r *Repository) ClaimsByUserID(ctx context.Context, userID string) ([]Organ
 	items := make([]OrganizationClaim, 0)
 	for rows.Next() {
 		var item OrganizationClaim
-		var reviewedAt sql.NullTime
 		if err := rows.Scan(
 			&item.ID,
 			&item.OrganizationID,
@@ -326,15 +324,11 @@ func (r *Repository) ClaimsByUserID(ctx context.Context, userID string) ([]Organ
 			&item.Method,
 			&item.Target,
 			&item.Status,
-			&reviewedAt,
+			&item.ReviewedAt,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
 			return nil, err
-		}
-		if reviewedAt.Valid {
-			value := reviewedAt.Time
-			item.ReviewedAt = &value
 		}
 		items = append(items, item)
 	}

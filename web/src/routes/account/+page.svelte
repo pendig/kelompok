@@ -11,15 +11,18 @@
 	let unverified = $derived(Boolean(data.unverified));
 	let claimId = $derived(data.claimId ?? "");
 
-	let pendingClaims = $derived(claims.filter((claim) => claim.status === "pending"));
-	let rejectedClaims = $derived(claims.filter((claim) => claim.status === "rejected"));
-
 	// Hide approved claims from the rejection/pending lists. Approved claims
 	// are already represented as full organization roles (they get an
 	// owner/admin entry in organization_user_roles when admins approve a
 	// claim), so duplicating them in the claims list would be noisy.
-	let approvedClaimIds = $derived(
-		new Set(claims.filter((claim) => claim.status === "approved").map((claim) => claim.id)),
+	let approvedOrgSlugs = $derived(
+		new Set(roles.map((role) => role.organization_slug)),
+	);
+	let pendingClaims = $derived(
+		claims.filter((claim) => claim.status === "pending" && !approvedOrgSlugs.has(claim.organization_slug)),
+	);
+	let rejectedClaims = $derived(
+		claims.filter((claim) => claim.status === "rejected" && !approvedOrgSlugs.has(claim.organization_slug)),
 	);
 
 	let recentSubmittedClaim = $derived(
@@ -270,7 +273,7 @@
 					{:else}
 						<ul class="claim-card-list" role="list">
 							{#each rejectedClaims as claim}
-								<li class="claim-status-card claim-status-card--rejected" hidden={approvedClaimIds.has(claim.id)}>
+								<li class="claim-status-card claim-status-card--rejected">
 									<div class="claim-status-card-head">
 										<div>
 											<h3>{claim.organization_name}</h3>
