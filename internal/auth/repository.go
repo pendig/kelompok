@@ -341,12 +341,23 @@ func (r *Repository) AssignOrganizationRole(ctx context.Context, organizationID 
 			updated_at = now()
 	`, organizationID, userID, role)
 	if err == nil {
-		_ = audit.Record(ctx, r.db, actorUserID, "organization_user_role", organizationID, "assign", nil, nil, map[string]any{
-			"user_id": userID,
-			"role":    role,
-		})
+		_ = audit.Record(ctx, r.db, actorUserID, "organization_user_role", organizationID, "assign", nil, nil, roleAssignAuditMetadata(organizationID, userID, role))
 	}
 	return err
+}
+
+// roleAssignAuditMetadata builds the audit metadata bag emitted whenever a
+// user is granted (or re-granted) an organization role. The "organization_id"
+// key is required so audit.Record's organizationID() resolver can pin the
+// resulting audit row to the affected organization (audit_logs.organization_id
+// is otherwise NULL for non-"organization" entity types and the row would not
+// surface in the org-scoped audit listing endpoint).
+func roleAssignAuditMetadata(organizationID string, userID string, role string) map[string]any {
+	return map[string]any{
+		"organization_id": organizationID,
+		"user_id":         userID,
+		"role":            role,
+	}
 }
 
 type userRow interface {
