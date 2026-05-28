@@ -1,0 +1,1865 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Kelompok API",
+    "version": "1.0.0-alpha",
+    "summary": "Release contract for public and organization admin endpoints",
+    "description": "Machine-readable contract for the implemented Kelompok release endpoints."
+  },
+  "servers": [
+    {
+      "url": "https://beta.kelompok.id",
+      "description": "Beta deployment"
+    },
+    {
+      "url": "http://localhost:4621",
+      "description": "Local API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "health"
+    },
+    {
+      "name": "public"
+    },
+    {
+      "name": "auth"
+    },
+    {
+      "name": "org-admin"
+    }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": ["health"],
+        "operationId": "getHealth",
+        "summary": "Check API process health",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Ok"
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": ["health"],
+        "operationId": "getReadiness",
+        "summary": "Check API readiness",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Ok"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations": {
+      "get": {
+        "tags": ["public"],
+        "operationId": "listOrganizations",
+        "summary": "List public organizations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organizations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Organization"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{slug}": {
+      "get": {
+        "tags": ["public"],
+        "operationId": "getOrganization",
+        "summary": "Get one public organization",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Organization"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{slug}/claims": {
+      "post": {
+        "tags": ["public"],
+        "operationId": "createOrganizationClaim",
+        "summary": "Submit an organization claim request",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/ClaimInput"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/ClaimRequest"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{slug}/posts": {
+      "get": {
+        "tags": ["public"],
+        "operationId": "listOrganizationPosts",
+        "summary": "List published organization posts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PostList"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{slug}/posts/{post_slug}": {
+      "get": {
+        "tags": ["public"],
+        "operationId": "getOrganizationPost",
+        "summary": "Get one published organization post",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/postSlug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Post"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{slug}/impact-reports": {
+      "get": {
+        "tags": ["public"],
+        "operationId": "listOrganizationImpactReports",
+        "summary": "List published organization impact reports",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ImpactReportList"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/posts": {
+      "get": {
+        "tags": ["public"],
+        "operationId": "listPosts",
+        "summary": "List published posts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PostList"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{slug}": {
+      "get": {
+        "tags": ["public"],
+        "operationId": "getPost",
+        "summary": "Get one published post",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Post"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "register",
+        "summary": "Register a user account",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/RegisterInput"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/User"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "login",
+        "summary": "Create a user session",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/LoginInput"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "logout",
+        "summary": "Revoke the current user session",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Ok"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "operationId": "getMe",
+        "summary": "Get current user session profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Me"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["auth"],
+        "operationId": "updateMe",
+        "summary": "Update current user display name",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/UpdateProfileInput"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Me"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/organizations": {
+      "get": {
+        "tags": ["org-admin"],
+        "operationId": "adminListOrganizations",
+        "summary": "List organizations for admin",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OrganizationList"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminCreateOrganization",
+        "summary": "Create an organization",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/OrganizationInput"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/Organization"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/organizations/{slug}": {
+      "get": {
+        "tags": ["org-admin"],
+        "operationId": "adminGetOrganization",
+        "summary": "Get an organization for admin",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Organization"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["org-admin"],
+        "operationId": "adminUpdateOrganization",
+        "summary": "Update an organization",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/OrganizationInput"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Organization"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/organizations/{slug}/relationships": {
+      "get": {
+        "tags": ["org-admin"],
+        "operationId": "adminListOrganizationRelationships",
+        "summary": "List organization relationships",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/RelationshipList"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/organization-relationships": {
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminCreateOrganizationRelationship",
+        "summary": "Create an organization relationship",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/RelationshipInput"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/Relationship"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/organization-relationships/{id}": {
+      "patch": {
+        "tags": ["org-admin"],
+        "operationId": "adminUpdateOrganizationRelationship",
+        "summary": "Update an organization relationship",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/RelationshipInput"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Relationship"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["org-admin"],
+        "operationId": "adminDeleteOrganizationRelationship",
+        "summary": "Delete an organization relationship",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Relationship"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/organizations/{slug}/claims": {
+      "get": {
+        "tags": ["org-admin"],
+        "operationId": "adminListOrganizationClaims",
+        "summary": "List organization claim requests",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ClaimRequestList"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/claims/{id}/approve": {
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminApproveClaim",
+        "summary": "Approve a claim request",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ClaimRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/claims/{id}/reject": {
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminRejectClaim",
+        "summary": "Reject a claim request",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ClaimRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/organizations/{slug}/audit-logs": {
+      "get": {
+        "tags": ["org-admin"],
+        "operationId": "adminListOrganizationAuditLogs",
+        "summary": "List organization audit logs",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/AuditLogList"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/organizations/{slug}/members": {
+      "get": {
+        "tags": ["org-admin"],
+        "operationId": "adminListOrganizationMembers",
+        "summary": "List organization members",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/MemberList"
+          }
+        }
+      },
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminCreateOrganizationMember",
+        "summary": "Create an organization member",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/MemberInput"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/Member"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/members/{id}": {
+      "patch": {
+        "tags": ["org-admin"],
+        "operationId": "adminUpdateOrganizationMember",
+        "summary": "Update an organization member",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/MemberInput"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Member"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["org-admin"],
+        "operationId": "adminDeleteOrganizationMember",
+        "summary": "Delete an organization member",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Member"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/posts": {
+      "get": {
+        "tags": ["org-admin"],
+        "operationId": "adminListPosts",
+        "summary": "List admin posts",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/organizationSlug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PostList"
+          }
+        }
+      },
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminCreatePost",
+        "summary": "Create a post",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/PostInput"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/Post"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/posts/{id}": {
+      "patch": {
+        "tags": ["org-admin"],
+        "operationId": "adminUpdatePost",
+        "summary": "Update a post",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/PostInput"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Post"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/posts/{id}/publish": {
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminPublishPost",
+        "summary": "Publish a post",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Post"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/posts/{id}/archive": {
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminArchivePost",
+        "summary": "Archive a post",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Post"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/impact-reports": {
+      "get": {
+        "tags": ["org-admin"],
+        "operationId": "adminListImpactReports",
+        "summary": "List admin impact reports",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/organizationSlug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ImpactReportList"
+          }
+        }
+      },
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminCreateImpactReport",
+        "summary": "Create an impact report",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/ImpactReportInput"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/ImpactReport"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/impact-reports/{id}": {
+      "patch": {
+        "tags": ["org-admin"],
+        "operationId": "adminUpdateImpactReport",
+        "summary": "Update an impact report",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/ImpactReportInput"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ImpactReport"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/impact-reports/{id}/publish": {
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminPublishImpactReport",
+        "summary": "Publish an impact report",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ImpactReport"
+          }
+        }
+      }
+    },
+    "/api/v1/org-admin/impact-reports/{id}/archive": {
+      "post": {
+        "tags": ["org-admin"],
+        "operationId": "adminArchiveImpactReport",
+        "summary": "Archive an impact report",
+        "security": [
+          {
+            "adminKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ImpactReport"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "adminKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Kelompok-Admin-Key"
+      }
+    },
+    "parameters": {
+      "id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "slug": {
+        "name": "slug",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "postSlug": {
+        "name": "post_slug",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "organizationSlug": {
+        "name": "organization_slug",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "responses": {
+      "Ok": {
+        "description": "Successful response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "Error": {
+        "description": "Error response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "Organization": {
+        "description": "Organization response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Organization"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "OrganizationList": {
+        "description": "Organization list response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Organization"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "User": {
+        "description": "User response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "Session": {
+        "description": "Session response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Envelope"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "Me": {
+        "description": "Current session response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "ClaimRequest": {
+        "description": "Claim request response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "ClaimRequestList": {
+        "description": "Claim request list response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "Relationship": {
+        "description": "Relationship response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "RelationshipList": {
+        "description": "Relationship list response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "Member": {
+        "description": "Member response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "MemberList": {
+        "description": "Member list response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "Post": {
+        "description": "Post response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "PostList": {
+        "description": "Post list response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "ImpactReport": {
+        "description": "Impact report response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "ImpactReportList": {
+        "description": "Impact report list response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      },
+      "AuditLogList": {
+        "description": "Audit log list response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Envelope"
+            }
+          }
+        }
+      }
+    },
+    "requestBodies": {
+      "RegisterInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/RegisterInput"
+            }
+          }
+        }
+      },
+      "LoginInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/LoginInput"
+            }
+          }
+        }
+      },
+      "UpdateProfileInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/UpdateProfileInput"
+            }
+          }
+        }
+      },
+      "OrganizationInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OrganizationInput"
+            }
+          }
+        }
+      },
+      "ClaimInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ClaimInput"
+            }
+          }
+        }
+      },
+      "RelationshipInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/RelationshipInput"
+            }
+          }
+        }
+      },
+      "MemberInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/MemberInput"
+            }
+          }
+        }
+      },
+      "PostInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PostInput"
+            }
+          }
+        }
+      },
+      "ImpactReportInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ImpactReportInput"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Envelope": {
+        "type": "object",
+        "properties": {
+          "data": {},
+          "message": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/APIError"
+          }
+        }
+      },
+      "APIError": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "email", "role"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "required": ["token", "expires_at", "user"],
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "required": ["id", "slug", "name", "claim_status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "legal_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "history": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "website_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "official_email": {
+            "type": "string",
+            "format": "email"
+          },
+          "claim_status": {
+            "type": "string",
+            "enum": ["unclaimed", "pending", "claimed", "rejected"]
+          },
+          "profile_data": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "sdgs_data": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "impact_data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "RegisterInput": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          }
+        }
+      },
+      "LoginInput": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateProfileInput": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          }
+        }
+      },
+      "OrganizationInput": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "legal_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "history": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "website_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "official_email": {
+            "type": "string",
+            "format": "email"
+          },
+          "claim_status": {
+            "type": "string",
+            "enum": ["unclaimed", "pending", "claimed", "rejected"]
+          },
+          "profile_data": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "sdgs_data": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "impact_data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ClaimInput": {
+        "type": "object",
+        "required": ["method", "target"],
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": ["official_email", "instagram"]
+          },
+          "target": {
+            "type": "string"
+          },
+          "requester_email": {
+            "type": "string",
+            "format": "email"
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "RelationshipInput": {
+        "type": "object",
+        "required": ["parent_organization_slug", "child_organization_slug"],
+        "properties": {
+          "parent_organization_slug": {
+            "type": "string"
+          },
+          "child_organization_slug": {
+            "type": "string"
+          },
+          "relationship_type": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "MemberInput": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "social_links": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "start_date": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        }
+      },
+      "PostInput": {
+        "type": "object",
+        "required": ["organization_slug", "title", "content"],
+        "properties": {
+          "organization_slug": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "category_slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "published", "archived"]
+          },
+          "post_data": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "seo_data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ImpactReportInput": {
+        "type": "object",
+        "required": ["organization_slug", "title"],
+        "properties": {
+          "organization_slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "report_period_start": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "report_period_end": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "sdgs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "published", "archived"]
+          }
+        }
+      }
+    }
+  }
+}

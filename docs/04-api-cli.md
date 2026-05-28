@@ -17,6 +17,16 @@ The web app, automation jobs, service integrations, and future AI workflows shou
 - Return public DTOs instead of raw database models
 - Keep claim-only contact data, source evidence, raw imports, and private plugin metadata out of public responses
 
+## OpenAPI Contract
+
+The release API contract is published in [`docs/openapi.json`](openapi.json). Validate it with:
+
+```bash
+go test ./internal/httpapi -run TestOpenAPIContractCoversReleaseRoutes
+```
+
+Publish or fetch it by serving the repository docs artifact from the release pipeline or by copying `docs/openapi.json` into the documentation bundle for the target deployment.
+
 ## Response Shape
 
 Recommended success shape:
