@@ -50,6 +50,10 @@ type RegisterInput struct {
 	Password string `json:"password"`
 }
 
+type UpdateProfileInput struct {
+	Name string `json:"name"`
+}
+
 type Session struct {
 	Token     string    `json:"token"`
 	ExpiresAt time.Time `json:"expires_at"`
@@ -232,6 +236,41 @@ func (r *Repository) FindUserByID(ctx context.Context, id string) (User, error) 
 		return User{}, ErrNotFound
 	}
 	return user, err
+}
+
+func (r *Repository) UpdateProfile(ctx context.Context, userID string, input UpdateProfileInput) (User, error) {
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return User{}, errors.New("name is required")
+	}
+	if len(name) > 120 {
+		return User{}, errors.New("name must be at most 120 characters")
+	}
+
+	before, err := r.FindUserByID(ctx, userID)
+	if err != nil {
+		return User{}, err
+	}
+
+	row := r.db.QueryRow(ctx, `
+		UPDATE users
+		SET
+			name = $2,
+			updated_at = now()
+		WHERE id = $1
+		RETURNING id::text, name, email, role, created_at, updated_at
+	`, userID, name)
+
+	user, err := scanUser(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, err
+	}
+
+	_ = audit.Record(ctx, r.db, user.ID, "user", user.ID, "update_profile", before, user, nil)
+	return user, nil
 }
 
 func (r *Repository) RolesByUserID(ctx context.Context, userID string) ([]OrganizationRole, error) {

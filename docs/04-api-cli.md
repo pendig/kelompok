@@ -114,7 +114,10 @@ POST /api/v1/auth/register
 POST /api/v1/auth/login
 POST /api/v1/auth/logout
 GET /api/v1/auth/me
+PATCH /api/v1/auth/me
 ```
+
+`PATCH /api/v1/auth/me` accepts `{ "name": "..." }` and updates the signed-in user's display name. The endpoint requires a Bearer session token and returns the same shape as `GET /api/v1/auth/me`.
 
 Claims:
 

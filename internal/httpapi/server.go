@@ -79,6 +79,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
 	s.mux.HandleFunc("POST /api/v1/auth/logout", s.requireSession(s.handleLogout))
 	s.mux.HandleFunc("GET /api/v1/auth/me", s.requireSession(s.handleMe))
+	s.mux.HandleFunc("PATCH /api/v1/auth/me", s.requireSession(s.handleUpdateMe))
 
 	s.mux.HandleFunc("GET /api/v1/org-admin/organizations", s.requireAdmin(s.handleListAdminOrganizations))
 	s.mux.HandleFunc("POST /api/v1/org-admin/organizations", s.requireAdmin(s.handleCreateAdminOrganization))

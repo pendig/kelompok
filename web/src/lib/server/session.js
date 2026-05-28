@@ -85,3 +85,20 @@ export async function logoutSession(cookies) {
 	cookies.delete(SESSION_COOKIE, { path: "/" });
 	cookies.delete(SESSION_UNVERIFIED_COOKIE, { path: "/" });
 }
+
+export async function updateProfile(cookies, { name }) {
+	const token = cookies.get(SESSION_COOKIE);
+	if (!token) {
+		throw new APIError("session_required", { status: 401, code: "session_required" });
+	}
+
+	const payload = await fetchJSON("/api/v1/auth/me", {
+		method: "PATCH",
+		headers: {
+			authorization: `Bearer ${token}`,
+			"content-type": "application/json",
+		},
+		body: JSON.stringify({ name }),
+	});
+	return payload?.data ?? null;
+}
