@@ -1,0 +1,2372 @@
+openapi: 3.1.0
+info:
+  title: Kelompok API
+  summary: Public and org-admin endpoints for the Kelompok alpha release.
+  description: |
+    Kelompok is an open-source organization CRM. This document is the contract
+    for the implemented public read endpoints, the auth endpoints, and the
+    `/api/v1/org-admin` endpoints that ship in the current alpha release.
+
+    The contract intentionally tracks only the routes that are wired up in
+    `internal/httpapi/server.go`. Endpoints that appear in `docs/04-api-cli.md`
+    but are not yet implemented (events, donation campaigns, claim email and
+    instagram verification, etc.) are out of scope until the corresponding
+    handler ships.
+
+    Response envelope conventions:
+
+    * Success responses always include `data` and `message`. List endpoints
+      also include a `meta` object with `count` and `limit`.
+    * Error responses always carry an `error` object with `code`, `message`,
+      and an optional `details` payload.
+
+    Auth on `/api/v1/org-admin/*` accepts either a user session bearer token
+    from `POST /api/v1/auth/login` or the operations fallback admin key sent
+    as `X-Kelompok-Admin-Key`. When `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` is
+    configured, scoped admin keys must hit organization-scoped routes; global
+    list routes return `403 admin_org_scope_required`.
+  version: 1.0.0-alpha.2
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  contact:
+    name: Kelompok maintainers
+    url: https://github.com/pendig/kelompok
+
+servers:
+  - url: http://localhost:4621
+    description: Local development server (default `KELOMPOK_API_ADDR`)
+
+tags:
+  - name: System
+    description: Liveness, readiness, and service banner.
+  - name: Public — Organizations
+    description: Public organization profiles and claim intake.
+  - name: Public — Posts
+    description: Public posts feed and detail.
+  - name: Public — Impact Reports
+    description: Public impact reports per organization.
+  - name: Auth
+    description: Public registration, login, logout, and account view.
+  - name: Org Admin — Organizations
+    description: Alpha CRM endpoints for organization profiles.
+  - name: Org Admin — Relationships
+    description: Organization relationship graph management.
+  - name: Org Admin — Claims
+    description: Claim review for organization ownership.
+  - name: Org Admin — Audit
+    description: Audit log read access scoped to a single organization.
+  - name: Org Admin — Members
+    description: Organization member CRUD.
+  - name: Org Admin — Posts
+    description: Post CRUD and publish/archive transitions.
+  - name: Org Admin — Impact Reports
+    description: Impact report CRUD and publish/archive transitions.
+
+security: []
+
+paths:
+  /:
+    get:
+      tags: [System]
+      summary: Service banner
+      description: Returns the service identifier and tagline for connectivity checks.
+      operationId: getRoot
+      responses:
+        "200":
+          description: Service banner.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceBannerResponse"
+
+  /healthz:
+    get:
+      tags: [System]
+      summary: Liveness probe
+      description: Returns `200` while the API process is running.
+      operationId: getHealthz
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /readyz:
+    get:
+      tags: [System]
+      summary: Readiness probe
+      description: Returns `200` when the database is reachable; `503` otherwise.
+      operationId: getReadyz
+      responses:
+        "200":
+          description: Database is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "503":
+          description: Database is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/organizations:
+    get:
+      tags: [Public — Organizations]
+      summary: List public organizations
+      operationId: listPublicOrganizations
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of public organizations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicOrganizationListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/organizations/{slug}:
+    get:
+      tags: [Public — Organizations]
+      summary: Get a public organization by slug
+      operationId: getPublicOrganization
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+      responses:
+        "200":
+          description: Public organization profile, including active relationships.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicOrganizationDetailResponse"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/organizations/{slug}/claims:
+    post:
+      tags: [Public — Organizations]
+      summary: Submit an organization claim request
+      description: |
+        Public-side intake for organization claims. The request creates (or
+        reuses) a viewer-level user keyed off `requester_email`, then records
+        a `pending` claim that an org-admin reviewer can later approve or
+        reject via `/api/v1/org-admin/claims/{id}/{approve|reject}`.
+      operationId: createOrganizationClaim
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimInput"
+      responses:
+        "201":
+          description: Claim request created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimRequestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+
+  /api/v1/organizations/{slug}/posts:
+    get:
+      tags: [Public — Organizations]
+      summary: List published posts for an organization
+      operationId: listOrganizationPosts
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of published posts for this organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPostListResponse"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/organizations/{slug}/posts/{post_slug}:
+    get:
+      tags: [Public — Organizations]
+      summary: Get a published post scoped to an organization
+      operationId: getOrganizationPost
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+        - $ref: "#/components/parameters/PostSlug"
+      responses:
+        "200":
+          description: Published post for this organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPostDetailResponse"
+        "404":
+          description: Organization or post not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/organizations/{slug}/impact-reports:
+    get:
+      tags: [Public — Impact Reports]
+      summary: List published impact reports for an organization
+      operationId: listOrganizationImpactReports
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of published impact reports for this organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicImpactReportListResponse"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/posts:
+    get:
+      tags: [Public — Posts]
+      summary: List published posts
+      operationId: listPublicPosts
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of published posts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPostListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/posts/{slug}:
+    get:
+      tags: [Public — Posts]
+      summary: Get a published post by slug
+      description: |
+        When a slug is shared by more than one organization, the API returns
+        `409 post_slug_ambiguous` and the caller should use the
+        organization-scoped post detail endpoint instead.
+      operationId: getPublicPost
+      parameters:
+        - $ref: "#/components/parameters/PostSlug"
+      responses:
+        "200":
+          description: Published post.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPostDetailResponse"
+        "404":
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Post slug is shared by more than one organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: |
+        Creates a viewer-level user. If a row already exists with this email
+        and no password set yet (e.g. created during a public claim intake),
+        the password is set on that record.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: User created or upgraded with a password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: User already has a password set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and obtain a session token
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Session created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid email or password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current session
+      operationId: logoutUser
+      security:
+        - sessionBearer: []
+      responses:
+        "200":
+          description: Session revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutResponse"
+        "401":
+          $ref: "#/components/responses/SessionRequired"
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the current user and organization roles
+      operationId: getMe
+      security:
+        - sessionBearer: []
+      responses:
+        "200":
+          description: Current user and the organization roles attached to it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          $ref: "#/components/responses/SessionRequired"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/org-admin/organizations:
+    get:
+      tags: [Org Admin — Organizations]
+      summary: List organizations (admin)
+      description: |
+        Global list. Scoped admin keys (when
+        `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` is configured) and non-superadmin
+        user sessions must use the organization-scoped routes instead.
+      operationId: listAdminOrganizations
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of admin organization records.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrganizationListResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgScopeRequired"
+        "503":
+          $ref: "#/components/responses/AdminAuthNotConfigured"
+    post:
+      tags: [Org Admin — Organizations]
+      summary: Create an organization (admin)
+      operationId: createAdminOrganization
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminOrganizationInput"
+      responses:
+        "201":
+          description: Organization created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrganizationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+
+  /api/v1/org-admin/organizations/{slug}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationSlug"
+    get:
+      tags: [Org Admin — Organizations]
+      summary: Get an organization by slug (admin)
+      operationId: getAdminOrganization
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      responses:
+        "200":
+          description: Admin organization record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrganizationResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+    patch:
+      tags: [Org Admin — Organizations]
+      summary: Update an organization (admin)
+      operationId: updateAdminOrganization
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminOrganizationInput"
+      responses:
+        "200":
+          description: Updated organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrganizationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+
+  /api/v1/org-admin/organizations/{slug}/relationships:
+    get:
+      tags: [Org Admin — Relationships]
+      summary: List relationships for an organization (admin)
+      operationId: listOrganizationRelationships
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Relationships where this organization is parent or child.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelationshipListResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+
+  /api/v1/org-admin/organization-relationships:
+    post:
+      tags: [Org Admin — Relationships]
+      summary: Create an organization relationship
+      operationId: createOrganizationRelationship
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelationshipInput"
+      responses:
+        "201":
+          description: Relationship created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelationshipResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Parent or child organization not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate relationship for this parent/child/type tuple.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/organization-relationships/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RelationshipID"
+    patch:
+      tags: [Org Admin — Relationships]
+      summary: Update an organization relationship
+      description: |
+        Omit `started_at` or `ended_at` to keep the existing date, or send the
+        field as `null` to clear it.
+      operationId: updateOrganizationRelationship
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelationshipPatch"
+      responses:
+        "200":
+          description: Updated relationship.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelationshipResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Relationship or organization not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate relationship for this parent/child/type tuple.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags: [Org Admin — Relationships]
+      summary: Delete an organization relationship
+      operationId: deleteOrganizationRelationship
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      responses:
+        "200":
+          description: Relationship removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelationshipResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Relationship not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/organizations/{slug}/claims:
+    get:
+      tags: [Org Admin — Claims]
+      summary: List claim requests for an organization
+      operationId: listOrganizationClaims
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Claim requests for this organization, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimListResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+
+  /api/v1/org-admin/claims/{id}/approve:
+    post:
+      tags: [Org Admin — Claims]
+      summary: Approve a claim request
+      operationId: approveOrganizationClaim
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/ClaimID"
+      responses:
+        "200":
+          description: Claim approved; organization is now claimed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimRequestResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Claim not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Claim is no longer pending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/claims/{id}/reject:
+    post:
+      tags: [Org Admin — Claims]
+      summary: Reject a claim request
+      operationId: rejectOrganizationClaim
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/ClaimID"
+      responses:
+        "200":
+          description: Claim rejected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimRequestResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Claim not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Claim is no longer pending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/organizations/{slug}/audit-logs:
+    get:
+      tags: [Org Admin — Audit]
+      summary: List audit logs for an organization
+      operationId: listOrganizationAuditLogs
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Audit logs scoped to this organization, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogListResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+
+  /api/v1/org-admin/organizations/{slug}/members:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationSlug"
+    get:
+      tags: [Org Admin — Members]
+      summary: List members for an organization
+      operationId: listOrganizationMembers
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Members for this organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberListResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+    post:
+      tags: [Org Admin — Members]
+      summary: Create a member for an organization
+      operationId: createOrganizationMember
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberInput"
+      responses:
+        "201":
+          description: Member created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+
+  /api/v1/org-admin/members/{id}:
+    parameters:
+      - $ref: "#/components/parameters/MemberID"
+    patch:
+      tags: [Org Admin — Members]
+      summary: Update a member
+      operationId: updateAdminMember
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberInput"
+      responses:
+        "200":
+          description: Updated member.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Member not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags: [Org Admin — Members]
+      summary: Delete a member
+      operationId: deleteAdminMember
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      responses:
+        "200":
+          description: Member deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberDeleteResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Member not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/posts:
+    get:
+      tags: [Org Admin — Posts]
+      summary: List posts (admin)
+      description: |
+        When `organization_slug` is provided, returns posts for that
+        organization. Without it, scoped admin keys and non-superadmin user
+        sessions receive `403 admin_org_scope_required`.
+      operationId: listAdminPosts
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: organization_slug
+          in: query
+          required: false
+          description: Optional organization slug filter.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Posts visible to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostListResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgScopeRequired"
+    post:
+      tags: [Org Admin — Posts]
+      summary: Create a post
+      operationId: createAdminPost
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminPostInput"
+      responses:
+        "201":
+          description: Post created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+
+  /api/v1/org-admin/posts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/PostID"
+    patch:
+      tags: [Org Admin — Posts]
+      summary: Update a post
+      operationId: updateAdminPost
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminPostInput"
+      responses:
+        "200":
+          description: Updated post.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/posts/{id}/publish:
+    post:
+      tags: [Org Admin — Posts]
+      summary: Publish a post
+      operationId: publishAdminPost
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/PostID"
+      responses:
+        "200":
+          description: Post published.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/posts/{id}/archive:
+    post:
+      tags: [Org Admin — Posts]
+      summary: Archive a post
+      operationId: archiveAdminPost
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/PostID"
+      responses:
+        "200":
+          description: Post archived.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/impact-reports:
+    get:
+      tags: [Org Admin — Impact Reports]
+      summary: List impact reports (admin)
+      description: |
+        When `organization_slug` is provided, returns reports for that
+        organization. Without it, scoped admin keys and non-superadmin user
+        sessions receive `403 admin_org_scope_required`.
+      operationId: listAdminImpactReports
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: organization_slug
+          in: query
+          required: false
+          description: Optional organization slug filter.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Impact reports visible to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminImpactReportListResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgScopeRequired"
+    post:
+      tags: [Org Admin — Impact Reports]
+      summary: Create an impact report
+      operationId: createAdminImpactReport
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminImpactReportInput"
+      responses:
+        "201":
+          description: Impact report created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminImpactReportResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+
+  /api/v1/org-admin/impact-reports/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ImpactReportID"
+    patch:
+      tags: [Org Admin — Impact Reports]
+      summary: Update an impact report
+      operationId: updateAdminImpactReport
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminImpactReportInput"
+      responses:
+        "200":
+          description: Updated impact report.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminImpactReportResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Impact report not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/impact-reports/{id}/publish:
+    post:
+      tags: [Org Admin — Impact Reports]
+      summary: Publish an impact report
+      operationId: publishAdminImpactReport
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/ImpactReportID"
+      responses:
+        "200":
+          description: Impact report published.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminImpactReportResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Impact report not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/org-admin/impact-reports/{id}/archive:
+    post:
+      tags: [Org Admin — Impact Reports]
+      summary: Archive an impact report
+      operationId: archiveAdminImpactReport
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/ImpactReportID"
+      responses:
+        "200":
+          description: Impact report archived.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminImpactReportResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          description: Impact report not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    sessionBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: |
+        User session token returned by `POST /api/v1/auth/login`. Send as
+        `Authorization: Bearer <token>`.
+    adminApiKey:
+      type: apiKey
+      in: header
+      name: X-Kelompok-Admin-Key
+      description: |
+        Operations fallback admin key (`KELOMPOK_ADMIN_API_KEY`). When
+        `KELOMPOK_ADMIN_ORGANIZATION_SLUGS` is set, the key is restricted to
+        those slugs and cannot use global list routes without an
+        `organization_slug` filter.
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: |
+        Maximum number of items to return. Each endpoint clamps this value to
+        a per-route maximum (typically 100). Invalid values fall back to the
+        endpoint's default.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    OrganizationSlug:
+      name: slug
+      in: path
+      required: true
+      description: Organization slug.
+      schema:
+        type: string
+    PostSlug:
+      name: post_slug
+      in: path
+      required: true
+      description: Post slug.
+      schema:
+        type: string
+    RelationshipID:
+      name: id
+      in: path
+      required: true
+      description: Organization relationship UUID.
+      schema:
+        type: string
+        format: uuid
+    ClaimID:
+      name: id
+      in: path
+      required: true
+      description: Claim request UUID.
+      schema:
+        type: string
+        format: uuid
+    MemberID:
+      name: id
+      in: path
+      required: true
+      description: Member UUID.
+      schema:
+        type: string
+        format: uuid
+    PostID:
+      name: id
+      in: path
+      required: true
+      description: Post UUID.
+      schema:
+        type: string
+        format: uuid
+    ImpactReportID:
+      name: id
+      in: path
+      required: true
+      description: Impact report UUID.
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Request payload is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    OrganizationNotFound:
+      description: Organization not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    SessionRequired:
+      description: A user session is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AdminAuthRequired:
+      description: Admin authorization is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AdminAuthNotConfigured:
+      description: Admin API key is not configured on this deployment.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AdminOrgForbidden:
+      description: The caller is not authorized for this organization.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AdminOrgScopeRequired:
+      description: |
+        The caller must use an organization-scoped route or include an
+        `organization_slug` filter.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    SuccessEnvelope:
+      type: object
+      required: [data, message]
+      properties:
+        data:
+          description: Endpoint-specific payload.
+        meta:
+          $ref: "#/components/schemas/PageMeta"
+        message:
+          type: string
+          description: Stable status string. `"ok"` on success.
+          example: ok
+
+    PageMeta:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Number of items returned in this response.
+        limit:
+          type: integer
+          description: Limit applied to the underlying query.
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable error code.
+              example: organization_not_found
+            message:
+              type: string
+              description: Human-readable error message.
+              example: Organization not found
+            details:
+              type: object
+              additionalProperties: true
+              nullable: true
+
+    OrganizationRef:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+
+    PublicOrganizationRelationship:
+      type: object
+      required: [organization, relationship_type, status]
+      properties:
+        organization:
+          $ref: "#/components/schemas/OrganizationRef"
+        relationship_type:
+          type: string
+          enum:
+            - structural_parent
+            - autonomous_body
+            - affiliated_with
+            - network_member
+            - related
+        label:
+          type: string
+        status:
+          type: string
+          enum: [active, pending, inactive, archived]
+
+    PublicOrganizationRelationships:
+      type: object
+      required: [parents, children, related]
+      properties:
+        parents:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicOrganizationRelationship"
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicOrganizationRelationship"
+        related:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicOrganizationRelationship"
+
+    PublicOrganization:
+      type: object
+      required: [slug, name, claim_status, profile_data, sdgs_data, impact_data, created_at, updated_at]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        legal_name:
+          type: string
+        description:
+          type: string
+        history:
+          type: string
+        country:
+          type: string
+        region:
+          type: string
+        city:
+          type: string
+        website_url:
+          type: string
+        claim_status:
+          type: string
+          enum: [unclaimed, pending, claimed, rejected]
+        profile_data:
+          type: object
+          additionalProperties: true
+          description: Filtered public profile fields. Internal keys are stripped.
+        sdgs_data:
+          type: object
+          additionalProperties: true
+        impact_data:
+          type: object
+          additionalProperties: true
+        relationships:
+          $ref: "#/components/schemas/PublicOrganizationRelationships"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PublicPost:
+      type: object
+      required: [organization, slug, title, status, post_data, seo_data, created_at, updated_at]
+      properties:
+        organization:
+          $ref: "#/components/schemas/OrganizationRef"
+        category_slug:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        post_data:
+          type: object
+          additionalProperties: true
+        seo_data:
+          type: object
+          additionalProperties: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PublicImpactReport:
+      type: object
+      required: [organization, title, status, sdgs, metrics, created_at, updated_at]
+      properties:
+        organization:
+          $ref: "#/components/schemas/OrganizationRef"
+        title:
+          type: string
+        summary:
+          type: string
+        report_period_start:
+          type: string
+          format: date-time
+          nullable: true
+        report_period_end:
+          type: string
+          format: date-time
+          nullable: true
+        sdgs:
+          type: array
+          items: {}
+        metrics:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [draft, published, archived]
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ServiceBannerResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [service, tagline]
+              properties:
+                service:
+                  type: string
+                  example: kelompok-api
+                tagline:
+                  type: string
+
+    HealthResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [status, env]
+              properties:
+                status:
+                  type: string
+                  example: ok
+                env:
+                  type: string
+
+    ReadyResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  example: ready
+
+    PublicOrganizationListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/PublicOrganization"
+
+    PublicOrganizationDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/PublicOrganization"
+
+    PublicPostListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/PublicPost"
+
+    PublicPostDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/PublicPost"
+
+    PublicImpactReportListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/PublicImpactReport"
+
+    ClaimInput:
+      type: object
+      required: [method, target]
+      properties:
+        method:
+          type: string
+          enum: [official_email, instagram]
+        target:
+          type: string
+          description: Email address or Instagram handle.
+        requester_email:
+          type: string
+          format: email
+          description: Falls back to `target` when omitted.
+        evidence:
+          type: object
+          additionalProperties: true
+
+    ClaimRequest:
+      type: object
+      required: [id, organization_id, user_id, method, target, status, evidence, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        method:
+          type: string
+          enum: [official_email, instagram]
+        target:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        evidence:
+          type: object
+          additionalProperties: true
+        reviewed_by_user_id:
+          type: string
+          format: uuid
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ClaimRequestResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/ClaimRequest"
+
+    ClaimListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/ClaimRequest"
+
+    RegisterInput:
+      type: object
+      required: [email, password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    User:
+      type: object
+      required: [id, name, email, role, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [viewer, member, admin, owner, superadmin]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/User"
+
+    Session:
+      type: object
+      required: [token, expires_at, user]
+      properties:
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/User"
+
+    SessionResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Session"
+
+    LogoutResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [revoked]
+              properties:
+                revoked:
+                  type: boolean
+                  example: true
+
+    OrganizationRole:
+      type: object
+      required: [organization_id, organization_slug, organization_name, role, created_at, updated_at]
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        organization_slug:
+          type: string
+        organization_name:
+          type: string
+        role:
+          type: string
+          enum: [owner, admin, member, viewer]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MeResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [user, organization_roles]
+              properties:
+                user:
+                  $ref: "#/components/schemas/User"
+                organization_roles:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/OrganizationRole"
+
+    AdminOrganization:
+      type: object
+      required: [id, slug, name, claim_status, profile_data, sdgs_data, impact_data, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        legal_name:
+          type: string
+        description:
+          type: string
+        history:
+          type: string
+        country:
+          type: string
+        region:
+          type: string
+        city:
+          type: string
+        website_url:
+          type: string
+        official_email:
+          type: string
+          format: email
+        claim_status:
+          type: string
+          enum: [unclaimed, pending, claimed, rejected]
+        profile_data:
+          type: object
+          additionalProperties: true
+        sdgs_data:
+          type: object
+          additionalProperties: true
+        impact_data:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AdminOrganizationInput:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        legal_name:
+          type: string
+        description:
+          type: string
+        history:
+          type: string
+        country:
+          type: string
+        region:
+          type: string
+        city:
+          type: string
+        website_url:
+          type: string
+        official_email:
+          type: string
+          format: email
+        claim_status:
+          type: string
+          enum: [unclaimed, pending, claimed, rejected]
+        profile_data:
+          type: object
+          additionalProperties: true
+        sdgs_data:
+          type: object
+          additionalProperties: true
+        impact_data:
+          type: object
+          additionalProperties: true
+      required: [name]
+
+    AdminOrganizationResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/AdminOrganization"
+
+    AdminOrganizationListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminOrganization"
+
+    Relationship:
+      type: object
+      required: [id, parent, child, relationship_type, status, metadata, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        parent_organization_id:
+          type: string
+          format: uuid
+        parent:
+          $ref: "#/components/schemas/OrganizationRef"
+        child_organization_id:
+          type: string
+          format: uuid
+        child:
+          $ref: "#/components/schemas/OrganizationRef"
+        relationship_type:
+          type: string
+          enum:
+            - structural_parent
+            - autonomous_body
+            - affiliated_with
+            - network_member
+            - related
+        label:
+          type: string
+        status:
+          type: string
+          enum: [active, pending, inactive, archived]
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RelationshipInput:
+      type: object
+      required: [parent_organization_slug, child_organization_slug]
+      properties:
+        parent_organization_slug:
+          type: string
+        child_organization_slug:
+          type: string
+        relationship_type:
+          type: string
+          enum:
+            - structural_parent
+            - autonomous_body
+            - affiliated_with
+            - network_member
+            - related
+          default: related
+        label:
+          type: string
+        status:
+          type: string
+          enum: [active, pending, inactive, archived]
+          default: active
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    RelationshipPatch:
+      type: object
+      description: |
+        PATCH body for an existing relationship. Omit a field to leave it
+        unchanged. Send `started_at: null` or `ended_at: null` to explicitly
+        clear those dates. Unknown fields are rejected with `invalid_json`.
+      additionalProperties: false
+      properties:
+        parent_organization_slug:
+          type: string
+        child_organization_slug:
+          type: string
+        relationship_type:
+          type: string
+          enum:
+            - structural_parent
+            - autonomous_body
+            - affiliated_with
+            - network_member
+            - related
+        label:
+          type: string
+        status:
+          type: string
+          enum: [active, pending, inactive, archived]
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    RelationshipResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Relationship"
+
+    RelationshipListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Relationship"
+
+    AuditLog:
+      type: object
+      required: [id, entity_type, action, metadata, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_user_id:
+          type: string
+          format: uuid
+          nullable: true
+        organization_id:
+          type: string
+          format: uuid
+          nullable: true
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          type: string
+        before_data:
+          type: object
+          additionalProperties: true
+          nullable: true
+        after_data:
+          type: object
+          additionalProperties: true
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    AuditLogListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuditLog"
+
+    Member:
+      type: object
+      required: [id, organization_id, organization_slug, organization_name, name, social_links, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        organization_slug:
+          type: string
+        organization_name:
+          type: string
+        name:
+          type: string
+        position:
+          type: string
+        bio:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        social_links:
+          type: object
+          additionalProperties: true
+        start_date:
+          type: string
+          format: date-time
+          nullable: true
+        end_date:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MemberInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        position:
+          type: string
+        bio:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        social_links:
+          type: object
+          additionalProperties: true
+        start_date:
+          type: string
+          format: date-time
+          nullable: true
+        end_date:
+          type: string
+          format: date-time
+          nullable: true
+
+    MemberResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Member"
+
+    MemberListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Member"
+
+    MemberDeleteResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+
+    AdminPost:
+      type: object
+      required: [id, organization_id, organization_slug, organization_name, slug, title, status, post_data, seo_data, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        organization_slug:
+          type: string
+        organization_name:
+          type: string
+        category_slug:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        post_data:
+          type: object
+          additionalProperties: true
+        seo_data:
+          type: object
+          additionalProperties: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AdminPostInput:
+      type: object
+      required: [organization_slug, title]
+      properties:
+        organization_slug:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        category_slug:
+          type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        post_data:
+          type: object
+          additionalProperties: true
+        seo_data:
+          type: object
+          additionalProperties: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminPostResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/AdminPost"
+
+    AdminPostListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminPost"
+
+    AdminImpactReport:
+      type: object
+      required: [id, organization_id, organization_slug, organization_name, title, status, sdgs, metrics, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        organization_slug:
+          type: string
+        organization_name:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        report_period_start:
+          type: string
+          format: date-time
+          nullable: true
+        report_period_end:
+          type: string
+          format: date-time
+          nullable: true
+        sdgs:
+          type: array
+          items: {}
+        metrics:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [draft, published, archived]
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AdminImpactReportInput:
+      type: object
+      required: [organization_slug, title]
+      properties:
+        organization_slug:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        report_period_start:
+          type: string
+          format: date-time
+          nullable: true
+        report_period_end:
+          type: string
+          format: date-time
+          nullable: true
+        sdgs:
+          type: array
+          items: {}
+        metrics:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [draft, published, archived]
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminImpactReportResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/AdminImpactReport"
+
+    AdminImpactReportListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminImpactReport"

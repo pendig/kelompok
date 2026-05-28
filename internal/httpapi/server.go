@@ -62,50 +62,125 @@ func (s *Server) HTTPServer() *http.Server {
 	}
 }
 
+// Route describes a single (method, path) pair registered on the API.
+//
+// The slice returned by [RegisteredRoutes] is the canonical source of truth
+// for the OpenAPI contract drift check: every Route must be documented in
+// docs/openapi.yaml, and every documented operation must map back to a Route.
+type Route struct {
+	Method string
+	Path   string
+}
+
+// RegisteredRoutes returns every (method, path) pair the API server exposes,
+// in the order they are registered on the mux.
+//
+// Test code uses this list to assert that the published OpenAPI artifact stays
+// in sync with the implemented router.
+func RegisteredRoutes() []Route {
+	return []Route{
+		{"GET", "/"},
+		{"GET", "/healthz"},
+		{"GET", "/readyz"},
+
+		{"GET", "/api/v1/organizations"},
+		{"GET", "/api/v1/organizations/{slug}"},
+		{"POST", "/api/v1/organizations/{slug}/claims"},
+		{"GET", "/api/v1/organizations/{slug}/posts"},
+		{"GET", "/api/v1/organizations/{slug}/posts/{post_slug}"},
+		{"GET", "/api/v1/organizations/{slug}/impact-reports"},
+		{"GET", "/api/v1/posts"},
+		{"GET", "/api/v1/posts/{slug}"},
+
+		{"POST", "/api/v1/auth/register"},
+		{"POST", "/api/v1/auth/login"},
+		{"POST", "/api/v1/auth/logout"},
+		{"GET", "/api/v1/auth/me"},
+
+		{"GET", "/api/v1/org-admin/organizations"},
+		{"POST", "/api/v1/org-admin/organizations"},
+		{"GET", "/api/v1/org-admin/organizations/{slug}"},
+		{"PATCH", "/api/v1/org-admin/organizations/{slug}"},
+		{"GET", "/api/v1/org-admin/organizations/{slug}/relationships"},
+		{"POST", "/api/v1/org-admin/organization-relationships"},
+		{"PATCH", "/api/v1/org-admin/organization-relationships/{id}"},
+		{"DELETE", "/api/v1/org-admin/organization-relationships/{id}"},
+		{"GET", "/api/v1/org-admin/organizations/{slug}/claims"},
+		{"POST", "/api/v1/org-admin/claims/{id}/approve"},
+		{"POST", "/api/v1/org-admin/claims/{id}/reject"},
+		{"GET", "/api/v1/org-admin/organizations/{slug}/audit-logs"},
+		{"GET", "/api/v1/org-admin/organizations/{slug}/members"},
+		{"POST", "/api/v1/org-admin/organizations/{slug}/members"},
+		{"PATCH", "/api/v1/org-admin/members/{id}"},
+		{"DELETE", "/api/v1/org-admin/members/{id}"},
+		{"GET", "/api/v1/org-admin/posts"},
+		{"POST", "/api/v1/org-admin/posts"},
+		{"PATCH", "/api/v1/org-admin/posts/{id}"},
+		{"POST", "/api/v1/org-admin/posts/{id}/publish"},
+		{"POST", "/api/v1/org-admin/posts/{id}/archive"},
+		{"GET", "/api/v1/org-admin/impact-reports"},
+		{"POST", "/api/v1/org-admin/impact-reports"},
+		{"PATCH", "/api/v1/org-admin/impact-reports/{id}"},
+		{"POST", "/api/v1/org-admin/impact-reports/{id}/publish"},
+		{"POST", "/api/v1/org-admin/impact-reports/{id}/archive"},
+	}
+}
+
 func (s *Server) routes() {
-	s.mux.HandleFunc("GET /", s.handleRoot)
-	s.mux.HandleFunc("GET /healthz", s.handleHealth)
-	s.mux.HandleFunc("GET /readyz", s.handleReady)
-	s.mux.HandleFunc("GET /api/v1/organizations", s.handleListOrganizations)
-	s.mux.HandleFunc("GET /api/v1/organizations/{slug}", s.handleGetOrganization)
-	s.mux.HandleFunc("POST /api/v1/organizations/{slug}/claims", s.handleCreateOrganizationClaim)
-	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/posts", s.handleListOrganizationPosts)
-	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/posts/{post_slug}", s.handleGetOrganizationPost)
-	s.mux.HandleFunc("GET /api/v1/organizations/{slug}/impact-reports", s.handleListOrganizationImpactReports)
-	s.mux.HandleFunc("GET /api/v1/posts", s.handleListPosts)
-	s.mux.HandleFunc("GET /api/v1/posts/{slug}", s.handleGetPost)
+	handlers := map[Route]http.HandlerFunc{
+		{"GET", "/"}:        s.handleRoot,
+		{"GET", "/healthz"}: s.handleHealth,
+		{"GET", "/readyz"}:  s.handleReady,
 
-	s.mux.HandleFunc("POST /api/v1/auth/register", s.handleRegister)
-	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
-	s.mux.HandleFunc("POST /api/v1/auth/logout", s.requireSession(s.handleLogout))
-	s.mux.HandleFunc("GET /api/v1/auth/me", s.requireSession(s.handleMe))
+		{"GET", "/api/v1/organizations"}:                          s.handleListOrganizations,
+		{"GET", "/api/v1/organizations/{slug}"}:                   s.handleGetOrganization,
+		{"POST", "/api/v1/organizations/{slug}/claims"}:           s.handleCreateOrganizationClaim,
+		{"GET", "/api/v1/organizations/{slug}/posts"}:             s.handleListOrganizationPosts,
+		{"GET", "/api/v1/organizations/{slug}/posts/{post_slug}"}: s.handleGetOrganizationPost,
+		{"GET", "/api/v1/organizations/{slug}/impact-reports"}:    s.handleListOrganizationImpactReports,
+		{"GET", "/api/v1/posts"}:                                  s.handleListPosts,
+		{"GET", "/api/v1/posts/{slug}"}:                           s.handleGetPost,
 
-	s.mux.HandleFunc("GET /api/v1/org-admin/organizations", s.requireAdmin(s.handleListAdminOrganizations))
-	s.mux.HandleFunc("POST /api/v1/org-admin/organizations", s.requireAdmin(s.handleCreateAdminOrganization))
-	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}", s.requireAdmin(s.handleGetAdminOrganization))
-	s.mux.HandleFunc("PATCH /api/v1/org-admin/organizations/{slug}", s.requireAdmin(s.handleUpdateAdminOrganization))
-	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/relationships", s.requireAdmin(s.handleListOrganizationRelationships))
-	s.mux.HandleFunc("POST /api/v1/org-admin/organization-relationships", s.requireAdmin(s.handleCreateOrganizationRelationship))
-	s.mux.HandleFunc("PATCH /api/v1/org-admin/organization-relationships/{id}", s.requireAdmin(s.handleUpdateOrganizationRelationship))
-	s.mux.HandleFunc("DELETE /api/v1/org-admin/organization-relationships/{id}", s.requireAdmin(s.handleDeleteOrganizationRelationship))
-	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/claims", s.requireAdmin(s.handleListOrganizationClaims))
-	s.mux.HandleFunc("POST /api/v1/org-admin/claims/{id}/approve", s.requireAdmin(s.handleApproveOrganizationClaim))
-	s.mux.HandleFunc("POST /api/v1/org-admin/claims/{id}/reject", s.requireAdmin(s.handleRejectOrganizationClaim))
-	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/audit-logs", s.requireAdmin(s.handleListOrganizationAuditLogs))
-	s.mux.HandleFunc("GET /api/v1/org-admin/organizations/{slug}/members", s.requireAdmin(s.handleListOrganizationMembers))
-	s.mux.HandleFunc("POST /api/v1/org-admin/organizations/{slug}/members", s.requireAdmin(s.handleCreateOrganizationMember))
-	s.mux.HandleFunc("PATCH /api/v1/org-admin/members/{id}", s.requireAdmin(s.handleUpdateAdminMember))
-	s.mux.HandleFunc("DELETE /api/v1/org-admin/members/{id}", s.requireAdmin(s.handleDeleteAdminMember))
-	s.mux.HandleFunc("GET /api/v1/org-admin/posts", s.requireAdmin(s.handleListAdminPosts))
-	s.mux.HandleFunc("POST /api/v1/org-admin/posts", s.requireAdmin(s.handleCreateAdminPost))
-	s.mux.HandleFunc("PATCH /api/v1/org-admin/posts/{id}", s.requireAdmin(s.handleUpdateAdminPost))
-	s.mux.HandleFunc("POST /api/v1/org-admin/posts/{id}/publish", s.requireAdmin(s.handlePublishAdminPost))
-	s.mux.HandleFunc("POST /api/v1/org-admin/posts/{id}/archive", s.requireAdmin(s.handleArchiveAdminPost))
-	s.mux.HandleFunc("GET /api/v1/org-admin/impact-reports", s.requireAdmin(s.handleListAdminImpactReports))
-	s.mux.HandleFunc("POST /api/v1/org-admin/impact-reports", s.requireAdmin(s.handleCreateAdminImpactReport))
-	s.mux.HandleFunc("PATCH /api/v1/org-admin/impact-reports/{id}", s.requireAdmin(s.handleUpdateAdminImpactReport))
-	s.mux.HandleFunc("POST /api/v1/org-admin/impact-reports/{id}/publish", s.requireAdmin(s.handlePublishAdminImpactReport))
-	s.mux.HandleFunc("POST /api/v1/org-admin/impact-reports/{id}/archive", s.requireAdmin(s.handleArchiveAdminImpactReport))
+		{"POST", "/api/v1/auth/register"}: s.handleRegister,
+		{"POST", "/api/v1/auth/login"}:    s.handleLogin,
+		{"POST", "/api/v1/auth/logout"}:   s.requireSession(s.handleLogout),
+		{"GET", "/api/v1/auth/me"}:        s.requireSession(s.handleMe),
+
+		{"GET", "/api/v1/org-admin/organizations"}:                      s.requireAdmin(s.handleListAdminOrganizations),
+		{"POST", "/api/v1/org-admin/organizations"}:                     s.requireAdmin(s.handleCreateAdminOrganization),
+		{"GET", "/api/v1/org-admin/organizations/{slug}"}:               s.requireAdmin(s.handleGetAdminOrganization),
+		{"PATCH", "/api/v1/org-admin/organizations/{slug}"}:             s.requireAdmin(s.handleUpdateAdminOrganization),
+		{"GET", "/api/v1/org-admin/organizations/{slug}/relationships"}: s.requireAdmin(s.handleListOrganizationRelationships),
+		{"POST", "/api/v1/org-admin/organization-relationships"}:        s.requireAdmin(s.handleCreateOrganizationRelationship),
+		{"PATCH", "/api/v1/org-admin/organization-relationships/{id}"}:  s.requireAdmin(s.handleUpdateOrganizationRelationship),
+		{"DELETE", "/api/v1/org-admin/organization-relationships/{id}"}: s.requireAdmin(s.handleDeleteOrganizationRelationship),
+		{"GET", "/api/v1/org-admin/organizations/{slug}/claims"}:        s.requireAdmin(s.handleListOrganizationClaims),
+		{"POST", "/api/v1/org-admin/claims/{id}/approve"}:               s.requireAdmin(s.handleApproveOrganizationClaim),
+		{"POST", "/api/v1/org-admin/claims/{id}/reject"}:                s.requireAdmin(s.handleRejectOrganizationClaim),
+		{"GET", "/api/v1/org-admin/organizations/{slug}/audit-logs"}:    s.requireAdmin(s.handleListOrganizationAuditLogs),
+		{"GET", "/api/v1/org-admin/organizations/{slug}/members"}:       s.requireAdmin(s.handleListOrganizationMembers),
+		{"POST", "/api/v1/org-admin/organizations/{slug}/members"}:      s.requireAdmin(s.handleCreateOrganizationMember),
+		{"PATCH", "/api/v1/org-admin/members/{id}"}:                     s.requireAdmin(s.handleUpdateAdminMember),
+		{"DELETE", "/api/v1/org-admin/members/{id}"}:                    s.requireAdmin(s.handleDeleteAdminMember),
+		{"GET", "/api/v1/org-admin/posts"}:                              s.requireAdmin(s.handleListAdminPosts),
+		{"POST", "/api/v1/org-admin/posts"}:                             s.requireAdmin(s.handleCreateAdminPost),
+		{"PATCH", "/api/v1/org-admin/posts/{id}"}:                       s.requireAdmin(s.handleUpdateAdminPost),
+		{"POST", "/api/v1/org-admin/posts/{id}/publish"}:                s.requireAdmin(s.handlePublishAdminPost),
+		{"POST", "/api/v1/org-admin/posts/{id}/archive"}:                s.requireAdmin(s.handleArchiveAdminPost),
+		{"GET", "/api/v1/org-admin/impact-reports"}:                     s.requireAdmin(s.handleListAdminImpactReports),
+		{"POST", "/api/v1/org-admin/impact-reports"}:                    s.requireAdmin(s.handleCreateAdminImpactReport),
+		{"PATCH", "/api/v1/org-admin/impact-reports/{id}"}:              s.requireAdmin(s.handleUpdateAdminImpactReport),
+		{"POST", "/api/v1/org-admin/impact-reports/{id}/publish"}:       s.requireAdmin(s.handlePublishAdminImpactReport),
+		{"POST", "/api/v1/org-admin/impact-reports/{id}/archive"}:       s.requireAdmin(s.handleArchiveAdminImpactReport),
+	}
+
+	for _, route := range RegisteredRoutes() {
+		handler, ok := handlers[route]
+		if !ok {
+			panic("httpapi: missing handler for registered route " + route.Method + " " + route.Path)
+		}
+		s.mux.HandleFunc(route.Method+" "+route.Path, handler)
+	}
 }
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
