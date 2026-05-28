@@ -1,5 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { fetchJSON } from "$lib/api.js";
+import { APIError, fetchJSON } from "$lib/api.js";
 import { loadSession, loginWithPassword } from "$lib/server/session.js";
 
 function value(form, key) {
@@ -7,8 +7,16 @@ function value(form, key) {
 }
 
 function actionError(error) {
+	if (error instanceof APIError) {
+		return fail(error.status || 400, {
+			ok: false,
+			code: error.code || "register_failed",
+			error: error.apiMessage || error.message || "Unable to register",
+		});
+	}
 	return fail(400, {
 		ok: false,
+		code: "register_failed",
 		error: error instanceof Error ? error.message : "Unable to register",
 	});
 }
@@ -32,7 +40,8 @@ export const actions = {
 			if (!name) {
 				return fail(400, {
 					ok: false,
-					error: "name is required",
+					code: "name_required",
+					error: "Name is required",
 				});
 			}
 

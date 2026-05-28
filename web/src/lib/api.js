@@ -2,12 +2,13 @@ const DEFAULT_API_BASE_URL = "http://localhost:4621";
 const DEFAULT_FETCH_TIMEOUT_MS = 3500;
 
 export class APIError extends Error {
-	constructor(message, { status, code, details } = {}) {
+	constructor(message, { status, code, details, apiMessage } = {}) {
 		super(message);
 		this.name = "APIError";
 		this.status = status;
 		this.code = code;
 		this.details = details;
+		this.apiMessage = apiMessage;
 	}
 }
 
@@ -40,6 +41,7 @@ async function readResponse(response) {
 			status: response.status,
 			code: details?.code,
 			details: details?.details,
+			apiMessage: details?.message,
 		});
 	}
 

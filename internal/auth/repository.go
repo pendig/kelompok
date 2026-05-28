@@ -10,6 +10,7 @@ import (
 	"net/mail"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,10 +19,12 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrInvalidSession     = errors.New("invalid session")
-	ErrNotFound           = errors.New("user not found")
-	ErrUserExists         = errors.New("user already has a password")
+	ErrInvalidCredentials  = errors.New("invalid email or password")
+	ErrInvalidSession      = errors.New("invalid session")
+	ErrNotFound            = errors.New("user not found")
+	ErrUserExists          = errors.New("user already has a password")
+	ErrProfileNameRequired = errors.New("profile name is required")
+	ErrProfileNameTooLong  = errors.New("profile name must be at most 120 characters")
 )
 
 const SessionTTL = 30 * 24 * time.Hour
@@ -48,6 +51,10 @@ type RegisterInput struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type UpdateProfileInput struct {
+	Name string `json:"name"`
 }
 
 type Session struct {
@@ -253,6 +260,41 @@ func (r *Repository) FindUserByID(ctx context.Context, id string) (User, error) 
 	return user, err
 }
 
+func (r *Repository) UpdateProfile(ctx context.Context, userID string, input UpdateProfileInput) (User, error) {
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return User{}, ErrProfileNameRequired
+	}
+	if utf8.RuneCountInString(name) > 120 {
+		return User{}, ErrProfileNameTooLong
+	}
+
+	before, err := r.FindUserByID(ctx, userID)
+	if err != nil {
+		return User{}, err
+	}
+
+	row := r.db.QueryRow(ctx, `
+		UPDATE users
+		SET
+			name = $2,
+			updated_at = now()
+		WHERE id = $1
+		RETURNING id::text, name, email, role, created_at, updated_at
+	`, userID, name)
+
+	user, err := scanUser(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, err
+	}
+
+	_ = audit.Record(ctx, r.db, user.ID, "user", user.ID, "update_profile", before, user, nil)
+	return user, nil
+}
+
 func (r *Repository) RolesByUserID(ctx context.Context, userID string) ([]OrganizationRole, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT
@@ -370,12 +412,23 @@ func (r *Repository) AssignOrganizationRole(ctx context.Context, organizationID 
 			updated_at = now()
 	`, organizationID, userID, role)
 	if err == nil {
-		_ = audit.Record(ctx, r.db, actorUserID, "organization_user_role", organizationID, "assign", nil, nil, map[string]any{
-			"user_id": userID,
-			"role":    role,
-		})
+		_ = audit.Record(ctx, r.db, actorUserID, "organization_user_role", organizationID, "assign", nil, nil, roleAssignAuditMetadata(organizationID, userID, role))
 	}
 	return err
+}
+
+// roleAssignAuditMetadata builds the audit metadata bag emitted whenever a
+// user is granted (or re-granted) an organization role. The "organization_id"
+// key is required so audit.Record's organizationID() resolver can pin the
+// resulting audit row to the affected organization (audit_logs.organization_id
+// is otherwise NULL for non-"organization" entity types and the row would not
+// surface in the org-scoped audit listing endpoint).
+func roleAssignAuditMetadata(organizationID string, userID string, role string) map[string]any {
+	return map[string]any{
+		"organization_id": organizationID,
+		"user_id":         userID,
+		"role":            role,
+	}
 }
 
 type userRow interface {

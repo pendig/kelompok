@@ -1,8 +1,9 @@
 <script>
+	import { untrack } from "svelte";
 	import { fallbackDate } from "$lib/api.js";
 	import { locale, t } from "$lib/i18n.js";
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	let session = $derived(data.session);
 	let user = $derived(session?.user ?? null);
@@ -10,6 +11,18 @@
 	let claims = $derived(session?.organization_claims ?? []);
 	let unverified = $derived(Boolean(data.unverified));
 	let claimId = $derived(data.claimId ?? "");
+
+	let nameInput = $state(untrack(() => data.session?.user?.name ?? ""));
+	$effect(() => {
+		if (user?.name) {
+			nameInput = user.name;
+		}
+	});
+
+	let isUpdateProfile = $derived(form?.action === "updateProfile");
+	let updateSuccess = $derived(isUpdateProfile && form?.ok === true);
+	let updateError = $derived(isUpdateProfile && form?.ok === false ? form.error : null);
+	let updateErrorCode = $derived(isUpdateProfile && form?.ok === false ? form.code : null);
 
 	// Hide approved claims from the rejection/pending lists. Approved claims
 	// are already represented as full organization roles (they get an
@@ -46,6 +59,20 @@
 			return $t("account.claimMethodInstagram");
 		}
 		return $t("account.claimMethodEmail");
+	}
+
+	function profileErrorMessage(code, message) {
+		if (!code && !message) return null;
+		const known = [
+			"name_required",
+			"profile_name_required",
+			"profile_name_too_long",
+			"session_expired",
+		];
+		if (known.includes(code)) {
+			return $t(`account.errors.${code}`);
+		}
+		return $t("account.errors.generic", { message: message || code });
 	}
 </script>
 
@@ -114,6 +141,48 @@
 		</div>
 	</section>
 
+	<section class="account-profile">
+		<div class="section-head single">
+			<div>
+				<p class="eyebrow">{$t("account.profileEyebrow")}</p>
+				<h2 class="section-title">{$t("account.profileTitle")}</h2>
+				<p class="section-note">{$t("account.profileSubtitle")}</p>
+			</div>
+		</div>
+
+		<form class="auth-form profile-form" method="POST" action="?/updateProfile" aria-describedby="profile-form-status">
+			<label>
+				{$t("account.profileName")}
+				<input
+					name="name"
+					type="text"
+					autocomplete="name"
+					bind:value={nameInput}
+					maxlength="120"
+					required
+					aria-invalid={updateError ? "true" : undefined}
+				/>
+				<span class="form-help muted">{$t("account.profileNameHelp")}</span>
+			</label>
+
+			<label>
+				{$t("account.profileEmail")}
+				<input type="email" value={user.email} disabled readonly aria-readonly="true" />
+				<span class="form-help muted">{$t("account.profileEmailHelp")}</span>
+			</label>
+
+			<div id="profile-form-status" class="form-status" aria-live="polite">
+				{#if updateSuccess}
+					<p class="success compact">{$t("account.profileUpdated")}</p>
+				{:else if updateError}
+					<p class="error compact">{profileErrorMessage(updateErrorCode, updateError)}</p>
+				{/if}
+			</div>
+
+			<button class="btn primary" type="submit">{$t("account.profileSave")}</button>
+		</form>
+	</section>
+
 	{#if recentSubmittedClaim}
 		<section class="section">
 			<div class="claim-success-card" role="status" aria-live="polite">
@@ -131,7 +200,7 @@
 							<dd>
 								{recentSubmittedClaim.organization_name}
 								<span class="muted small">
-									· {fallbackDate(recentSubmittedClaim.created_at, $locale)}
+									. {fallbackDate(recentSubmittedClaim.created_at, $locale)}
 								</span>
 							</dd>
 						</div>
@@ -335,6 +404,39 @@
 		justify-self: start;
 	}
 
+	.account-profile {
+		margin-top: 32px;
+	}
+
+	.profile-form {
+		max-width: 520px;
+	}
+
+	.profile-form input[disabled] {
+		background: var(--surface-soft);
+		color: var(--muted);
+		cursor: not-allowed;
+	}
+
+	.form-help {
+		display: block;
+		margin-top: 6px;
+		font-size: 13px;
+	}
+
+	.form-status {
+		min-height: 24px;
+	}
+
+	.form-status .success {
+		color: hsl(150, 60%, 30%);
+		background: hsl(150, 60%, 96%);
+		border: 1px solid hsl(150, 50%, 80%);
+		padding: 8px 12px;
+		border-radius: 8px;
+		margin: 0;
+	}
+
 	.claim-success-card {
 		margin-top: 24px;
 		padding: 28px;
@@ -386,7 +488,8 @@
 		word-break: break-all;
 	}
 
-	.claim-success-meta code {
+	.claim-success-meta code,
+	.claim-status-card-meta code {
 		font-family:
 			ui-monospace,
 			SFMono-Regular,
@@ -395,6 +498,9 @@
 			"Liberation Mono",
 			Menlo,
 			monospace;
+	}
+
+	.claim-success-meta code {
 		font-size: 13.5px;
 	}
 
@@ -425,7 +531,8 @@
 		gap: 16px;
 	}
 
-	.claim-journey-section > header {
+	.claim-journey-section > header,
+	.claim-status-card-head {
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
@@ -468,13 +575,6 @@
 		background: linear-gradient(135deg, hsl(0, 80%, 99%) 0%, var(--surface) 60%);
 	}
 
-	.claim-status-card-head {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 12px;
-	}
-
 	.claim-status-card-head h3 {
 		margin: 0;
 		font-size: 17px;
@@ -513,14 +613,6 @@
 	}
 
 	.claim-status-card-meta code {
-		font-family:
-			ui-monospace,
-			SFMono-Regular,
-			"SF Mono",
-			Consolas,
-			"Liberation Mono",
-			Menlo,
-			monospace;
 		font-size: 13px;
 	}
 
@@ -543,11 +635,7 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 
-		.claim-journey-section > header {
-			flex-direction: column;
-			align-items: flex-start;
-		}
-
+		.claim-journey-section > header,
 		.claim-status-card-head {
 			flex-direction: column;
 			align-items: flex-start;

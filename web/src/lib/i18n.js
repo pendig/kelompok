@@ -44,6 +44,15 @@ const dictionaries = {
 			onboardingTitle: "Akun sederhana untuk CRM terbuka.",
 			onboardingBody:
 				"Daftar dengan email yang kamu pakai untuk organisasi. Untuk rilis awal, approval klaim masih ditinjau dari admin.",
+			errors: {
+				invalid_credentials: "Email atau password tidak cocok. Coba lagi.",
+				session_invalid: "Sesi sudah berakhir. Silakan masuk ulang.",
+				session_required: "Sesi belum terdeteksi. Silakan masuk dulu.",
+				login_failed: "Gagal masuk. Coba lagi sebentar.",
+				user_exists: "Email ini sudah terdaftar. Silakan masuk atau pakai email lain.",
+				name_required: "Nama wajib diisi.",
+				register_failed: "Gagal mendaftar. Periksa data dan coba lagi.",
+			},
 		},
 		account: {
 			eyebrow: "Akun",
@@ -101,6 +110,23 @@ const dictionaries = {
 			noClaimsTitle: "Belum ada permintaan klaim.",
 			noClaimsBody:
 				"Setelah kamu mengajukan klaim dari profil organisasi, statusnya akan muncul di sini.",
+			profileEyebrow: "Profil akun",
+			profileTitle: "Perbarui profil",
+			profileSubtitle: "Atur nama tampilan yang muncul di profil dan workspace organisasi.",
+			profileName: "Nama tampilan",
+			profileNameHelp: "Maksimal 120 karakter. Akan terlihat di workspace dan riwayat audit.",
+			profileEmail: "Email",
+			profileEmailHelp: "Email tidak bisa diubah pada rilis ini. Hubungi admin jika perlu pindah email.",
+			profileSave: "Simpan profil",
+			profileUpdated: "Profil berhasil diperbarui.",
+			errors: {
+				name_required: "Nama wajib diisi.",
+				profile_name_required: "Nama wajib diisi.",
+				profile_name_too_long: "Nama maksimal 120 karakter.",
+				session_expired:
+					"Sesi sudah berakhir. Silakan masuk ulang untuk melanjutkan.",
+				generic: "Gagal memperbarui profil: {message}",
+			},
 		},
 		home: {
 			eyebrow: "Kelompok.id",
@@ -484,6 +510,15 @@ const dictionaries = {
 			onboardingTitle: "Simple accounts for an open CRM.",
 			onboardingBody:
 				"Register with the email you use for the organization. For the early release, claim approval is still reviewed by an admin.",
+			errors: {
+				invalid_credentials: "Email or password does not match. Please try again.",
+				session_invalid: "Session has expired. Please log in again.",
+				session_required: "No session detected. Please log in first.",
+				login_failed: "Could not log in. Please try again in a moment.",
+				user_exists: "This email is already registered. Log in or use a different email.",
+				name_required: "Name is required.",
+				register_failed: "Could not register. Please check the form and try again.",
+			},
 		},
 		account: {
 			eyebrow: "Account",
@@ -541,6 +576,22 @@ const dictionaries = {
 			noClaimsTitle: "No claim requests yet.",
 			noClaimsBody:
 				"After you submit a claim from an organization profile, its status will appear here.",
+			profileEyebrow: "Account profile",
+			profileTitle: "Update profile",
+			profileSubtitle: "Set the display name that shows up across organization workspaces.",
+			profileName: "Display name",
+			profileNameHelp: "Up to 120 characters. Visible across workspaces and audit history.",
+			profileEmail: "Email",
+			profileEmailHelp: "Email cannot be changed in this release. Contact an admin if you need to migrate.",
+			profileSave: "Save profile",
+			profileUpdated: "Profile updated.",
+			errors: {
+				name_required: "Name is required.",
+				profile_name_required: "Name is required.",
+				profile_name_too_long: "Name must be at most 120 characters.",
+				session_expired: "Session expired. Please log in again to continue.",
+				generic: "Could not update the profile: {message}",
+			},
 		},
 		home: {
 			eyebrow: "Kelompok.id",

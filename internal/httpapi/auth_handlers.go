@@ -78,3 +78,44 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		Message: "ok",
 	})
 }
+
+func (s *Server) handleUpdateMe(w http.ResponseWriter, r *http.Request) {
+	item, _ := principalFromContext(r)
+
+	var input auth.UpdateProfileInput
+	if !decodeJSONBody(w, r, &input) {
+		return
+	}
+
+	user, err := s.auth.UpdateProfile(r.Context(), item.User.ID, input)
+	if errors.Is(err, auth.ErrNotFound) {
+		writeError(w, http.StatusUnauthorized, "session_invalid", "Session is invalid or expired", nil)
+		return
+	}
+	if errors.Is(err, auth.ErrProfileNameRequired) {
+		writeError(w, http.StatusBadRequest, "profile_name_required", "Name is required", nil)
+		return
+	}
+	if errors.Is(err, auth.ErrProfileNameTooLong) {
+		writeError(w, http.StatusBadRequest, "profile_name_too_long", "Name must be at most 120 characters", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "profile_update_failed", "Failed to update profile", nil)
+		return
+	}
+
+	roles, err := s.auth.RolesByUserID(r.Context(), user.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "roles_lookup_failed", "Failed to load organization roles", nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Data: map[string]any{
+			"user":               user,
+			"organization_roles": roles,
+		},
+		Message: "ok",
+	})
+}
