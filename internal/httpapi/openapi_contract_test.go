@@ -42,7 +42,8 @@ func loadOpenAPIDocument(t *testing.T) (path string, content string) {
 	if err != nil {
 		t.Fatalf("read openapi document: %v", err)
 	}
-	return path, string(bytes)
+	content = strings.ReplaceAll(string(bytes), "\r\n", "\n")
+	return path, content
 }
 
 func TestOpenAPIDocumentHasRequiredHeader(t *testing.T) {
