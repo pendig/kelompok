@@ -5,6 +5,16 @@
 
 	let { data } = $props();
 
+	const managedRoles = $derived(
+		(data.session?.organization_roles || []).filter((role) => ["owner", "admin", "editor"].includes(role.role)),
+	);
+	const managerPath = $derived(
+		data.session ? (managedRoles.length ? "/console" : "/organizations") : "/register",
+	);
+	const managerActionKey = $derived(
+		data.session ? (managedRoles.length ? "home.managerConsoleAction" : "home.managerClaimAction") : "home.managerRegisterAction",
+	);
+
 	function formatLocation(org, fallback) {
 		if (org.city && org.country) {
 			return `${org.city}, ${org.country}`;
@@ -41,8 +51,8 @@
 			<p>{$t("home.subtitle")}</p>
 
 			<div class="hero-actions">
-				<a class="btn primary" href="/organizations">{$t("home.primaryAction")}</a>
-				<a class="btn secondary" href="/register">{$t("home.secondaryAction")}</a>
+				<a class="btn primary" href={managerPath}>{$t("home.managerAction")}</a>
+				<a class="btn secondary" href="/organizations">{$t("home.seekerAction")}</a>
 				<a class="btn secondary" href="/sdgs">{$t("home.sdgsAction")}</a>
 			</div>
 
@@ -127,6 +137,24 @@
 				</ul>
 			</div>
 		</aside>
+	</div>
+</section>
+
+<section class="section">
+	<div class="pathway-grid">
+		<article class="pathway-panel">
+			<p class="eyebrow">{$t("home.managerEyebrow")}</p>
+			<h2>{$t("home.managerTitle")}</h2>
+			<p>{$t(data.session ? "home.managerBodyAuthenticated" : "home.managerBodyAnonymous")}</p>
+			<a class="ghost-button" href={managerPath}>{$t(managerActionKey)}</a>
+		</article>
+
+		<article class="pathway-panel">
+			<p class="eyebrow">{$t("home.seekerEyebrow")}</p>
+			<h2>{$t("home.seekerTitle")}</h2>
+			<p>{$t("home.seekerBody")}</p>
+			<a class="ghost-button" href="/organizations">{$t("home.seekerBrowseAction")}</a>
+		</article>
 	</div>
 </section>
 
