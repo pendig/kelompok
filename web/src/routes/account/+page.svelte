@@ -51,7 +51,8 @@
 	}
 
 	function adminPath(slug) {
-		return `/console?org=${encodeURIComponent(slug)}`;
+		const base = user?.role === "superadmin" ? "/admin" : "/console";
+		return `${base}?org=${encodeURIComponent(slug)}`;
 	}
 
 	function canManageOrganizationRole(role) {
