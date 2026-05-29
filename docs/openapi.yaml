@@ -544,6 +544,49 @@ paths:
         "404":
           $ref: "#/components/responses/OrganizationNotFound"
 
+  /api/v1/org-admin/organizations/{slug}/related-organizations:
+    post:
+      tags: [Org Admin — Relationships]
+      summary: Create a related child organization
+      description: |
+        Creates a new organization under the scoped parent organization and
+        writes the active relationship in one API action. Organization-scoped
+        managers can use this to prepare child bodies for a delegated claim
+        review flow.
+      operationId: createRelatedOrganization
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelatedOrganizationInput"
+      responses:
+        "201":
+          description: Related organization and relationship created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelatedOrganizationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+        "409":
+          description: Duplicate relationship for this parent/child/type tuple.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/v1/org-admin/organization-relationships:
     post:
       tags: [Org Admin — Relationships]
@@ -671,6 +714,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClaimListResponse"
+        "401":
+          $ref: "#/components/responses/AdminAuthRequired"
+        "403":
+          $ref: "#/components/responses/AdminOrgForbidden"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+
+  /api/v1/org-admin/organizations/{slug}/delegated-claims:
+    get:
+      tags: [Org Admin — Claims]
+      summary: List pending claims delegated to this organization
+      operationId: listDelegatedOrganizationClaims
+      security:
+        - sessionBearer: []
+        - adminApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/OrganizationSlug"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Pending claims for active child organizations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DelegatedClaimListResponse"
         "401":
           $ref: "#/components/responses/AdminAuthRequired"
         "403":
@@ -1920,6 +1988,47 @@ components:
             data:
               $ref: "#/components/schemas/AdminOrganization"
 
+    RelatedOrganizationInput:
+      allOf:
+        - $ref: "#/components/schemas/AdminOrganizationInput"
+        - type: object
+          properties:
+            relationship_type:
+              type: string
+              enum:
+                - structural_parent
+                - autonomous_body
+                - affiliated_with
+                - network_member
+                - related
+              default: structural_parent
+            relationship_label:
+              type: string
+            relationship_status:
+              type: string
+              enum: [active, pending, inactive, archived]
+              default: active
+            relationship_metadata:
+              type: object
+              additionalProperties: true
+
+    RelatedOrganizationResult:
+      type: object
+      required: [organization, relationship]
+      properties:
+        organization:
+          $ref: "#/components/schemas/AdminOrganization"
+        relationship:
+          $ref: "#/components/schemas/Relationship"
+
+    RelatedOrganizationResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/RelatedOrganizationResult"
+
     AdminOrganizationListResponse:
       allOf:
         - $ref: "#/components/schemas/SuccessEnvelope"
@@ -2012,6 +2121,27 @@ components:
         metadata:
           type: object
           additionalProperties: true
+
+    ClaimRequestWithOrganization:
+      allOf:
+        - $ref: "#/components/schemas/ClaimRequest"
+        - type: object
+          required: [organization_slug, organization_name]
+          properties:
+            organization_slug:
+              type: string
+            organization_name:
+              type: string
+
+    DelegatedClaimListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/ClaimRequestWithOrganization"
 
     RelationshipPatch:
       type: object

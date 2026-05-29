@@ -95,6 +95,24 @@ func (r *Repository) ListActiveRelationshipsByOrganizationSlug(ctx context.Conte
 	return r.listRelationshipsByOrganizationSlug(ctx, organizationSlug, limit, true)
 }
 
+func (r *Repository) HasActiveParentRelationship(ctx context.Context, parentSlug string, childSlug string) (bool, error) {
+	var allowed bool
+	if err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM organization_relationships rel
+			JOIN organizations parent ON parent.id = rel.parent_organization_id
+			JOIN organizations child ON child.id = rel.child_organization_id
+			WHERE parent.slug = $1
+				AND child.slug = $2
+				AND rel.status = 'active'
+		)
+	`, normalizeSlug(parentSlug), normalizeSlug(childSlug)).Scan(&allowed); err != nil {
+		return false, err
+	}
+	return allowed, nil
+}
+
 func (r *Repository) listRelationshipsByOrganizationSlug(ctx context.Context, organizationSlug string, limit int, activeOnly bool) ([]Relationship, error) {
 	query := `
 		SELECT

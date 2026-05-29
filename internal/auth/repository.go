@@ -407,6 +407,36 @@ func (r *Repository) CanManageOrganization(ctx context.Context, user User, organ
 	return allowed, nil
 }
 
+// CanReviewRelatedClaim allows a manager of a parent organization to review
+// pending claims for active child organizations created under that parent.
+func (r *Repository) CanReviewRelatedClaim(ctx context.Context, user User, claimOrganizationSlug string) (bool, error) {
+	if user.Role == UserRoleSuperadmin {
+		return true, nil
+	}
+
+	var allowed bool
+	if err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM organization_user_roles our
+			JOIN organizations managed ON managed.id = our.organization_id
+			JOIN organization_relationships rel ON rel.parent_organization_id = managed.id
+			JOIN organizations claimed ON claimed.id = rel.child_organization_id
+			WHERE our.user_id = $1
+				AND claimed.slug = $2
+				AND rel.status = 'active'
+				AND our.role = ANY($3)
+		)
+	`, user.ID, claimOrganizationSlug, ManageOrganizationRoles()).Scan(&allowed); err != nil {
+		return false, err
+	}
+	if allowed {
+		return true, nil
+	}
+
+	return r.CanManageOrganization(ctx, user, claimOrganizationSlug)
+}
+
 // CanManageOrganizationRole is the shared permission rule for org-scoped
 // console/admin actions that mutate or moderate organization data.
 func CanManageOrganizationRole(role string) bool {
