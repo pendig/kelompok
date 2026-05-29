@@ -16,6 +16,7 @@ The docs keep the alpha release grounded: Kelompok should stay a lean organizati
 - [08 Plugin System](08-plugin-system.md)
 - [09 Development](09-development.md)
 - [10 Release History](10-release-history.md)
+- [OpenAPI contract (`openapi.yaml`)](openapi.yaml) — see [API and CLI → OpenAPI Contract](04-api-cli.md#openapi-contract) for fetch and publish steps.
 
 ## Current Alpha Summary
 

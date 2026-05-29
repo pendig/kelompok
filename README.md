@@ -134,6 +134,7 @@ Event management, donor management, practical import plugins, and advanced integ
 - [Architecture](docs/02-architecture.md)
 - [Data Model](docs/03-data-model.md)
 - [API and CLI](docs/04-api-cli.md)
+- [OpenAPI contract](docs/openapi.yaml) — fetch and publish steps in [API and CLI → OpenAPI Contract](docs/04-api-cli.md#openapi-contract).
 - [Roadmap](docs/05-roadmap.md)
 - [Open Source Governance](docs/06-open-source-governance.md)
 - [Runtime Decisions](docs/07-runtime-decisions.md)

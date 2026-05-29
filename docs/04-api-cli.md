@@ -17,6 +17,57 @@ The web app, automation jobs, service integrations, and future AI workflows shou
 - Return public DTOs instead of raw database models
 - Keep claim-only contact data, source evidence, raw imports, and private plugin metadata out of public responses
 
+## OpenAPI Contract
+
+The implemented public, auth, and `/api/v1/org-admin` routes are published as
+an OpenAPI 3.1 artifact at [`docs/openapi.yaml`](./openapi.yaml). Treat it as
+the contract for the alpha line: it reflects only routes that are wired up in
+`internal/httpapi/server.go`, not the aspirational endpoint lists below.
+
+### Fetching the artifact
+
+The file ships with the source tree, so any tag, branch, or commit can be
+inspected directly:
+
+```sh
+# from a local checkout
+cat docs/openapi.yaml
+
+# from GitHub (raw contents of a tag or branch)
+curl -L https://raw.githubusercontent.com/pendig/kelompok/main/docs/openapi.yaml -o openapi.yaml
+```
+
+Drop `openapi.yaml` into Swagger UI, Redocly, Insomnia, Postman, or any other
+OpenAPI-aware client to inspect the contract without reading source.
+
+### Publishing a new version
+
+1. Edit `docs/openapi.yaml` together with the matching handler change.
+2. Update the `RegisteredRoutes` inventory in `internal/httpapi/server.go`
+   when adding or removing routes.
+3. Run `go test ./...`. The contract smoke tests in
+   `internal/httpapi/openapi_contract_test.go` fail when the YAML and the
+   router drift apart, when documented response envelopes change, or when the
+   document loses its `openapi`, `info`, `paths`, or `components` headers.
+4. Bump `info.version` in `docs/openapi.yaml` for any breaking change.
+
+### What is in scope
+
+The contract documents only routes that are implemented today:
+
+- `GET /healthz` and `GET /readyz`
+- The public read API for organizations, posts, and impact reports
+- The public organization claim intake (`POST /api/v1/organizations/{slug}/claims`)
+- The auth endpoints (`/api/v1/auth/{register,login,logout,me}`)
+- The `/api/v1/org-admin` CRM surface (organizations, relationships, claims,
+  audit logs, members, posts, impact reports)
+
+Endpoint lists below also describe routes that are planned but not yet
+implemented (events, donation campaigns, claim email/instagram verification,
+etc.). Those are intentionally omitted from `openapi.yaml` until the matching
+handler ships, so consumers who treat the artifact as the contract never see
+a route that does not exist in production.
+
 ## Response Shape
 
 Recommended success shape:
