@@ -122,6 +122,7 @@ function organizationInput(form) {
 			languages: splitList(value(form, "languages")),
 			public_contact: Object.fromEntries(Object.entries(publicContact).filter(([, item]) => item)),
 		},
+		source_data: jsonObject(value(form, "source_data"), {}),
 		sdgs_data: {
 			primary: splitList(value(form, "sdgs")),
 		},

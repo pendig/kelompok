@@ -42,6 +42,8 @@ Notes:
 - `source_data` stores imported or enriched external source results.
 - `sdgs_data` stores detected SDGS tags, confidence, and evidence.
 - `impact_data` stores custom impact reporting fields.
+- Admin create/edit supports the stable text fields plus `profile_data`, `source_data`, `sdgs_data`, and `impact_data`.
+- File-backed `logo_file_id` / `banner_file_id` and direct `claimed_by_user_id` / `claimed_at` editing are intentionally deferred until the file picker and claim-review workflow own those fields end to end.
 
 ### Source Record
 
