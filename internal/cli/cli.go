@@ -45,6 +45,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return runRelationship(ctx, args[1:], stdout, stderr)
 	case "member":
 		return runMember(ctx, args[1:], stdout, stderr)
+	case "claim":
+		return runClaim(ctx, args[1:], stdout, stderr)
 	default:
 		printHelp(stderr)
 		return fmt.Errorf("unknown command: %s", args[0])
@@ -500,6 +502,9 @@ Usage:
   kelompok rel remove    Remove an organization relationship
   kelompok member list   List organization members
   kelompok member create Create an organization member
+  kelompok claim list           List claim requests (filter --status / --organization)
+  kelompok claim pending        List pending claim requests (alias for claim list --status pending)
+  kelompok claim update-status  Approve or reject a pending claim (supports --dry-run)
   kelompok help         Show this help
 
 Environment:

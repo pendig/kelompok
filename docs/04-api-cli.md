@@ -316,6 +316,73 @@ kelompok admin claim reject {claim_id}
 kelompok admin audit show --entity organization:{id}
 ```
 
+## Claim Maintenance CLI
+
+Implemented in PEN-27. Admins can drive claim review fully from the CLI without
+opening the web UI. All commands honor `--json` for stable, automation-friendly
+output and exit non-zero on validation, lookup, or database errors.
+
+```text
+kelompok claim list [--organization <slug>] [--status pending|approved|rejected|all] [--limit 50] [--json]
+kelompok claim pending [--organization <slug>] [--limit 50] [--json]
+kelompok claim update-status --id <claim_id> --decision approve|reject [--reviewer-user-id <uuid>] [--dry-run] [--json]
+```
+
+### Stable output contracts
+
+`kelompok claim list` and `kelompok claim pending`:
+
+- Human (default): tab-separated columns
+  `id\torganization_slug\tstatus\tmethod\ttarget\tcreated_at\treviewed_at\treviewed_by_user_id`
+  (`-` is rendered for unreviewed claims). Empty result writes nothing.
+- JSON (`--json`): array of claim objects; each item is the existing
+  `ClaimRequest` JSON shape with `organization_slug` and `organization_name`
+  appended. Order is by `created_at` descending.
+
+`kelompok claim update-status`:
+
+- Human (default): one line per call —
+  `claim: <applied|dry-run> decision=<approve|reject> would_become=<approved|rejected> id=<id> organization_slug=<slug> current_status=<state> reviewer_user_id=<uuid|->`
+- JSON (`--json`): single object with stable keys
+  `{ "dry_run", "decision", "reviewer_user_id", "would_become_status", "claim" }`.
+  On `--dry-run` the embedded `claim` reflects the **current** (pre-change) state;
+  on a real run it reflects the post-update state. `would_become_status` is
+  always the status the claim would land on.
+
+### Recipes
+
+List the pending review queue across every organization:
+
+```bash
+kelompok claim pending --json | jq '.[] | {id, organization_slug, target, created_at}'
+```
+
+Approve a single claim, but verify first with a dry-run:
+
+```bash
+kelompok claim update-status --id $CLAIM_ID --decision approve --dry-run --json
+kelompok claim update-status --id $CLAIM_ID --decision approve --reviewer-user-id $ADMIN_USER_ID --json
+```
+
+Reject every pending claim for one organization (manual for-loop pattern; the
+CLI deliberately keeps mutations one-claim-at-a-time so each is independently
+auditable):
+
+```bash
+kelompok claim list --status pending --organization green-foundation --json \
+  | jq -r '.[].id' \
+  | while read -r id; do
+      kelompok claim update-status --id "$id" --decision reject --reviewer-user-id "$ADMIN_USER_ID"
+    done
+```
+
+### Exit codes
+
+- `0` — success
+- `1` — any validation, lookup, or database error (including
+  `claim_not_found`, `claim_not_pending`, invalid status / decision values, or
+  a non-positive `--limit`). Stderr carries the human-readable reason.
+
 ## AI-Ready CLI Contract
 
 For future AI usage, CLI output should be deterministic and machine-readable.
