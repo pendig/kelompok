@@ -29,6 +29,15 @@ var (
 
 const SessionTTL = 30 * 24 * time.Hour
 
+const (
+	UserRoleSuperadmin = "superadmin"
+
+	OrganizationRoleOwner  = "owner"
+	OrganizationRoleAdmin  = "admin"
+	OrganizationRoleMember = "member"
+	OrganizationRoleViewer = "viewer"
+)
+
 type Repository struct {
 	db *pgxpool.Pool
 }
@@ -378,7 +387,7 @@ func (r *Repository) ClaimsByUserID(ctx context.Context, userID string) ([]Organ
 }
 
 func (r *Repository) CanManageOrganization(ctx context.Context, user User, organizationSlug string) (bool, error) {
-	if user.Role == "superadmin" {
+	if user.Role == UserRoleSuperadmin {
 		return true, nil
 	}
 
@@ -390,17 +399,30 @@ func (r *Repository) CanManageOrganization(ctx context.Context, user User, organ
 			JOIN organizations o ON o.id = our.organization_id
 			WHERE our.user_id = $1
 				AND o.slug = $2
-				AND our.role IN ('owner', 'admin')
+				AND our.role = ANY($3)
 		)
-	`, user.ID, organizationSlug).Scan(&allowed); err != nil {
+	`, user.ID, organizationSlug, ManageOrganizationRoles()).Scan(&allowed); err != nil {
 		return false, err
 	}
 	return allowed, nil
 }
 
+// CanManageOrganizationRole is the shared permission rule for org-scoped
+// console/admin actions that mutate or moderate organization data.
+func CanManageOrganizationRole(role string) bool {
+	role = strings.TrimSpace(strings.ToLower(role))
+	return role == OrganizationRoleOwner || role == OrganizationRoleAdmin
+}
+
+// ManageOrganizationRoles returns the canonical role allow-list used by SQL
+// guards that need to match CanManageOrganizationRole.
+func ManageOrganizationRoles() []string {
+	return []string{OrganizationRoleOwner, OrganizationRoleAdmin}
+}
+
 func (r *Repository) AssignOrganizationRole(ctx context.Context, organizationID string, userID string, role string, actorUserID any) error {
 	role = strings.TrimSpace(strings.ToLower(role))
-	if role != "owner" && role != "admin" && role != "member" && role != "viewer" {
+	if role != OrganizationRoleOwner && role != OrganizationRoleAdmin && role != OrganizationRoleMember && role != OrganizationRoleViewer {
 		return errors.New("unsupported organization role")
 	}
 

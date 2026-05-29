@@ -247,6 +247,34 @@ func TestCanManageOrganizationSuperadminBypassesDB(t *testing.T) {
 	}
 }
 
+func TestCanManageOrganizationRoleMatrix(t *testing.T) {
+	cases := []struct {
+		role string
+		want bool
+	}{
+		{OrganizationRoleOwner, true},
+		{OrganizationRoleAdmin, true},
+		{OrganizationRoleMember, false},
+		{OrganizationRoleViewer, false},
+		{" Owner ", true},
+		{"unknown", false},
+	}
+
+	for _, tc := range cases {
+		if got := CanManageOrganizationRole(tc.role); got != tc.want {
+			t.Errorf("CanManageOrganizationRole(%q) = %v, want %v", tc.role, got, tc.want)
+		}
+	}
+}
+
+func TestManageOrganizationRolesMatchesMatrix(t *testing.T) {
+	for _, role := range ManageOrganizationRoles() {
+		if !CanManageOrganizationRole(role) {
+			t.Fatalf("ManageOrganizationRoles includes non-manage role %q", role)
+		}
+	}
+}
+
 // TestRoleAssignAuditMetadataPinsOrganization is the regression bait for the
 // audit gap that originally let role mutations land in audit_logs with
 // organization_id = NULL (because the audit organizationID() resolver only

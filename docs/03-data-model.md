@@ -150,9 +150,15 @@ Fields:
 Roles:
 
 - `superadmin`
-- `organization_admin`
+- `owner`
+- `admin`
 - `member`
 - `viewer`
+
+The global `users.role` is primarily `viewer` or `superadmin` in the current
+alpha. Organization-scoped authority lives in `organization_user_roles.role`,
+where `owner` and `admin` are the only roles allowed to manage organization
+data or review related claims.
 
 ### Member
 
