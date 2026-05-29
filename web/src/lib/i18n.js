@@ -18,6 +18,7 @@ const dictionaries = {
 			register: "Daftar",
 			account: "Akun",
 			source: "GitHub",
+			toggleMenu: "Buka menu navigasi",
 		},
 		auth: {
 			loginEyebrow: "Masuk akun",
@@ -521,6 +522,7 @@ const dictionaries = {
 			register: "Register",
 			account: "Account",
 			source: "GitHub",
+			toggleMenu: "Open navigation menu",
 		},
 		auth: {
 			loginEyebrow: "Account login",

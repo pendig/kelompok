@@ -150,6 +150,33 @@ img {
 	gap: 6px;
 }
 
+.mobile-menu-button {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 42px;
+	height: 42px;
+	flex: none;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-sm);
+	cursor: pointer;
+}
+
+.mobile-menu-button span {
+	display: block;
+	width: 18px;
+	height: 2px;
+	border-radius: 999px;
+	background: currentColor;
+}
+
+.mobile-menu-button span + span {
+	margin-top: 4px;
+}
+
 .nav-link,
 .language-switch button {
 	display: inline-flex;
@@ -176,6 +203,13 @@ img {
 .nav-link:hover,
 .language-switch button:hover {
 	color: var(--purple-800);
+	background: var(--purple-100);
+}
+
+.nav-link.active,
+.nav-link[aria-current="page"] {
+	color: var(--purple-800);
+	border-color: rgba(111, 53, 191, 0.18);
 	background: var(--purple-100);
 }
 
@@ -1609,6 +1643,24 @@ textarea:focus {
 	box-shadow: var(--shadow-sm);
 }
 
+.admin-nav-toggle {
+	display: none;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 44px;
+	padding: 0 14px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface);
+	color: var(--text);
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 800;
+	box-shadow: var(--shadow-sm);
+	cursor: pointer;
+}
+
 .admin-side-nav > .label {
 	padding: 6px 8px 4px;
 }
@@ -2056,17 +2108,70 @@ button.btn,
 		width: min(100%, calc(100% - 32px));
 	}
 
-	.topbar-inner,
+	.topbar-inner {
+		align-items: center;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 12px;
+	}
+
 	.callout-inner {
 		align-items: stretch;
 		flex-direction: column;
 		gap: 16px;
 	}
 
+	.brand {
+		flex: 1;
+	}
+
+	.brand-tag {
+		display: none;
+	}
+
+	.mobile-menu-button {
+		display: inline-flex;
+	}
+
 	.nav {
+		display: none;
+		grid-column: 1 / -1;
 		width: 100%;
+		flex-direction: column;
+		align-items: stretch;
 		justify-content: flex-start;
-		gap: 4px;
+		gap: 6px;
+		padding-top: 12px;
+		border-top: 1px solid var(--border);
+	}
+
+	.nav.open {
+		display: flex;
+	}
+
+	.nav-link,
+	.language-switch button {
+		justify-content: flex-start;
+	}
+
+	.language-switch {
+		width: fit-content;
+	}
+
+	.admin-shell {
+		gap: 12px;
+	}
+
+	.admin-nav-toggle {
+		display: flex;
+	}
+
+	.admin-side-nav {
+		display: none;
+	}
+
+	.admin-side-nav.open {
+		display: grid;
 	}
 
 	.hero {
