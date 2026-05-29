@@ -57,6 +57,7 @@ func TestClaimMutationRoutesEnforceCrossOrgIsolation(t *testing.T) {
 		{"list audit logs", http.MethodGet, "/api/v1/org-admin/organizations/other-org/audit-logs"},
 		{"list members", http.MethodGet, "/api/v1/org-admin/organizations/other-org/members"},
 		{"list relationships", http.MethodGet, "/api/v1/org-admin/organizations/other-org/relationships"},
+		{"list delegated claims", http.MethodGet, "/api/v1/org-admin/organizations/other-org/delegated-claims"},
 		{"get organization", http.MethodGet, "/api/v1/org-admin/organizations/other-org"},
 	}
 
@@ -77,6 +78,49 @@ func TestClaimMutationRoutesEnforceCrossOrgIsolation(t *testing.T) {
 				t.Fatalf("forbidden response leaked entity context: %s", recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestCreateRelatedOrganizationRejectsCrossOrgScopeBeforeBodyDecode(t *testing.T) {
+	server := scopedAdminServer()
+
+	request := authedRequest(http.MethodPost, "/api/v1/org-admin/organizations/other-org/related-organizations")
+	recorder := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d (body: %s)", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "admin_org_forbidden") {
+		t.Fatalf("missing stable cross-org error code: %s", recorder.Body.String())
+	}
+}
+
+func TestEnsureAdminCanReviewClaimAllowsDirectScopedAdminKey(t *testing.T) {
+	server := scopedAdminServer()
+	request := authedRequest(http.MethodPost, "/api/v1/org-admin/claims/id/approve")
+	request = request.WithContext(context.WithValue(request.Context(), principalContextKey, principal{AdminKey: true}))
+	recorder := httptest.NewRecorder()
+
+	if !server.ensureAdminCanReviewClaimForRequest(recorder, request, "allowed-org") {
+		t.Fatalf("expected direct scoped admin key to review claims for its organization")
+	}
+}
+
+func TestEnsureAdminCanReviewClaimRequiresPrincipal(t *testing.T) {
+	server := New(config.Config{APIAddr: ":0", AdminAPIKey: "test-secret"}, nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/org-admin/claims/id/approve", nil)
+	recorder := httptest.NewRecorder()
+
+	if server.ensureAdminCanReviewClaimForRequest(recorder, request, "allowed-org") {
+		t.Fatalf("expected helper to reject request without principal context")
+	}
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d (body: %s)", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "admin_auth_required") {
+		t.Fatalf("missing stable admin_auth_required error: %s", recorder.Body.String())
 	}
 }
 

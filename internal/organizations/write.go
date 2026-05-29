@@ -58,6 +58,19 @@ type ClaimRequest struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
+type RelatedOrganizationInput struct {
+	AdminInput
+	RelationshipType     string          `json:"relationship_type"`
+	RelationshipLabel    string          `json:"relationship_label"`
+	RelationshipStatus   string          `json:"relationship_status"`
+	RelationshipMetadata json.RawMessage `json:"relationship_metadata"`
+}
+
+type RelatedOrganizationResult struct {
+	Organization Organization `json:"organization"`
+	Relationship Relationship `json:"relationship"`
+}
+
 func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
@@ -146,6 +159,177 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 		_ = audit.Record(ctx, r.db, nil, "organization", item.ID, "create", nil, item, nil)
 	}
 	return item, err
+}
+
+func (r *Repository) CreateRelatedOrganization(ctx context.Context, parentSlug string, input RelatedOrganizationInput, actor AuditActor) (RelatedOrganizationResult, error) {
+	organizationInput := input.AdminInput
+	if strings.TrimSpace(organizationInput.ClaimStatus) == "" {
+		organizationInput.ClaimStatus = "unclaimed"
+	}
+	name := strings.TrimSpace(organizationInput.Name)
+	if name == "" {
+		return RelatedOrganizationResult{}, errors.New("organization name is required")
+	}
+	slug := normalizeSlug(organizationInput.Slug)
+	if slug == "" {
+		slug = normalizeSlug(name)
+	}
+
+	relationshipInput := RelationshipInput{
+		ParentOrganizationSlug: parentSlug,
+		ChildOrganizationSlug:  slug,
+		RelationshipType:       input.RelationshipType,
+		Label:                  input.RelationshipLabel,
+		Status:                 input.RelationshipStatus,
+		Metadata:               input.RelationshipMetadata,
+	}
+	if strings.TrimSpace(relationshipInput.RelationshipType) == "" {
+		relationshipInput.RelationshipType = "structural_parent"
+	}
+	if strings.TrimSpace(relationshipInput.Status) == "" {
+		relationshipInput.Status = "active"
+	}
+	normalizedRelationship, err := normalizeRelationshipInput(relationshipInput)
+	if err != nil {
+		return RelatedOrganizationResult{}, err
+	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return RelatedOrganizationResult{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var parentID string
+	if err := tx.QueryRow(ctx, `SELECT id::text FROM organizations WHERE slug = $1`, normalizedRelationship.ParentOrganizationSlug).Scan(&parentID); errors.Is(err, pgx.ErrNoRows) {
+		return RelatedOrganizationResult{}, ErrNotFound
+	} else if err != nil {
+		return RelatedOrganizationResult{}, err
+	}
+
+	organization, err := scanOrganization(tx.QueryRow(ctx, `
+		INSERT INTO organizations (
+			slug,
+			name,
+			legal_name,
+			description,
+			history,
+			country,
+			region,
+			city,
+			website_url,
+			official_email,
+			claim_status,
+			profile_data,
+			source_data,
+			sdgs_data,
+			impact_data
+		)
+		VALUES (
+			$1,
+			$2,
+			NULLIF($3, ''),
+			NULLIF($4, ''),
+			NULLIF($5, ''),
+			NULLIF($6, ''),
+			NULLIF($7, ''),
+			NULLIF($8, ''),
+			NULLIF($9, ''),
+			NULLIF($10, ''),
+			COALESCE(NULLIF($11, ''), 'unclaimed'),
+			$12::jsonb,
+			$13::jsonb,
+			$14::jsonb,
+			$15::jsonb
+		)
+		RETURNING
+			id::text,
+			slug,
+			name,
+			COALESCE(legal_name, ''),
+			COALESCE(description, ''),
+			COALESCE(history, ''),
+			COALESCE(country, ''),
+			COALESCE(region, ''),
+			COALESCE(city, ''),
+			COALESCE(website_url, ''),
+			COALESCE(official_email, ''),
+			claim_status,
+			COALESCE(profile_data::text, '{}'),
+			COALESCE(source_data::text, '{}'),
+			COALESCE(sdgs_data::text, '{}'),
+			COALESCE(impact_data::text, '{}'),
+			created_at,
+			updated_at
+	`,
+		slug,
+		name,
+		organizationInput.LegalName,
+		organizationInput.Description,
+		organizationInput.History,
+		organizationInput.Country,
+		organizationInput.Region,
+		organizationInput.City,
+		organizationInput.WebsiteURL,
+		organizationInput.OfficialEmail,
+		organizationInput.ClaimStatus,
+		jsonOrFallback(organizationInput.ProfileData),
+		jsonOrFallback(organizationInput.SourceData),
+		jsonOrFallback(organizationInput.SDGSData),
+		jsonOrFallback(organizationInput.ImpactData),
+	))
+	if err != nil {
+		return RelatedOrganizationResult{}, err
+	}
+
+	relationship, err := scanRelationship(tx.QueryRow(ctx, `
+		WITH inserted AS (
+			INSERT INTO organization_relationships (
+				parent_organization_id,
+				child_organization_id,
+				relationship_type,
+				label,
+				status,
+				metadata
+			)
+			VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6::jsonb)
+			RETURNING *
+		)
+		SELECT
+			rel.id::text,
+			parent.id::text,
+			parent.slug,
+			parent.name,
+			child.id::text,
+			child.slug,
+			child.name,
+			rel.relationship_type,
+			COALESCE(rel.label, ''),
+			rel.status,
+			rel.started_at,
+			rel.ended_at,
+			COALESCE(rel.metadata::text, '{}'),
+			rel.created_at,
+			rel.updated_at
+		FROM inserted rel
+		JOIN organizations parent ON parent.id = rel.parent_organization_id
+		JOIN organizations child ON child.id = rel.child_organization_id
+	`, parentID, organization.ID, normalizedRelationship.RelationshipType, normalizedRelationship.Label, normalizedRelationship.Status, jsonOrFallback(normalizedRelationship.Metadata)))
+	if err != nil {
+		return RelatedOrganizationResult{}, relationshipWriteError(err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return RelatedOrganizationResult{}, err
+	}
+
+	_ = audit.Record(ctx, r.db, actor.UserID, "organization", organization.ID, "create_related", nil, organization, map[string]any{
+		"organization_id":          organization.ID,
+		"parent_organization_id":   parentID,
+		"parent_organization_slug": normalizedRelationship.ParentOrganizationSlug,
+	})
+	r.recordRelationshipAudit(ctx, actor, "create", nil, relationship, relationship)
+	return RelatedOrganizationResult{Organization: organization, Relationship: relationship}, nil
 }
 
 func (r *Repository) UpdateBySlug(ctx context.Context, slug string, input AdminInput) (Organization, error) {
@@ -352,6 +536,80 @@ func (r *Repository) ListClaimsByOrganizationSlug(ctx context.Context, organizat
 			&reviewedAt,
 			&item.CreatedAt,
 			&item.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		item.Evidence = jsonvalue.Raw(evidence, "{}")
+		if reviewedByUser.Valid {
+			value := reviewedByUser.String
+			item.ReviewedByUser = &value
+		}
+		if reviewedAt.Valid {
+			value := reviewedAt.Time
+			item.ReviewedAt = &value
+		}
+		items = append(items, item)
+	}
+
+	return items, rows.Err()
+}
+
+func (r *Repository) ListDelegatedClaimsByReviewerOrganizationSlug(ctx context.Context, reviewerOrganizationSlug string, limit int) ([]ClaimRequestWithOrganization, error) {
+	normalizedLimit, err := NormalizeClaimListLimit(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			cr.id::text,
+			cr.organization_id::text,
+			cr.user_id::text,
+			cr.method,
+			cr.target,
+			cr.status,
+			COALESCE(cr.evidence::text, '{}'),
+			cr.reviewed_by_user_id::text,
+			cr.reviewed_at,
+			cr.created_at,
+			cr.updated_at,
+			child.slug,
+			child.name
+		FROM claim_requests cr
+		JOIN organizations child ON child.id = cr.organization_id
+		JOIN organization_relationships rel ON rel.child_organization_id = child.id
+		JOIN organizations parent ON parent.id = rel.parent_organization_id
+		WHERE parent.slug = $1
+			AND rel.status = 'active'
+			AND cr.status = 'pending'
+		ORDER BY cr.created_at DESC
+		LIMIT $2
+	`, normalizeSlug(reviewerOrganizationSlug), normalizedLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]ClaimRequestWithOrganization, 0, min(normalizedLimit, claimListPreallocLimit))
+	for rows.Next() {
+		var item ClaimRequestWithOrganization
+		var evidence string
+		var reviewedByUser sql.NullString
+		var reviewedAt sql.NullTime
+		if err := rows.Scan(
+			&item.ID,
+			&item.OrganizationID,
+			&item.UserID,
+			&item.Method,
+			&item.Target,
+			&item.Status,
+			&evidence,
+			&reviewedByUser,
+			&reviewedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+			&item.OrganizationSlug,
+			&item.OrganizationName,
 		); err != nil {
 			return nil, err
 		}

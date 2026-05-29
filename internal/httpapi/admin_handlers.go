@@ -170,6 +170,38 @@ func (s *Server) handleCreateOrganizationRelationship(w http.ResponseWriter, r *
 	writeJSON(w, http.StatusCreated, response{Data: item, Message: "ok"})
 }
 
+func (s *Server) handleCreateRelatedOrganization(w http.ResponseWriter, r *http.Request) {
+	parentSlug := r.PathValue("slug")
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, parentSlug) {
+		return
+	}
+
+	var input organizations.RelatedOrganizationInput
+	if !decodeJSONBody(w, r, &input) {
+		return
+	}
+
+	item, err := s.organizations.CreateRelatedOrganization(r.Context(), parentSlug, input, relationshipAuditActorFromRequest(r))
+	if errors.Is(err, organizations.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "organization_not_found", "Parent organization not found", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrRelationshipDuplicate) {
+		writeError(w, http.StatusConflict, "relationship_duplicate", "Organization relationship already exists", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrRelationshipSelfLink) {
+		writeError(w, http.StatusBadRequest, "relationship_self_link", "Organization cannot be related to itself", nil)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "related_organization_create_failed", err.Error(), nil)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, response{Data: item, Message: "ok"})
+}
+
 func (s *Server) handleUpdateOrganizationRelationship(w http.ResponseWriter, r *http.Request) {
 	existing, err := s.organizations.FindRelationshipByID(r.Context(), r.PathValue("id"))
 	if errors.Is(err, organizations.ErrRelationshipNotFound) {
@@ -274,6 +306,28 @@ func (s *Server) handleListOrganizationClaims(w http.ResponseWriter, r *http.Req
 	})
 }
 
+func (s *Server) handleListDelegatedOrganizationClaims(w http.ResponseWriter, r *http.Request) {
+	if !s.ensureAdminOrganizationSlugForRequest(w, r, r.PathValue("slug")) {
+		return
+	}
+	if !s.ensureOrganization(w, r, r.PathValue("slug")) {
+		return
+	}
+
+	limit := limitFromRequest(r, 20, 100)
+	items, err := s.organizations.ListDelegatedClaimsByReviewerOrganizationSlug(r.Context(), r.PathValue("slug"), limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "delegated_claims_list_failed", "Failed to list delegated claim requests", nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Data:    items,
+		Meta:    map[string]any{"count": len(items), "limit": limit},
+		Message: "ok",
+	})
+}
+
 func (s *Server) handleApproveOrganizationClaim(w http.ResponseWriter, r *http.Request) {
 	s.handleReviewOrganizationClaim(w, r, "approve")
 }
@@ -292,7 +346,7 @@ func (s *Server) handleReviewOrganizationClaim(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusBadRequest, "claim_lookup_failed", err.Error(), nil)
 		return
 	}
-	if !s.ensureAdminOrganizationSlugForRequest(w, r, organizationSlug) {
+	if !s.ensureAdminCanReviewClaimForRequest(w, r, organizationSlug) {
 		return
 	}
 

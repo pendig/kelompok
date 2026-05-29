@@ -180,6 +180,45 @@ func (s *Server) ensureAdminAnyOrganizationSlugForRequest(w http.ResponseWriter,
 	return false
 }
 
+func (s *Server) ensureAdminCanReviewClaimForRequest(w http.ResponseWriter, r *http.Request, claimOrganizationSlug string) bool {
+	item, ok := principalFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "admin_auth_required", "Admin authorization is required", nil)
+		return false
+	}
+
+	claimOrganizationSlug = organizations.NormalizeSlug(claimOrganizationSlug)
+	if !item.AdminKey && item.User.ID != "" {
+		allowed, err := s.auth.CanReviewRelatedClaim(r.Context(), item.User, claimOrganizationSlug)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "admin_org_scope_failed", "Failed to check organization access", nil)
+			return false
+		}
+		if allowed {
+			return true
+		}
+		writeError(w, http.StatusForbidden, "admin_org_forbidden", "User is not authorized for this organization", nil)
+		return false
+	}
+
+	if s.authorizedAdminOrganizationSlug(claimOrganizationSlug) {
+		return true
+	}
+	for _, parentSlug := range s.config.AdminOrganizationSlugs {
+		allowed, err := s.organizations.HasActiveParentRelationship(r.Context(), parentSlug, claimOrganizationSlug)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "admin_org_scope_failed", "Failed to check organization access", nil)
+			return false
+		}
+		if allowed {
+			return true
+		}
+	}
+
+	writeError(w, http.StatusForbidden, "admin_org_forbidden", "Admin key is not authorized for this organization", nil)
+	return false
+}
+
 func (s *Server) ensureAdminOrganizationSlugWithPrincipal(w http.ResponseWriter, r *http.Request, item principal, slug string) bool {
 	if !item.AdminKey && item.User.ID != "" {
 		if item.User.Role == "superadmin" {
