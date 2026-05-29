@@ -51,7 +51,7 @@
 	}
 
 	function selectedPath(org, view = "organization-edit") {
-		return `/admin?org=${encodeURIComponent(org.slug)}&view=${encodeURIComponent(view)}`;
+		return `${workspacePath}?org=${encodeURIComponent(org.slug)}&view=${encodeURIComponent(view)}`;
 	}
 
 	function actionPath(action, view = activeTab) {
@@ -89,16 +89,22 @@
 	const relationshipSummary = $derived(data.relationships || []);
 	const selectedOrg = $derived(data.selectedOrganization);
 	const currentUser = $derived(data.session?.user);
+	const isConsole = $derived(Boolean(data.consoleMode));
+	const workspacePath = $derived(isConsole ? "/console" : "/admin");
 	const selectedProfile = $derived(selectedOrg?.profile_data || {});
 	const selectedSdgs = $derived(selectedOrg?.sdgs_data || {});
+
+	function labelKey(adminKey, consoleKey) {
+		return isConsole ? consoleKey : adminKey;
+	}
 </script>
 
 <section class="section">
 	<div class="page-heading">
-		<p class="eyebrow">{$t("admin.workspaceEyebrow")}</p>
-		<h1 class="section-title">{$t("admin.workspaceTitle")}</h1>
+		<p class="eyebrow">{$t(labelKey("admin.workspaceEyebrow", "console.workspaceEyebrow"))}</p>
+		<h1 class="section-title">{$t(labelKey("admin.workspaceTitle", "console.workspaceTitle"))}</h1>
 		<p class="section-note">
-			{$t("admin.workspaceSubtitle")}
+			{$t(labelKey("admin.workspaceSubtitle", "console.workspaceSubtitle"))}
 		</p>
 	</div>
 </section>
@@ -116,8 +122,8 @@
 {/if}
 
 <div class="admin-shell">
-	<aside class="admin-side-nav" aria-label={$t("admin.adminNavigation")}>
-		<p class="label">{$t("admin.adminNavigation")}</p>
+	<aside class="admin-side-nav" aria-label={$t(labelKey("admin.adminNavigation", "console.navigation"))}>
+		<p class="label">{$t(labelKey("admin.adminNavigation", "console.navigation"))}</p>
 
 		<button
 			class="admin-nav-link"
@@ -257,7 +263,9 @@
 				{/if}
 		</div>
 
-		<a class="admin-nav-link" href="/admin/developer">{$t("admin.developerPanel")}</a>
+		{#if !isConsole}
+			<a class="admin-nav-link" href="/admin/developer">{$t("admin.developerPanel")}</a>
+		{/if}
 	</aside>
 
 	<div class="admin-content">
@@ -266,7 +274,7 @@
 		<div class="admin-panel session-panel">
 			<div>
 				<p class="eyebrow">{$t("admin.session")}</p>
-				<h2>{data.isAuthenticated ? $t("admin.sessionActive") : $t("admin.loginTitle")}</h2>
+				<h2>{data.isAuthenticated ? $t(labelKey("admin.sessionActive", "console.sessionActive")) : $t("admin.loginTitle")}</h2>
 				<p class="section-note">
 					{#if currentUser}
 						{currentUser.name} · {currentUser.email}
@@ -300,10 +308,10 @@
 	<section class="section">
 		<div class="section-head">
 			<div>
-				<p class="eyebrow">{$t("admin.dataSection")}</p>
-				<h2 class="section-title">{$t("admin.dashboardTitle")}</h2>
+				<p class="eyebrow">{$t(labelKey("admin.dataSection", "console.dataSection"))}</p>
+				<h2 class="section-title">{$t(labelKey("admin.dashboardTitle", "console.dashboardTitle"))}</h2>
 			</div>
-			<p class="section-note">{$t("admin.dashboardSubtitle")}</p>
+			<p class="section-note">{$t(labelKey("admin.dashboardSubtitle", "console.dashboardSubtitle"))}</p>
 		</div>
 
 		{#if data.loadErrors.length}
@@ -315,9 +323,9 @@
 
 		<div class="admin-grid">
 			<article class="card">
-				<p class="label">{$t("admin.totalOrganizations")}</p>
+				<p class="label">{$t(labelKey("admin.totalOrganizations", "console.totalOrganizations"))}</p>
 				<p class="admin-number">{orgSummary.length}</p>
-				<p class="small">{$t("admin.totalOrganizationsHelp")}</p>
+				<p class="small">{$t(labelKey("admin.totalOrganizationsHelp", "console.totalOrganizationsHelp"))}</p>
 			</article>
 			<article class="card">
 				<p class="label">{$t("admin.totalPosts")}</p>
@@ -338,7 +346,7 @@
 				<p class="eyebrow">{$t("admin.nextActionEyebrow")}</p>
 				<h2 class="section-title">{$t("admin.nextActionTitle")}</h2>
 			</div>
-			<p class="section-note">{$t("admin.nextActionSubtitle")}</p>
+			<p class="section-note">{$t(labelKey("admin.nextActionSubtitle", "console.nextActionSubtitle"))}</p>
 		</div>
 		<div class="admin-grid">
 			<article class="card">
@@ -408,6 +416,7 @@
 					{/if}
 				</div>
 
+				{#if !isConsole}
 				<form class="admin-panel compact" method="POST" action={actionPath("createOrganization", "organizations")}>
 					<h3>{$t("admin.createOrg")}</h3>
 					<div class="admin-field-grid">
@@ -504,6 +513,7 @@
 					</div>
 					<button class="btn primary" type="submit">{$t("admin.create")}</button>
 				</form>
+				{/if}
 			</div>
 		</section>
 	{/if}

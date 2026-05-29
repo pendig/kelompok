@@ -13,6 +13,7 @@ const dictionaries = {
 			posts: "Artikel",
 			sdgs: "SDGs",
 			admin: "Admin",
+			console: "Console",
 			login: "Masuk",
 			register: "Daftar",
 			account: "Akun",
@@ -63,6 +64,7 @@ const dictionaries = {
 			crmTitle: "Buka CRM",
 			crmBody: "Masuk ke admin workspace untuk mengelola profil publik, anggota, artikel, klaim, dan laporan dampak.",
 			openAdmin: "Buka admin",
+			openConsole: "Buka console",
 			organizations: "Organisasi saya",
 			noOrganizationsTitle: "Belum ada organisasi terhubung.",
 			noOrganizationsBody:
@@ -461,6 +463,20 @@ const dictionaries = {
 			totalImpactHelp: "Laporan dampak yang siap dipublikasikan atau dilengkapi.",
 			noImpact: "Belum ada data dampak.",
 		},
+		console: {
+			workspaceEyebrow: "Console organisasi",
+			workspaceTitle: "Kelola organisasi yang kamu pegang",
+			workspaceSubtitle:
+				"Console ini hanya menampilkan organisasi yang sudah terhubung ke akunmu untuk profil, anggota, relasi, artikel, klaim, dan laporan dampak.",
+			navigation: "Navigasi console",
+			sessionActive: "Sesi console aktif",
+			dataSection: "Ringkasan organisasi",
+			dashboardTitle: "Ringkasan console",
+			dashboardSubtitle: "Pantau organisasi dan konten yang bisa kamu kelola.",
+			totalOrganizations: "Organisasi saya",
+			totalOrganizationsHelp: "Organisasi yang sudah disetujui untuk akun ini.",
+			nextActionSubtitle: "Pilih area kerja untuk organisasi aktif tanpa masuk ke admin global.",
+		},
 		adminDeveloper: {
 			eyebrow: "Developer & rilis",
 			title: "Panel teknis",
@@ -500,6 +516,7 @@ const dictionaries = {
 			posts: "Posts",
 			sdgs: "SDGs",
 			admin: "Admin",
+			console: "Console",
 			login: "Log in",
 			register: "Register",
 			account: "Account",
@@ -550,6 +567,7 @@ const dictionaries = {
 			crmTitle: "Open the CRM",
 			crmBody: "Enter the admin workspace to manage public profiles, members, posts, claims, and impact reports.",
 			openAdmin: "Open admin",
+			openConsole: "Open console",
 			organizations: "My organizations",
 			noOrganizationsTitle: "No connected organizations yet.",
 			noOrganizationsBody:
@@ -944,6 +962,20 @@ const dictionaries = {
 			totalPostsHelp: "Posts, news, or stories already available.",
 			totalImpactHelp: "Impact reports ready to publish or complete.",
 			noImpact: "No impact reports yet.",
+		},
+		console: {
+			workspaceEyebrow: "Organization console",
+			workspaceTitle: "Manage the organizations you own",
+			workspaceSubtitle:
+				"This console only shows organizations connected to your account for profiles, members, relationships, posts, claims, and impact reports.",
+			navigation: "Console navigation",
+			sessionActive: "Console session active",
+			dataSection: "Organization snapshot",
+			dashboardTitle: "Console overview",
+			dashboardSubtitle: "Review the organizations and content you can manage.",
+			totalOrganizations: "My organizations",
+			totalOrganizationsHelp: "Organizations approved for this account.",
+			nextActionSubtitle: "Choose a workspace area for the active organization without entering global admin.",
 		},
 		adminDeveloper: {
 			eyebrow: "Developer & release",

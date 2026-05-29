@@ -51,7 +51,8 @@
 	}
 
 	function adminPath(slug) {
-		return `/admin?org=${encodeURIComponent(slug)}`;
+		const base = user?.role === "superadmin" ? "/admin" : "/console";
+		return `${base}?org=${encodeURIComponent(slug)}`;
 	}
 
 	function canManageOrganizationRole(role) {
@@ -140,7 +141,9 @@
 					<h2>{$t("account.crmTitle")}</h2>
 					<p class="muted">{$t("account.crmBody")}</p>
 				</div>
-				<a class="btn primary" href="/admin">{$t("account.openAdmin")}</a>
+				<a class="btn primary" href={user.role === "superadmin" ? "/admin" : "/console"}>
+					{$t(user.role === "superadmin" ? "account.openAdmin" : "account.openConsole")}
+				</a>
 			</section>
 		</div>
 	</section>

@@ -37,7 +37,11 @@
 			<a href="/sdgs" class="nav-link">{$t("nav.sdgs")}</a>
 			{#if currentUser}
 				<a href="/account" class="nav-link">{$t("nav.account")}</a>
-				<a href="/admin" class="nav-link">{$t("nav.admin")}</a>
+				{#if currentUser.role === "superadmin"}
+					<a href="/admin" class="nav-link">{$t("nav.admin")}</a>
+				{:else}
+					<a href="/console" class="nav-link">{$t("nav.console")}</a>
+				{/if}
 			{:else}
 				<a href="/login" class="nav-link">{$t("nav.login")}</a>
 				<a href="/register" class="nav-link">{$t("nav.register")}</a>
