@@ -1,6 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
-import { fetchJSON } from "../../lib/api.js";
+import { APIError, fetchJSON } from "../../lib/api.js";
 import {
 	loadSession,
 	loginWithPassword,
@@ -103,6 +103,19 @@ function organizationInput(form) {
 		instagram: value(form, "public_contact_instagram"),
 		phone: value(form, "public_contact_phone"),
 	};
+	const impactData = jsonObject(value(form, "impact_data"), {});
+	const beneficiaries = value(form, "impact_beneficiaries");
+	const volunteerHours = value(form, "impact_volunteer_hours");
+	const impactNote = value(form, "impact_note");
+	if (beneficiaries) {
+		impactData.beneficiaries = Number(beneficiaries);
+	}
+	if (volunteerHours) {
+		impactData.volunteer_hours = Number(volunteerHours);
+	}
+	if (impactNote) {
+		impactData.note = impactNote;
+	}
 
 	return {
 		slug: value(form, "slug"),
@@ -126,7 +139,7 @@ function organizationInput(form) {
 		sdgs_data: {
 			primary: splitList(value(form, "sdgs")),
 		},
-		impact_data: jsonObject(value(form, "impact_data"), {}),
+		impact_data: impactData,
 	};
 }
 
@@ -199,6 +212,14 @@ function relationshipInput(form) {
 }
 
 function actionError(error) {
+	if (error instanceof APIError && error.code === "organization_slug_taken") {
+		return fail(409, {
+			ok: false,
+			error: "organization_slug_taken",
+			error_code: "organization_slug_taken",
+		});
+	}
+
 	return fail(400, {
 		ok: false,
 		error: error instanceof Error ? error.message : "Action failed",
@@ -218,6 +239,7 @@ export async function load({ url, cookies }) {
 	}
 	const requestedSlug = url.searchParams.get("org");
 	const requestedView = url.searchParams.get("view");
+	const justCreated = url.searchParams.get("created") === "1";
 	const allowedViews = new Set(["dashboard", "organizations", "organization-edit", "members", "relationships", "posts", "impact", "claims", "audit"]);
 	let orgPayload = { data: [], error: null };
 	let postPayload = { data: [], error: null };
@@ -306,6 +328,7 @@ export async function load({ url, cookies }) {
 		relationships: relationshipPayload.data ?? [],
 		selectedOrganization: selectedPayload.data,
 		selectedSlug,
+		justCreated,
 		consoleMode: url.pathname === "/console",
 		initialTab: allowedViews.has(requestedView) ? requestedView : requestedSlug ? "organization-edit" : "dashboard",
 		loadErrors: [
@@ -335,14 +358,16 @@ export const actions = {
 		await logoutSession(cookies);
 		throw redirect(303, url.pathname === "/console" ? "/login" : "/admin");
 	},
-	createOrganization: async ({ request, cookies }) => {
+	createOrganization: async ({ request, cookies, url }) => {
+		let createdSlug = "";
 		try {
 			const form = await request.formData();
 			const payload = await mutate("/api/v1/org-admin/organizations", organizationInput(form), "POST", cookies);
-			return { ok: true, action: "createOrganization", item: payload.data };
+			createdSlug = payload.data?.slug || value(form, "slug");
 		} catch (error) {
 			return actionError(error);
 		}
+		throw redirect(303, `${url.pathname}?org=${encodeURIComponent(createdSlug)}&view=organization-edit&created=1`);
 	},
 	updateOrganization: async ({ request, cookies }) => {
 		try {

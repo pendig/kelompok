@@ -1902,6 +1902,36 @@ textarea:focus {
 	margin-bottom: 8px;
 }
 
+.form-step-list,
+.profile-completion {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.form-step-list span,
+.profile-completion span {
+	display: inline-flex;
+	align-items: center;
+	min-height: 28px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--surface-soft);
+	padding: 4px 10px;
+	color: var(--muted);
+	font-size: 12px;
+	font-weight: 800;
+}
+
+.profile-completion {
+	justify-content: space-between;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface-soft);
+	padding: 10px 12px;
+}
+
 .admin-field-grid,
 .admin-panel-grid {
 	display: grid;
@@ -1925,6 +1955,19 @@ textarea:focus {
 	letter-spacing: 0.03em;
 }
 
+.admin-panel label small {
+	color: var(--muted);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.4;
+	text-transform: none;
+}
+
+.admin-panel label .preview-url {
+	color: var(--purple-800);
+	font-weight: 800;
+}
+
 .admin-panel input,
 .admin-panel select,
 .admin-panel textarea {
@@ -1941,6 +1984,26 @@ textarea:focus {
 
 .admin-panel textarea {
 	min-height: 100px;
+}
+
+.advanced-json {
+	display: grid;
+	gap: 12px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface-soft);
+	padding: 12px;
+}
+
+.advanced-json summary {
+	cursor: pointer;
+	color: var(--text);
+	font-size: 13px;
+	font-weight: 800;
+}
+
+.advanced-json[open] {
+	background: var(--surface);
 }
 
 .admin-panel .btn.primary {
