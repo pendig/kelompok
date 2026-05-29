@@ -6,6 +6,7 @@
 
 	// svelte-ignore state_referenced_locally
 	let activeTab = $state(data.initialTab || "dashboard");
+	let navigationOpen = $state(false);
 	let expandedSections = $state({
 		organization: false,
 		content: false,
@@ -26,6 +27,7 @@
 
 	function setActiveTab(tab, section = "") {
 		activeTab = tab;
+		navigationOpen = false;
 		if (section) {
 			expandedSections[section] = true;
 		}
@@ -122,7 +124,23 @@
 {/if}
 
 <div class="admin-shell">
-	<aside class="admin-side-nav" aria-label={$t(labelKey("admin.adminNavigation", "console.navigation"))}>
+	<button
+		type="button"
+		class="admin-nav-toggle"
+		aria-controls="workspace-navigation"
+		aria-expanded={navigationOpen}
+		onclick={() => (navigationOpen = !navigationOpen)}
+	>
+		<span>{$t(labelKey("admin.adminNavigation", "console.navigation"))}</span>
+		<span class="admin-nav-chevron" aria-hidden="true">{navigationOpen ? "−" : "+"}</span>
+	</button>
+
+	<aside
+		id="workspace-navigation"
+		class="admin-side-nav"
+		class:open={navigationOpen}
+		aria-label={$t(labelKey("admin.adminNavigation", "console.navigation"))}
+	>
 		<p class="label">{$t(labelKey("admin.adminNavigation", "console.navigation"))}</p>
 
 		<button
