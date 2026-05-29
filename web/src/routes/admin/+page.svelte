@@ -161,7 +161,7 @@
 	}
 
 	function statusTone(status) {
-		if (["claimed", "approved", "active", "published"].includes(status)) {
+		if (["claimed", "approved", "active", "published", "admin", "owner"].includes(status)) {
 			return "admin-status-pass";
 		}
 		if (["pending", "draft", "unclaimed"].includes(status)) {
@@ -184,7 +184,11 @@
 		if (!value) {
 			return "-";
 		}
-		return new Date(value).toLocaleDateString($locale === "id" ? "id-ID" : "en-US", {
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) {
+			return "-";
+		}
+		return date.toLocaleDateString($locale === "id" ? "id-ID" : "en-US", {
 			day: "2-digit",
 			month: "short",
 			year: "numeric",
@@ -206,7 +210,9 @@
 			if (!key) {
 				continue;
 			}
-			groups.set(key, [...(groups.get(key) || []), org]);
+			const matches = groups.get(key) || [];
+			matches.push(org);
+			groups.set(key, matches);
 		}
 		return Array.from(groups.values())
 			.filter((items) => items.length > 1)
@@ -238,7 +244,7 @@
 	const pendingOrganizations = $derived(orgSummary.filter((org) => org.claim_status === "pending").slice(0, 5));
 	const recentOrganizations = $derived(
 		[...orgSummary]
-			.sort((a, b) => new Date(b.created_at || b.updated_at || 0) - new Date(a.created_at || a.updated_at || 0))
+			.sort((a, b) => `${b.created_at || b.updated_at || ""}`.localeCompare(`${a.created_at || a.updated_at || ""}`))
 			.slice(0, 5),
 	);
 	const duplicateGroups = $derived(findPotentialDuplicates(orgSummary));
@@ -635,12 +641,16 @@
 			<div class="admin-panel">
 				<h3>{$t("admin.newOrganizations")}</h3>
 				<div class="admin-list compact-list">
-					{#each recentOrganizations as org}
-						<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
-							<span>{org.name}</span>
-							<span class="admin-status {statusTone(org.claim_status)}">{claimStatusLabel(org.claim_status)}</span>
-						</a>
-					{/each}
+					{#if recentOrganizations.length === 0}
+						<p class="empty">{$t("admin.noOrganizations")}</p>
+					{:else}
+						{#each recentOrganizations as org}
+							<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
+								<span>{org.name}</span>
+								<span class="admin-status {statusTone(org.claim_status)}">{claimStatusLabel(org.claim_status)}</span>
+							</a>
+						{/each}
+					{/if}
 				</div>
 			</div>
 			<div class="admin-panel">
