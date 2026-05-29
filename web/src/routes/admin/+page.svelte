@@ -145,7 +145,18 @@
 
 	function profileCompleteness(org) {
 		if (!org) {
-			return 0;
+			return null;
+		}
+		const hasProfileFields = [
+			"description",
+			"country",
+			"city",
+			"website_url",
+			"official_email",
+			"profile_data",
+		].some((key) => Object.hasOwn(org, key));
+		if (!hasProfileFields) {
+			return null;
 		}
 		const fields = [
 			org.name,
@@ -159,6 +170,16 @@
 		];
 		const filled = fields.filter(Boolean).length;
 		return Math.round((filled / fields.length) * 100);
+	}
+
+	function profileCompletenessLabel(org) {
+		const completeness = profileCompleteness(org);
+		return completeness === null ? "--" : `${completeness}%`;
+	}
+
+	function isProfileReady(org) {
+		const completeness = profileCompleteness(org);
+		return completeness !== null && completeness >= 75;
 	}
 
 	function statusTone(status) {
@@ -240,7 +261,10 @@
 		[...directClaims, ...delegatedClaims].filter((claim) => claim.status === "pending"),
 	);
 	const incompleteOrganizations = $derived(
-		orgSummary.filter((org) => profileCompleteness(org) < 75).slice(0, 5),
+		orgSummary.filter((org) => {
+			const completeness = profileCompleteness(org);
+			return completeness !== null && completeness < 75;
+		}).slice(0, 5),
 	);
 	const pendingOrganizations = $derived(orgSummary.filter((org) => org.claim_status === "pending").slice(0, 5));
 	const recentOrganizations = $derived(
@@ -252,18 +276,20 @@
 		currentUserClaims.filter((claim) => !orgSummary.some((org) => org.slug === claim.organization_slug)).slice(0, 5),
 	);
 	const relatedOrganizations = $derived(
-		relationshipSummary
-			.map((relationship) => {
-				if (relationship.parent?.slug === selectedOrg?.slug) {
-					return relationship.child;
-				}
-				if (relationship.child?.slug === selectedOrg?.slug) {
-					return relationship.parent;
-				}
-				return relationship.child || relationship.parent;
-			})
-			.filter(Boolean)
-			.slice(0, 5),
+		selectedOrg?.slug
+			? relationshipSummary
+					.map((relationship) => {
+						if (relationship.parent?.slug === selectedOrg.slug) {
+							return relationship.child;
+						}
+						if (relationship.child?.slug === selectedOrg.slug) {
+							return relationship.parent;
+						}
+						return null;
+					})
+					.filter(Boolean)
+					.slice(0, 5)
+			: [],
 	);
 	const duplicateGroups = $derived(findPotentialDuplicates(orgSummary));
 	const recentAuditLogs = $derived((data.auditLogs || []).slice(0, 5));
@@ -532,7 +558,7 @@
 							{#each orgSummary as org}
 								<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
 									<span>{org.name}</span>
-									<span class="mini-badge">{profileCompleteness(org)}%</span>
+									<span class="mini-badge">{profileCompletenessLabel(org)}</span>
 								</a>
 							{/each}
 						</div>
@@ -700,7 +726,7 @@
 						{#each incompleteOrganizations as org}
 							<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
 								<span>{org.name}</span>
-								<span class="mini-badge">{profileCompleteness(org)}%</span>
+								<span class="mini-badge">{profileCompletenessLabel(org)}</span>
 							</a>
 						{/each}
 					{/if}
@@ -1057,8 +1083,8 @@
 						</a>
 					</div>
 					<div class="profile-completion">
-						<span>{$t("admin.profileCompleteness")}: {profileCompleteness(selectedOrg)}%</span>
-						<span>{profileCompleteness(selectedOrg) >= 75 ? $t("admin.profileReady") : $t("admin.profileIncomplete")}</span>
+						<span>{$t("admin.profileCompleteness")}: {profileCompletenessLabel(selectedOrg)}</span>
+						<span>{isProfileReady(selectedOrg) ? $t("admin.profileReady") : $t("admin.profileIncomplete")}</span>
 					</div>
 					<input name="current_slug" type="hidden" value={selectedOrg.slug} />
 					<div class="admin-field-grid">
