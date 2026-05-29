@@ -205,6 +205,10 @@ function actionError(error) {
 	});
 }
 
+function canManageOrganizationRole(role) {
+	return role === "owner" || role === "admin";
+}
+
 export async function load({ url, cookies }) {
 	const session = await loadSession(cookies);
 	const isScopedSession = Boolean(session && session.user?.role !== "superadmin");
@@ -222,7 +226,9 @@ export async function load({ url, cookies }) {
 	let selectedSlug = "";
 
 	if (isScopedSession) {
-		const roleOrganizations = session.organization_roles ?? [];
+		const roleOrganizations = (session.organization_roles ?? []).filter((role) =>
+			canManageOrganizationRole(role.role),
+		);
 		const allowedSlugs = roleOrganizations.map((role) => role.organization_slug).filter(Boolean);
 		selectedSlug = allowedSlugs.includes(requestedSlug) ? requestedSlug : allowedSlugs[0] || "";
 		orgPayload = {

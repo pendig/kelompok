@@ -228,6 +228,25 @@ The current alpha admin endpoints accept either a real user session from `POST /
 
 The static key gate remains intentionally small and self-hosting friendly. Prefer user login and organization roles for normal admin UI workflows.
 
+### Permission matrix
+
+Global user roles are deliberately narrow. `superadmin` can operate across all
+organizations and use global admin routes. Non-superadmin users must be checked
+against `organization_user_roles` and stay inside organization-scoped routes.
+
+| Actor / role | Scope | Manage org profile/content | Create related org | Review related claims | View audit | Admin override |
+| --- | --- | --- | --- | --- | --- | --- |
+| `superadmin` | Global | Yes | Yes | Yes | Yes | Yes |
+| Org `owner` | Own organization | Yes | Yes | Yes | Yes | No |
+| Org `admin` | Own organization | Yes | Yes | Yes | Yes | No |
+| Org `member` | Own organization | No | No | No | No | No |
+| Org `viewer` | Own organization | No | No | No | No | No |
+| Scoped admin key | Configured slugs | Yes | Yes, when one side is allowed | Yes, for allowed org routes | Yes | Operational fallback only |
+
+Backend guards treat org `owner` and `admin` as the canonical manageable roles.
+Frontend console navigation must use the same rule, so `member` and `viewer`
+roles can see their account association but are not linked into `/admin`.
+
 Event management:
 
 ```text

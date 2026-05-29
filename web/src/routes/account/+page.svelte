@@ -54,6 +54,10 @@
 		return `/admin?org=${encodeURIComponent(slug)}`;
 	}
 
+	function canManageOrganizationRole(role) {
+		return role === "owner" || role === "admin";
+	}
+
 	function methodLabel(method) {
 		if (method === "instagram") {
 			return $t("account.claimMethodInstagram");
@@ -262,9 +266,11 @@
 										<a class="ghost-button" href={organizationProfilePath(role.organization_slug)}>
 											{$t("account.viewPublic")}
 										</a>
-										<a class="btn primary" href={adminPath(role.organization_slug)}>
-											{$t("account.manage")}
-										</a>
+										{#if canManageOrganizationRole(role.role)}
+											<a class="btn primary" href={adminPath(role.organization_slug)}>
+												{$t("account.manage")}
+											</a>
+										{/if}
 									</div>
 								</li>
 							{/each}
