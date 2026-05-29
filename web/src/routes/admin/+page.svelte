@@ -7,6 +7,12 @@
 	// svelte-ignore state_referenced_locally
 	let activeTab = $state(data.initialTab || "dashboard");
 	let navigationOpen = $state(false);
+	let createName = $state("");
+	let createSlug = $state("");
+	let createSlugEdited = $state(false);
+	let editSourceSlug = $state("");
+	let editName = $state("");
+	let editSlug = $state("");
 	let expandedSections = $state({
 		organization: false,
 		content: false,
@@ -99,6 +105,60 @@
 	function labelKey(adminKey, consoleKey) {
 		return isConsole ? consoleKey : adminKey;
 	}
+
+	const formError = $derived(form?.error_code ? $t(`admin.errors.${form.error_code}`) : form?.error);
+
+	$effect(() => {
+		if (selectedOrg?.slug && selectedOrg.slug !== editSourceSlug) {
+			editSourceSlug = selectedOrg.slug;
+			editName = selectedOrg.name || "";
+			editSlug = selectedOrg.slug || "";
+		}
+	});
+
+	function slugify(value) {
+		return value
+			.toLowerCase()
+			.normalize("NFKD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 80);
+	}
+
+	function updateCreateName(value) {
+		createName = value;
+		if (!createSlugEdited) {
+			createSlug = slugify(value);
+		}
+	}
+
+	function publicPath(slug) {
+		return slug ? `/organizations/${slug}` : "/organizations/slug";
+	}
+
+	function impactValue(key) {
+		const value = selectedOrg?.impact_data?.[key];
+		return value === undefined || value === null ? "" : value;
+	}
+
+	function profileCompleteness(org) {
+		if (!org) {
+			return 0;
+		}
+		const fields = [
+			org.name,
+			org.slug,
+			org.description,
+			org.country,
+			org.city,
+			org.website_url,
+			org.official_email,
+			contactValue(org, "email"),
+		];
+		const filled = fields.filter(Boolean).length;
+		return Math.round((filled / fields.length) * 100);
+	}
 </script>
 
 <section class="section">
@@ -111,10 +171,10 @@
 	</div>
 </section>
 
-{#if form?.error}
+{#if formError}
 	<p class="error">
 		<strong>{$t("admin.actionError")}: </strong>
-		{form.error}
+		{formError}
 	</p>
 {:else if form?.ok}
 	<p class="notice">
@@ -437,22 +497,43 @@
 				{#if !isConsole}
 				<form class="admin-panel compact" method="POST" action={actionPath("createOrganization", "organizations")}>
 					<h3>{$t("admin.createOrg")}</h3>
+					<div class="form-step-list" aria-label={$t("admin.organizationStepsLabel")}>
+						<span>{$t("admin.stepIdentity")}</span>
+						<span>{$t("admin.stepProfile")}</span>
+						<span>{$t("admin.stepImpact")}</span>
+					</div>
 					<div class="admin-field-grid">
 						<label>
 							<span>{$t("admin.name")}</span>
-							<input name="name" required placeholder="Kelompok Nusantara" />
+							<input
+								name="name"
+								required
+								placeholder="Kelompok Nusantara"
+								bind:value={createName}
+								oninput={(event) => updateCreateName(event.currentTarget.value)}
+							/>
+							<small>{$t("admin.nameHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.slug")}</span>
-							<input name="slug" placeholder="kelompok-nusantara" />
+							<input
+								name="slug"
+								placeholder="kelompok-nusantara"
+								bind:value={createSlug}
+								oninput={() => (createSlugEdited = true)}
+							/>
+							<small>{$t("admin.slugHelp")}</small>
+							<small class="preview-url">{$t("admin.publicUrl")}: {publicPath(createSlug)}</small>
 						</label>
 						<label>
 							<span>{$t("admin.legalName")}</span>
 							<input name="legal_name" placeholder="Yayasan Kelompok Nusantara" />
+							<small>{$t("admin.legalNameHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.officialEmail")}</span>
 							<input name="official_email" type="email" placeholder="hello@example.org" />
+							<small>{$t("admin.officialEmailHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.websiteUrl")}</span>
@@ -483,6 +564,7 @@
 						<label>
 							<span>{$t("admin.description")}</span>
 							<textarea name="description" rows="3"></textarea>
+							<small>{$t("admin.descriptionHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.history")}</span>
@@ -499,6 +581,7 @@
 						<label>
 							<span>{$t("admin.sdgs")}</span>
 							<textarea name="sdgs" rows="2" placeholder="4, 13"></textarea>
+							<small>{$t("admin.listHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.languages")}</span>
@@ -519,7 +602,23 @@
 							<input name="public_contact_phone" placeholder="+62..." />
 						</label>
 					</div>
-					<div class="admin-field-grid two">
+					<div class="admin-field-grid">
+						<label>
+							<span>{$t("admin.impactBeneficiaries")}</span>
+							<input name="impact_beneficiaries" type="number" min="0" inputmode="numeric" />
+						</label>
+						<label>
+							<span>{$t("admin.impactVolunteerHours")}</span>
+							<input name="impact_volunteer_hours" type="number" min="0" inputmode="numeric" />
+						</label>
+						<label>
+							<span>{$t("admin.impactNote")}</span>
+							<input name="impact_note" placeholder={$t("admin.impactNotePlaceholder")} />
+						</label>
+					</div>
+					<details class="advanced-json">
+						<summary>{$t("admin.advancedJson")}</summary>
+						<div class="admin-field-grid two">
 						<label>
 							<span>{$t("admin.sourceData")}</span>
 							<textarea name="source_data" rows="3" placeholder={sourceDataPlaceholder}></textarea>
@@ -528,7 +627,8 @@
 							<span>{$t("admin.impactData")}</span>
 							<textarea name="impact_data" rows="3" placeholder={metricsPlaceholder}></textarea>
 						</label>
-					</div>
+						</div>
+					</details>
 					<button class="btn primary" type="submit">{$t("admin.create")}</button>
 				</form>
 				{/if}
@@ -555,6 +655,13 @@
 					<p class="section-note">{selectedOrg.name}</p>
 				</div>
 
+				{#if data.justCreated}
+					<p class="notice compact">
+						<strong>{$t("admin.completeProfileTitle")}</strong>
+						<span>{$t("admin.completeProfileBody")}</span>
+					</p>
+				{/if}
+
 				<form class="admin-panel" method="POST" action={actionPath("updateOrganization", "organization-edit")}>
 					<div class="admin-form-head">
 						<div>
@@ -565,23 +672,32 @@
 							{$t("admin.viewPublic")}
 						</a>
 					</div>
+					<div class="profile-completion">
+						<span>{$t("admin.profileCompleteness")}: {profileCompleteness(selectedOrg)}%</span>
+						<span>{profileCompleteness(selectedOrg) >= 75 ? $t("admin.profileReady") : $t("admin.profileIncomplete")}</span>
+					</div>
 					<input name="current_slug" type="hidden" value={selectedOrg.slug} />
 					<div class="admin-field-grid">
 						<label>
 							<span>{$t("admin.name")}</span>
-							<input name="name" required value={selectedOrg.name || ""} />
+							<input name="name" required bind:value={editName} />
+							<small>{$t("admin.nameHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.slug")}</span>
-							<input name="slug" value={selectedOrg.slug || ""} />
+							<input name="slug" bind:value={editSlug} />
+							<small>{$t("admin.slugHelp")}</small>
+							<small class="preview-url">{$t("admin.publicUrl")}: {publicPath(editSlug)}</small>
 						</label>
 						<label>
 							<span>{$t("admin.legalName")}</span>
 							<input name="legal_name" value={selectedOrg.legal_name || ""} />
+							<small>{$t("admin.legalNameHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.officialEmail")}</span>
 							<input name="official_email" type="email" value={selectedOrg.official_email || ""} />
+							<small>{$t("admin.officialEmailHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.websiteUrl")}</span>
@@ -612,6 +728,7 @@
 						<label>
 							<span>{$t("admin.description")}</span>
 							<textarea name="description" rows="4">{selectedOrg.description || ""}</textarea>
+							<small>{$t("admin.descriptionHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.history")}</span>
@@ -628,6 +745,7 @@
 						<label>
 							<span>{$t("admin.sdgs")}</span>
 							<textarea name="sdgs" rows="3">{joinList(selectedSdgs.primary)}</textarea>
+							<small>{$t("admin.listHelp")}</small>
 						</label>
 						<label>
 							<span>{$t("admin.languages")}</span>
@@ -648,14 +766,31 @@
 							<input name="public_contact_phone" value={contactValue(selectedOrg, "phone")} />
 						</label>
 					</div>
-					<label>
-						<span>{$t("admin.sourceData")}</span>
-						<textarea name="source_data" rows="3">{JSON.stringify(selectedOrg.source_data || {}, null, 2)}</textarea>
-					</label>
-					<label>
-						<span>{$t("admin.impactData")}</span>
-						<textarea name="impact_data" rows="3">{JSON.stringify(selectedOrg.impact_data || {}, null, 2)}</textarea>
-					</label>
+					<div class="admin-field-grid">
+						<label>
+							<span>{$t("admin.impactBeneficiaries")}</span>
+							<input name="impact_beneficiaries" type="number" min="0" inputmode="numeric" value={impactValue("beneficiaries")} />
+						</label>
+						<label>
+							<span>{$t("admin.impactVolunteerHours")}</span>
+							<input name="impact_volunteer_hours" type="number" min="0" inputmode="numeric" value={impactValue("volunteer_hours")} />
+						</label>
+						<label>
+							<span>{$t("admin.impactNote")}</span>
+							<input name="impact_note" value={impactValue("note")} />
+						</label>
+					</div>
+					<details class="advanced-json">
+						<summary>{$t("admin.advancedJson")}</summary>
+						<label>
+							<span>{$t("admin.sourceData")}</span>
+							<textarea name="source_data" rows="3">{JSON.stringify(selectedOrg.source_data || {}, null, 2)}</textarea>
+						</label>
+						<label>
+							<span>{$t("admin.impactData")}</span>
+							<textarea name="impact_data" rows="3">{JSON.stringify(selectedOrg.impact_data || {}, null, 2)}</textarea>
+						</label>
+					</details>
 					<div class="admin-actions">
 						<button class="btn primary" type="submit">{$t("admin.update")}</button>
 					</div>

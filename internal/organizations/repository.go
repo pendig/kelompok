@@ -11,7 +11,10 @@ import (
 	"github.com/pendig/kelompok/internal/jsonvalue"
 )
 
-var ErrNotFound = errors.New("organization not found")
+var (
+	ErrNotFound  = errors.New("organization not found")
+	ErrSlugTaken = errors.New("organization slug is already used")
+)
 
 type Repository struct {
 	db *pgxpool.Pool

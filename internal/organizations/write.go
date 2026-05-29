@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pendig/kelompok/internal/audit"
 	"github.com/pendig/kelompok/internal/jsonvalue"
 )
@@ -155,6 +156,9 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 	)
 
 	item, err := scanOrganization(row)
+	if isSlugConflict(err) {
+		return Organization{}, ErrSlugTaken
+	}
 	if err == nil {
 		_ = audit.Record(ctx, r.db, nil, "organization", item.ID, "create", nil, item, nil)
 	}
@@ -392,6 +396,9 @@ func (r *Repository) UpdateBySlug(ctx context.Context, slug string, input AdminI
 	)
 
 	item, err := scanOrganization(row)
+	if isSlugConflict(err) {
+		return Organization{}, ErrSlugTaken
+	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Organization{}, ErrNotFound
 	}
@@ -399,6 +406,11 @@ func (r *Repository) UpdateBySlug(ctx context.Context, slug string, input AdminI
 		_ = audit.Record(ctx, r.db, nil, "organization", item.ID, "update", nil, item, nil)
 	}
 	return item, err
+}
+
+func isSlugConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && strings.Contains(pgErr.ConstraintName, "slug")
 }
 
 func (r *Repository) CreateClaim(ctx context.Context, organizationSlug string, input ClaimInput) (ClaimRequest, error) {

@@ -67,6 +67,10 @@ func (s *Server) handleCreateAdminOrganization(w http.ResponseWriter, r *http.Re
 	}
 
 	item, err := s.organizations.Create(r.Context(), input)
+	if errors.Is(err, organizations.ErrSlugTaken) {
+		writeError(w, http.StatusConflict, "organization_slug_taken", "Organization slug is already used", nil)
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "organization_create_failed", err.Error(), nil)
 		return
@@ -108,6 +112,10 @@ func (s *Server) handleUpdateAdminOrganization(w http.ResponseWriter, r *http.Re
 	item, err := s.organizations.UpdateBySlug(r.Context(), r.PathValue("slug"), input)
 	if errors.Is(err, organizations.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "organization_not_found", "Organization not found", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrSlugTaken) {
+		writeError(w, http.StatusConflict, "organization_slug_taken", "Organization slug is already used", nil)
 		return
 	}
 	if err != nil {
