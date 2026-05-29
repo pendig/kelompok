@@ -387,6 +387,31 @@ paths:
           $ref: "#/components/responses/SessionRequired"
         "500":
           $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Auth]
+      summary: Update the current user's profile
+      operationId: updateMe
+      security:
+        - sessionBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileInput"
+      responses:
+        "200":
+          description: Updated user and current organization roles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/SessionRequired"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /api/v1/org-admin/organizations:
     get:
@@ -1722,6 +1747,15 @@ components:
           properties:
             data:
               $ref: "#/components/schemas/User"
+
+    UpdateProfileInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
 
     Session:
       type: object

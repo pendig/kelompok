@@ -2,6 +2,22 @@
 	import { t } from "$lib/i18n.js";
 
 	let { data, form } = $props();
+
+	const FRIENDLY_CODES = new Set([
+		"invalid_credentials",
+		"session_invalid",
+		"session_required",
+		"login_failed",
+	]);
+
+	function loginErrorMessage() {
+		if (!form?.error && !form?.code) return null;
+		const code = form?.code;
+		if (code && FRIENDLY_CODES.has(code)) {
+			return $t(`auth.errors.${code}`);
+		}
+		return $t("auth.error", { message: form?.error || code || "" });
+	}
 </script>
 
 <section class="auth-page">
@@ -12,8 +28,8 @@
 			<p class="section-note">{$t("auth.loginSubtitle")}</p>
 		</div>
 
-		{#if form?.error}
-			<p class="error compact">{$t("auth.error", { message: form.error })}</p>
+		{#if form?.ok === false}
+			<p class="error compact" role="alert">{loginErrorMessage()}</p>
 		{/if}
 
 		<form class="auth-form" method="POST">

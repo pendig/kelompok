@@ -32,6 +32,7 @@ type AdminInput struct {
 	OfficialEmail string          `json:"official_email"`
 	ClaimStatus   string          `json:"claim_status"`
 	ProfileData   json.RawMessage `json:"profile_data"`
+	SourceData    json.RawMessage `json:"source_data"`
 	SDGSData      json.RawMessage `json:"sdgs_data"`
 	ImpactData    json.RawMessage `json:"impact_data"`
 }
@@ -82,6 +83,7 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 			official_email,
 			claim_status,
 			profile_data,
+			source_data,
 			sdgs_data,
 			impact_data
 		)
@@ -99,7 +101,8 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 			COALESCE(NULLIF($11, ''), 'unclaimed'),
 			$12::jsonb,
 			$13::jsonb,
-			$14::jsonb
+			$14::jsonb,
+			$15::jsonb
 		)
 		RETURNING
 			id::text,
@@ -115,6 +118,7 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 			COALESCE(official_email, ''),
 			claim_status,
 			COALESCE(profile_data::text, '{}'),
+			COALESCE(source_data::text, '{}'),
 			COALESCE(sdgs_data::text, '{}'),
 			COALESCE(impact_data::text, '{}'),
 			created_at,
@@ -132,6 +136,7 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 		input.OfficialEmail,
 		input.ClaimStatus,
 		jsonOrFallback(input.ProfileData),
+		jsonOrFallback(input.SourceData),
 		jsonOrFallback(input.SDGSData),
 		jsonOrFallback(input.ImpactData),
 	)
@@ -159,8 +164,9 @@ func (r *Repository) UpdateBySlug(ctx context.Context, slug string, input AdminI
 			official_email = NULLIF($11, ''),
 			claim_status = COALESCE(NULLIF($12, ''), claim_status),
 			profile_data = $13::jsonb,
-			sdgs_data = $14::jsonb,
-			impact_data = $15::jsonb,
+			source_data = $14::jsonb,
+			sdgs_data = $15::jsonb,
+			impact_data = $16::jsonb,
 			updated_at = now()
 		WHERE slug = $1
 		RETURNING
@@ -177,6 +183,7 @@ func (r *Repository) UpdateBySlug(ctx context.Context, slug string, input AdminI
 			COALESCE(official_email, ''),
 			claim_status,
 			COALESCE(profile_data::text, '{}'),
+			COALESCE(source_data::text, '{}'),
 			COALESCE(sdgs_data::text, '{}'),
 			COALESCE(impact_data::text, '{}'),
 			created_at,
@@ -195,6 +202,7 @@ func (r *Repository) UpdateBySlug(ctx context.Context, slug string, input AdminI
 		input.OfficialEmail,
 		input.ClaimStatus,
 		jsonOrFallback(input.ProfileData),
+		jsonOrFallback(input.SourceData),
 		jsonOrFallback(input.SDGSData),
 		jsonOrFallback(input.ImpactData),
 	)

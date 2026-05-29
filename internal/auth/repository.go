@@ -10,6 +10,7 @@ import (
 	"net/mail"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,10 +19,12 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrInvalidSession     = errors.New("invalid session")
-	ErrNotFound           = errors.New("user not found")
-	ErrUserExists         = errors.New("user already has a password")
+	ErrInvalidCredentials  = errors.New("invalid email or password")
+	ErrInvalidSession      = errors.New("invalid session")
+	ErrNotFound            = errors.New("user not found")
+	ErrUserExists          = errors.New("user already has a password")
+	ErrProfileNameRequired = errors.New("profile name is required")
+	ErrProfileNameTooLong  = errors.New("profile name must be at most 120 characters")
 )
 
 const SessionTTL = 30 * 24 * time.Hour
@@ -50,6 +53,10 @@ type RegisterInput struct {
 	Password string `json:"password"`
 }
 
+type UpdateProfileInput struct {
+	Name string `json:"name"`
+}
+
 type Session struct {
 	Token     string    `json:"token"`
 	ExpiresAt time.Time `json:"expires_at"`
@@ -63,6 +70,25 @@ type OrganizationRole struct {
 	Role             string    `json:"role"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+// OrganizationClaim is a per-user, organization-scoped view of a claim
+// request that surfaces only the fields the account page needs to render
+// the claim journey (status, timestamps, organization context). It is
+// intentionally narrower than organizations.ClaimRequest so the public
+// /auth/me payload never leaks reviewer-only metadata or evidence.
+type OrganizationClaim struct {
+	ID                      string     `json:"id"`
+	OrganizationID          string     `json:"organization_id"`
+	OrganizationSlug        string     `json:"organization_slug"`
+	OrganizationName        string     `json:"organization_name"`
+	OrganizationClaimStatus string     `json:"organization_claim_status"`
+	Method                  string     `json:"method"`
+	Target                  string     `json:"target"`
+	Status                  string     `json:"status"`
+	CreatedAt               time.Time  `json:"created_at"`
+	UpdatedAt               time.Time  `json:"updated_at"`
+	ReviewedAt              *time.Time `json:"reviewed_at,omitempty"`
 }
 
 func NewRepository(db *pgxpool.Pool) *Repository {
@@ -234,6 +260,41 @@ func (r *Repository) FindUserByID(ctx context.Context, id string) (User, error) 
 	return user, err
 }
 
+func (r *Repository) UpdateProfile(ctx context.Context, userID string, input UpdateProfileInput) (User, error) {
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return User{}, ErrProfileNameRequired
+	}
+	if utf8.RuneCountInString(name) > 120 {
+		return User{}, ErrProfileNameTooLong
+	}
+
+	before, err := r.FindUserByID(ctx, userID)
+	if err != nil {
+		return User{}, err
+	}
+
+	row := r.db.QueryRow(ctx, `
+		UPDATE users
+		SET
+			name = $2,
+			updated_at = now()
+		WHERE id = $1
+		RETURNING id::text, name, email, role, created_at, updated_at
+	`, userID, name)
+
+	user, err := scanUser(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, err
+	}
+
+	_ = audit.Record(ctx, r.db, user.ID, "user", user.ID, "update_profile", before, user, nil)
+	return user, nil
+}
+
 func (r *Repository) RolesByUserID(ctx context.Context, userID string) ([]OrganizationRole, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT
@@ -257,6 +318,58 @@ func (r *Repository) RolesByUserID(ctx context.Context, userID string) ([]Organi
 	for rows.Next() {
 		var item OrganizationRole
 		if err := rows.Scan(&item.OrganizationID, &item.OrganizationSlug, &item.OrganizationName, &item.Role, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// ClaimsByUserID returns every organization claim request submitted by the
+// given user, joined with the organization context the account page needs
+// to render the claim journey (organization name/slug + the organization's
+// current claim_status). The list is ordered by recency so the account UI
+// can always show the most recent submission first without re-sorting.
+func (r *Repository) ClaimsByUserID(ctx context.Context, userID string) ([]OrganizationClaim, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			cr.id::text,
+			cr.organization_id::text,
+			o.slug,
+			o.name,
+			o.claim_status,
+			cr.method,
+			cr.target,
+			cr.status,
+			cr.reviewed_at,
+			cr.created_at,
+			cr.updated_at
+		FROM claim_requests cr
+		JOIN organizations o ON o.id = cr.organization_id
+		WHERE cr.user_id = $1
+		ORDER BY cr.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]OrganizationClaim, 0)
+	for rows.Next() {
+		var item OrganizationClaim
+		if err := rows.Scan(
+			&item.ID,
+			&item.OrganizationID,
+			&item.OrganizationSlug,
+			&item.OrganizationName,
+			&item.OrganizationClaimStatus,
+			&item.Method,
+			&item.Target,
+			&item.Status,
+			&item.ReviewedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -299,12 +412,23 @@ func (r *Repository) AssignOrganizationRole(ctx context.Context, organizationID 
 			updated_at = now()
 	`, organizationID, userID, role)
 	if err == nil {
-		_ = audit.Record(ctx, r.db, actorUserID, "organization_user_role", organizationID, "assign", nil, nil, map[string]any{
-			"user_id": userID,
-			"role":    role,
-		})
+		_ = audit.Record(ctx, r.db, actorUserID, "organization_user_role", organizationID, "assign", nil, nil, roleAssignAuditMetadata(organizationID, userID, role))
 	}
 	return err
+}
+
+// roleAssignAuditMetadata builds the audit metadata bag emitted whenever a
+// user is granted (or re-granted) an organization role. The "organization_id"
+// key is required so audit.Record's organizationID() resolver can pin the
+// resulting audit row to the affected organization (audit_logs.organization_id
+// is otherwise NULL for non-"organization" entity types and the row would not
+// surface in the org-scoped audit listing endpoint).
+func roleAssignAuditMetadata(organizationID string, userID string, role string) map[string]any {
+	return map[string]any{
+		"organization_id": organizationID,
+		"user_id":         userID,
+		"role":            role,
+	}
 }
 
 type userRow interface {

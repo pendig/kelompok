@@ -96,6 +96,7 @@ func RegisteredRoutes() []Route {
 		{"POST", "/api/v1/auth/login"},
 		{"POST", "/api/v1/auth/logout"},
 		{"GET", "/api/v1/auth/me"},
+		{"PATCH", "/api/v1/auth/me"},
 
 		{"GET", "/api/v1/org-admin/organizations"},
 		{"POST", "/api/v1/org-admin/organizations"},
@@ -145,6 +146,7 @@ func (s *Server) routes() {
 		{"POST", "/api/v1/auth/login"}:    s.handleLogin,
 		{"POST", "/api/v1/auth/logout"}:   s.requireSession(s.handleLogout),
 		{"GET", "/api/v1/auth/me"}:        s.requireSession(s.handleMe),
+		{"PATCH", "/api/v1/auth/me"}:      s.requireSession(s.handleUpdateMe),
 
 		{"GET", "/api/v1/org-admin/organizations"}:                      s.requireAdmin(s.handleListAdminOrganizations),
 		{"POST", "/api/v1/org-admin/organizations"}:                     s.requireAdmin(s.handleCreateAdminOrganization),

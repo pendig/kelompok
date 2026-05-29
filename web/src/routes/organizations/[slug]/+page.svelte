@@ -12,7 +12,15 @@
 	let visibleSdgGoals = $derived(normalizeSdgGoals(sdgs.primary || [], $locale));
 	let relationships = $derived(org?.relationships || { parents: [], children: [], related: [] });
 	let claimSubmitted = $derived(form?.ok && form?.action === "submitClaim");
+	let submittedClaim = $derived(claimSubmitted ? form?.item : null);
 	let claimError = $derived(!form?.ok && form?.action === "submitClaim" ? form.error : "");
+	let claimErrorCode = $derived(!form?.ok && form?.action === "submitClaim" ? form.errorCode : "");
+	let sessionUser = $derived(data?.session?.user ?? null);
+	let sessionClaims = $derived(data?.session?.organization_claims ?? []);
+	let pendingClaim = $derived(
+		sessionClaims.find((claim) => claim.organization_slug === org.slug && claim.status === "pending"),
+	);
+	let requesterEmailDefault = $derived(sessionUser?.email ?? "");
 
 	// svelte-ignore state_referenced_locally
 	let activeTab = $state(form?.action === "submitClaim" ? "claim" : "profile");
@@ -127,6 +135,13 @@
 
 		return labels[status] || status || $t("organizationDetail.claimStatusUnclaimed");
 	}
+
+	function claimErrorLabel() {
+		if (claimErrorCode) {
+			return $t(`organizationDetail.claimErrors.${claimErrorCode}`);
+		}
+		return claimError;
+	}
 </script>
 
 <nav class="breadcrumbs">
@@ -153,9 +168,15 @@
 				</a>
 			{/if}
 			{#if org.claim_status !== "claimed"}
-				<button onclick={() => activeTab = "claim"} class="btn primary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
-					{$t("organizationDetail.claimTitle")}
-				</button>
+				{#if sessionUser}
+					<button onclick={() => activeTab = "claim"} class="btn primary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
+						{$t("organizationDetail.claimTitle")}
+					</button>
+				{:else}
+					<a href={`/login?next=${encodeURIComponent(organizationPath())}`} class="btn primary" style="min-height: 38px; padding-inline: 16px; font-weight: 700;">
+						{$t("organizationDetail.claimLoginAction")}
+					</a>
+				{/if}
 			{/if}
 		</div>
 	</div>
@@ -214,7 +235,7 @@
 			<button class="profile-tab-trigger" class:active={activeTab === 'impact'} onclick={() => activeTab = 'impact'}>
 				{$t("organizationDetail.impactReports")}
 			</button>
-		{#if org.claim_status !== "claimed"}
+		{#if org.claim_status !== "claimed" && sessionUser}
 			<button class="profile-tab-trigger" class:active={activeTab === 'claim'} onclick={() => activeTab = 'claim'}>
 				{$t("organizationDetail.tabClaim")}
 			</button>
@@ -422,35 +443,152 @@
 					<h2>{$t("organizationDetail.claimTitle")}</h2>
 					<p>{$t("organizationDetail.claimDescription")}</p>
 					{#if claimSubmitted}
-						<p class="success" style="margin-top: 16px;">{$t("organizationDetail.claimSubmitted")}</p>
+						<div class="claim-submitted-card" role="status" aria-live="polite">
+							<p class="success" style="margin: 0;">
+								{$t("organizationDetail.claimSubmitted")}
+							</p>
+							{#if submittedClaim?.id}
+								<p class="muted small claim-submitted-id">
+									{$t("organizationDetail.claimSubmittedClaimId", { id: submittedClaim.id })}
+								</p>
+							{/if}
+							<p class="muted small">
+								{$t("organizationDetail.claimSubmittedReviewExpectation")}
+							</p>
+							{#if submittedClaim?.id}
+								<a class="ghost-button" href={`/account?claim=${encodeURIComponent(submittedClaim.id)}`}>
+									{$t("organizationDetail.claimSubmittedAccountLink")}
+								</a>
+							{:else}
+								<a class="ghost-button" href="/account">
+									{$t("organizationDetail.claimSubmittedAccountLink")}
+								</a>
+							{/if}
+						</div>
 					{/if}
 					{#if claimError}
-						<p class="error compact" style="margin-top: 16px;">{$t("organizationDetail.claimError", { message: claimError })}</p>
+						<p class="error compact" style="margin-top: 16px;">{$t("organizationDetail.claimError", { message: claimErrorLabel() })}</p>
 					{/if}
 				</div>
-				<form class="claim-form" method="POST" action="?/submitClaim">
-					<label>
-						{$t("organizationDetail.claimMethod")}
-						<select name="method">
-							<option value="official_email">{$t("organizationDetail.claimMethodEmail")}</option>
-							<option value="instagram">{$t("organizationDetail.claimMethodInstagram")}</option>
-						</select>
-					</label>
-					<label>
-						{$t("organizationDetail.claimTarget")}
-						<input name="target" value={claimTargetDefault()} placeholder="admin@example.org" required />
-					</label>
-					<label>
-						{$t("organizationDetail.claimRequesterEmail")}
-						<input name="requester_email" type="email" placeholder="you@example.org" required />
-					</label>
-					<label>
-						{$t("organizationDetail.claimEvidence")}
-						<textarea name="evidence_note" rows="3" placeholder={$t("organizationDetail.claimEvidencePlaceholder")}></textarea>
-					</label>
-					<button class="btn primary" type="submit">{$t("organizationDetail.claimSubmit")}</button>
-				</form>
+				{#if !sessionUser}
+					<div class="claim-form claim-state-card">
+						<h3>{$t("organizationDetail.claimLoginTitle")}</h3>
+						<p class="muted small">{$t("organizationDetail.claimLoginBody")}</p>
+						<div class="inline-actions">
+							<a class="btn primary" href={`/login?next=${encodeURIComponent(organizationPath())}`}>
+								{$t("organizationDetail.claimLoginAction")}
+							</a>
+							<a class="ghost-button" href={`/register?next=${encodeURIComponent(organizationPath())}`}>
+								{$t("organizationDetail.claimRegisterAction")}
+							</a>
+						</div>
+					</div>
+				{:else if pendingClaim}
+					<div class="claim-form claim-state-card" role="status" aria-live="polite">
+						<p class="eyebrow">{$t("organizationDetail.claimPendingEyebrow")}</p>
+						<h3>{$t("organizationDetail.claimPendingTitle")}</h3>
+						<p class="muted small">{$t("organizationDetail.claimPendingBody")}</p>
+						<dl class="claim-mini-meta">
+							<div>
+								<dt>{$t("organizationDetail.claimIdLabel")}</dt>
+								<dd><code>{pendingClaim.id}</code></dd>
+							</div>
+							<div>
+								<dt>{$t("organizationDetail.claimMethod")}</dt>
+								<dd>{pendingClaim.method}</dd>
+							</div>
+						</dl>
+						<a class="ghost-button" href={`/account?claim=${encodeURIComponent(pendingClaim.id)}`}>
+							{$t("organizationDetail.claimSubmittedAccountLink")}
+						</a>
+					</div>
+				{:else}
+					<form class="claim-form" method="POST" action="?/submitClaim">
+						<label>
+							{$t("organizationDetail.claimMethod")}
+							<select name="method">
+								<option value="official_email">{$t("organizationDetail.claimMethodEmail")}</option>
+								<option value="instagram">{$t("organizationDetail.claimMethodInstagram")}</option>
+							</select>
+						</label>
+						<label>
+							{$t("organizationDetail.claimTarget")}
+							<input name="target" value={claimTargetDefault()} placeholder="admin@example.org" required />
+						</label>
+						<label>
+							{$t("organizationDetail.claimRequesterEmail")}
+							<input
+								name="requester_email"
+								type="email"
+								value={requesterEmailDefault}
+								placeholder="you@example.org"
+								readonly
+								required
+							/>
+						</label>
+						<label>
+							{$t("organizationDetail.claimEvidence")}
+							<textarea name="evidence_note" rows="3" placeholder={$t("organizationDetail.claimEvidencePlaceholder")}></textarea>
+						</label>
+						<button class="btn primary" type="submit">{$t("organizationDetail.claimSubmit")}</button>
+					</form>
+				{/if}
 			</div>
 		</div>
 	{/if}
 </div>
+
+
+<style>
+	.claim-submitted-card {
+		display: grid;
+		gap: 8px;
+		margin-top: 16px;
+		padding: 14px 16px;
+		border: 1px solid hsl(142, 70%, 85%);
+		border-radius: 12px;
+		background: hsl(142, 70%, 98%);
+	}
+
+	.claim-submitted-card .ghost-button {
+		justify-self: start;
+		margin-top: 4px;
+	}
+
+	.claim-submitted-id {
+		font-family:
+			ui-monospace,
+			SFMono-Regular,
+			"SF Mono",
+			Consolas,
+			"Liberation Mono",
+			Menlo,
+			monospace;
+		word-break: break-all;
+	}
+
+	.muted.small {
+		font-size: 12.5px;
+	}
+
+	.claim-state-card {
+		align-content: start;
+	}
+
+	.claim-mini-meta {
+		display: grid;
+		gap: 10px;
+		margin: 14px 0;
+	}
+
+	.claim-mini-meta dt {
+		color: var(--muted);
+		font-size: 12px;
+		font-weight: 700;
+		text-transform: uppercase;
+	}
+
+	.claim-mini-meta dd {
+		margin: 2px 0 0;
+	}
+</style>
