@@ -159,6 +159,96 @@
 		const filled = fields.filter(Boolean).length;
 		return Math.round((filled / fields.length) * 100);
 	}
+
+	function statusTone(status) {
+		if (["claimed", "approved", "active", "published", "admin", "owner"].includes(status)) {
+			return "admin-status-pass";
+		}
+		if (["pending", "draft", "unclaimed"].includes(status)) {
+			return "admin-status-warn";
+		}
+		return "admin-status-fail";
+	}
+
+	function reviewStatusLabel(status) {
+		if (status === "approved") {
+			return $t("admin.reviewStatusApproved");
+		}
+		if (status === "rejected") {
+			return $t("admin.reviewStatusRejected");
+		}
+		return $t("admin.reviewStatusPending");
+	}
+
+	function formatDate(value) {
+		if (!value) {
+			return "-";
+		}
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) {
+			return "-";
+		}
+		return date.toLocaleDateString($locale === "id" ? "id-ID" : "en-US", {
+			day: "2-digit",
+			month: "short",
+			year: "numeric",
+		});
+	}
+
+	function normalizeOrgName(value) {
+		return `${value || ""}`
+			.toLowerCase()
+			.replace(/\b(yayasan|komunitas|perkumpulan|pt|cv|foundation|community)\b/g, "")
+			.replace(/[^a-z0-9]+/g, " ")
+			.trim();
+	}
+
+	function findPotentialDuplicates(organizations) {
+		const groups = new Map();
+		for (const org of organizations) {
+			const key = [normalizeOrgName(org.name), `${org.city || ""}`.toLowerCase()].filter(Boolean).join("|");
+			if (!key) {
+				continue;
+			}
+			const matches = groups.get(key) || [];
+			matches.push(org);
+			groups.set(key, matches);
+		}
+		return Array.from(groups.values())
+			.filter((items) => items.length > 1)
+			.slice(0, 4);
+	}
+
+	const directClaims = $derived(
+		(data.claims || []).map((claim) => ({
+			...claim,
+			review_queue: "direct",
+			organization_name: claim.organization_name || selectedOrg?.name || "",
+			organization_slug: claim.organization_slug || selectedOrg?.slug || "",
+		})),
+	);
+	const delegatedClaims = $derived(
+		(data.delegatedClaims || []).map((claim) => ({
+			...claim,
+			review_queue: "delegated",
+			organization_name: claim.organization_name || selectedOrg?.name || "",
+			organization_slug: claim.organization_slug || selectedOrg?.slug || "",
+		})),
+	);
+	const pendingClaimQueue = $derived(
+		[...directClaims, ...delegatedClaims].filter((claim) => claim.status === "pending"),
+	);
+	const incompleteOrganizations = $derived(
+		orgSummary.filter((org) => profileCompleteness(org) < 75).slice(0, 5),
+	);
+	const pendingOrganizations = $derived(orgSummary.filter((org) => org.claim_status === "pending").slice(0, 5));
+	const recentOrganizations = $derived(
+		[...orgSummary]
+			.sort((a, b) => `${b.created_at || b.updated_at || ""}`.localeCompare(`${a.created_at || a.updated_at || ""}`))
+			.slice(0, 5),
+	);
+	const duplicateGroups = $derived(findPotentialDuplicates(orgSummary));
+	const recentAuditLogs = $derived((data.auditLogs || []).slice(0, 5));
 </script>
 
 <section class="section">
@@ -415,6 +505,172 @@
 				<p class="admin-number">{impactSummary.length}</p>
 				<p class="small">{$t("admin.totalImpactHelp")}</p>
 			</article>
+		</div>
+	</section>
+
+	<section class="section">
+		<div class="section-head">
+			<div>
+				<p class="eyebrow">{$t("admin.operationsQueueEyebrow")}</p>
+				<h2 class="section-title">{$t(labelKey("admin.operationsQueueTitle", "console.operationsQueueTitle"))}</h2>
+			</div>
+			<p class="section-note">{$t(labelKey("admin.operationsQueueSubtitle", "console.operationsQueueSubtitle"))}</p>
+		</div>
+
+		<div class="admin-queue-grid">
+			<article class="admin-panel admin-queue-card">
+				<div class="admin-queue-card__head">
+					<div>
+						<p class="label">{$t("admin.pendingClaimQueue")}</p>
+						<h3>{pendingClaimQueue.length}</h3>
+					</div>
+					<span class="admin-status {pendingClaimQueue.length ? 'admin-status-warn' : 'admin-status-pass'}">
+						{pendingClaimQueue.length ? $t("admin.needsReview") : $t("admin.clearQueue")}
+					</span>
+				</div>
+				{#if pendingClaimQueue.length === 0}
+					<p class="empty">{$t("admin.noPendingClaimsQueue")}</p>
+				{:else}
+					<div class="admin-list compact-list">
+						{#each pendingClaimQueue.slice(0, 4) as claim}
+							<div class="admin-list-item">
+								<div class="admin-list-item__meta">
+									<p class="label">{claim.organization_name || claim.organization_slug || $t("admin.claimRequest")}</p>
+									<span class="mini-badge">{claim.review_queue === "delegated" ? $t("admin.delegatedReview") : $t("admin.directReview")}</span>
+								</div>
+								<p class="small">{claim.method} · {claim.target}</p>
+								<div class="inline-actions">
+									<form method="POST" action={actionPath("approveClaim", "claims")} class="inline-form">
+										<input type="hidden" name="id" value={claim.id} />
+										<button class="ghost-button" type="submit">{$t("admin.approve")}</button>
+									</form>
+									<form method="POST" action={actionPath("rejectClaim", "claims")} class="inline-form">
+										<input type="hidden" name="id" value={claim.id} />
+										<button class="ghost-button danger" type="submit">{$t("admin.reject")}</button>
+									</form>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</article>
+
+			<article class="admin-panel admin-queue-card">
+				<div class="admin-queue-card__head">
+					<div>
+						<p class="label">{$t("admin.incompleteProfiles")}</p>
+						<h3>{incompleteOrganizations.length}</h3>
+					</div>
+					<span class="admin-status {incompleteOrganizations.length ? 'admin-status-warn' : 'admin-status-pass'}">
+						{$t("admin.profileCompleteness")}
+					</span>
+				</div>
+				<div class="admin-list compact-list">
+					{#if incompleteOrganizations.length === 0}
+						<p class="empty">{$t("admin.noIncompleteProfiles")}</p>
+					{:else}
+						{#each incompleteOrganizations as org}
+							<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
+								<span>{org.name}</span>
+								<span class="mini-badge">{profileCompleteness(org)}%</span>
+							</a>
+						{/each}
+					{/if}
+				</div>
+			</article>
+
+			<article class="admin-panel admin-queue-card">
+				<div class="admin-queue-card__head">
+					<div>
+						<p class="label">{$t("admin.verificationQueue")}</p>
+						<h3>{pendingOrganizations.length}</h3>
+					</div>
+					<span class="admin-status {pendingOrganizations.length ? 'admin-status-warn' : 'admin-status-pass'}">
+						{$t("admin.claimStatusOptions.pending")}
+					</span>
+				</div>
+				<div class="admin-list compact-list">
+					{#if pendingOrganizations.length === 0}
+						<p class="empty">{$t("admin.noPendingOrganizations")}</p>
+					{:else}
+						{#each pendingOrganizations as org}
+							<a class="admin-list-link" href={selectedPath(org, "claims")}>
+								<span>{org.name}</span>
+								<span class="mini-badge">{formatDate(org.updated_at)}</span>
+							</a>
+						{/each}
+					{/if}
+				</div>
+			</article>
+
+			<article class="admin-panel admin-queue-card">
+				<div class="admin-queue-card__head">
+					<div>
+						<p class="label">{$t("admin.potentialDuplicates")}</p>
+						<h3>{duplicateGroups.length}</h3>
+					</div>
+					<span class="admin-status {duplicateGroups.length ? 'admin-status-fail' : 'admin-status-pass'}">
+						{$t("admin.duplicateSignal")}
+					</span>
+				</div>
+				<div class="admin-list compact-list">
+					{#if duplicateGroups.length === 0}
+						<p class="empty">{$t("admin.noPotentialDuplicates")}</p>
+					{:else}
+						{#each duplicateGroups as group}
+							<div class="admin-list-item">
+								<p class="label">{group.map((org) => org.name).join(" / ")}</p>
+								<p class="small">{group.map((org) => org.slug).join(", ")}</p>
+							</div>
+						{/each}
+					{/if}
+				</div>
+			</article>
+		</div>
+	</section>
+
+	<section class="section">
+		<div class="section-head">
+			<div>
+				<p class="eyebrow">{$t("admin.recentChangesEyebrow")}</p>
+				<h2 class="section-title">{$t("admin.recentChangesTitle")}</h2>
+			</div>
+			<p class="section-note">{selectedOrg ? selectedOrg.name : $t("admin.selectOrganizationFirst")}</p>
+		</div>
+		<div class="admin-panel-grid">
+			<div class="admin-panel">
+				<h3>{$t("admin.newOrganizations")}</h3>
+				<div class="admin-list compact-list">
+					{#if recentOrganizations.length === 0}
+						<p class="empty">{$t("admin.noOrganizations")}</p>
+					{:else}
+						{#each recentOrganizations as org}
+							<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
+								<span>{org.name}</span>
+								<span class="admin-status {statusTone(org.claim_status)}">{claimStatusLabel(org.claim_status)}</span>
+							</a>
+						{/each}
+					{/if}
+				</div>
+			</div>
+			<div class="admin-panel">
+				<h3>{$t("admin.recentAudit")}</h3>
+				<div class="admin-list compact-list">
+					{#if recentAuditLogs.length === 0}
+						<p class="empty">{$t("admin.noAuditLogs")}</p>
+					{:else}
+						{#each recentAuditLogs as log}
+							<div class="admin-list-item">
+								<div class="admin-list-item__meta">
+									<p class="label">{log.entity_type} · {log.action}</p>
+									<span class="mini-badge">{formatDate(log.created_at)}</span>
+								</div>
+								<p class="small">{log.entity_id || log.id}</p>
+							</div>
+						{/each}
+					{/if}
+				</div>
+			</div>
 		</div>
 	</section>
 
@@ -1208,7 +1464,7 @@
 								<div class="admin-list-item">
 									<div class="admin-list-item__meta">
 										<p class="label">{claim.method} · {claim.target}</p>
-										<span class="mini-badge">{claim.status}</span>
+										<span class="admin-status {statusTone(claim.status)}">{reviewStatusLabel(claim.status)}</span>
 									</div>
 									<p class="small">{claim.id}</p>
 									{#if claim.status === "pending"}

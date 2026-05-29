@@ -1497,6 +1497,61 @@ textarea:focus {
 	gap: 16px;
 }
 
+.admin-queue-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.admin-queue-card {
+	align-content: start;
+	min-height: 260px;
+}
+
+.admin-queue-card__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.admin-queue-card__head h3 {
+	margin: 4px 0 0;
+	font-size: 30px;
+	line-height: 1;
+}
+
+.compact-list {
+	gap: 10px;
+	padding: 0;
+}
+
+.admin-list-link {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-width: 0;
+	border-top: 1px dashed var(--border);
+	padding: 12px 0 0;
+	color: var(--text);
+	font-size: 13px;
+	font-weight: 800;
+	text-decoration: none;
+}
+
+.admin-list-link:first-child {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.admin-list-link span:first-child {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .admin-card {
 	border: 1px solid var(--border);
 	border-radius: 12px;
@@ -2132,6 +2187,7 @@ button.btn,
 	.auth-page,
 		.account-grid,
 		.admin-grid,
+		.admin-queue-grid,
 		.admin-shell,
 		.admin-workspace,
 		.admin-directory-layout,
