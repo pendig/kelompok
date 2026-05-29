@@ -97,6 +97,7 @@
 	const relationshipSummary = $derived(data.relationships || []);
 	const selectedOrg = $derived(data.selectedOrganization);
 	const currentUser = $derived(data.session?.user);
+	const currentUserClaims = $derived(data.session?.organization_claims || []);
 	const isConsole = $derived(Boolean(data.consoleMode));
 	const workspacePath = $derived(isConsole ? "/console" : "/admin");
 	const selectedProfile = $derived(selectedOrg?.profile_data || {});
@@ -245,6 +246,23 @@
 	const recentOrganizations = $derived(
 		[...orgSummary]
 			.sort((a, b) => `${b.created_at || b.updated_at || ""}`.localeCompare(`${a.created_at || a.updated_at || ""}`))
+			.slice(0, 5),
+	);
+	const consoleClaimStatuses = $derived(
+		currentUserClaims.filter((claim) => !orgSummary.some((org) => org.slug === claim.organization_slug)).slice(0, 5),
+	);
+	const relatedOrganizations = $derived(
+		relationshipSummary
+			.map((relationship) => {
+				if (relationship.parent?.slug === selectedOrg?.slug) {
+					return relationship.child;
+				}
+				if (relationship.child?.slug === selectedOrg?.slug) {
+					return relationship.parent;
+				}
+				return relationship.child || relationship.parent;
+			})
+			.filter(Boolean)
 			.slice(0, 5),
 	);
 	const duplicateGroups = $derived(findPotentialDuplicates(orgSummary));
@@ -472,6 +490,116 @@
 			{/if}
 		</div>
 	</section>
+
+	{#if isConsole}
+		<section class="section">
+			<div class="section-head">
+				<div>
+					<p class="eyebrow">{$t("console.workspaceSnapshotEyebrow")}</p>
+					<h2 class="section-title">{$t("console.workspaceSnapshotTitle")}</h2>
+				</div>
+				<p class="section-note">
+					{selectedOrg ? selectedOrg.name : $t("console.noActiveOrganization")}
+				</p>
+			</div>
+
+			{#if orgSummary.length === 0}
+				<div class="admin-empty-state">
+					<h3>{$t("console.emptyTitle")}</h3>
+					<p>{$t("console.emptyBody")}</p>
+					<div class="inline-actions">
+						<a class="btn primary" href="/organizations">{$t("console.findOrganization")}</a>
+						<a class="ghost-button" href="/account">{$t("console.viewClaimStatus")}</a>
+					</div>
+				</div>
+			{:else}
+				<div class="admin-panel-grid">
+					<div class="admin-panel">
+						<h3>{$t("console.myOrganizations")}</h3>
+						<div class="admin-list compact-list">
+							{#each orgSummary as org}
+								<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
+									<span>{org.name}</span>
+									<span class="admin-status {statusTone(org.claim_status)}">{claimStatusLabel(org.claim_status)}</span>
+								</a>
+							{/each}
+						</div>
+					</div>
+
+					<div class="admin-panel">
+						<h3>{$t("console.profileHealth")}</h3>
+						<div class="admin-list compact-list">
+							{#each orgSummary as org}
+								<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
+									<span>{org.name}</span>
+									<span class="mini-badge">{profileCompleteness(org)}%</span>
+								</a>
+							{/each}
+						</div>
+					</div>
+
+					<div class="admin-panel">
+						<h3>{$t("console.incomingClaims")}</h3>
+						<div class="admin-list compact-list">
+							{#if pendingClaimQueue.length === 0}
+								<p class="empty">{$t("console.noIncomingClaims")}</p>
+							{:else}
+								{#each pendingClaimQueue.slice(0, 5) as claim}
+									<a class="admin-list-link" href={selectedOrg ? selectedPath(selectedOrg, "claims") : `${workspacePath}?view=claims`}>
+										<span>{claim.organization_name || claim.organization_slug || $t("admin.claimRequest")}</span>
+										<span class="mini-badge">{claim.review_queue === "delegated" ? $t("admin.delegatedReview") : $t("admin.directReview")}</span>
+									</a>
+								{/each}
+							{/if}
+						</div>
+					</div>
+
+					<div class="admin-panel">
+						<h3>{$t("console.myClaims")}</h3>
+						<div class="admin-list compact-list">
+							{#if consoleClaimStatuses.length === 0}
+								<p class="empty">{$t("console.noMyClaims")}</p>
+							{:else}
+								{#each consoleClaimStatuses as claim}
+									<a class="admin-list-link" href="/account">
+										<span>{claim.organization_name || claim.organization_slug}</span>
+										<span class="admin-status {statusTone(claim.status)}">{reviewStatusLabel(claim.status)}</span>
+									</a>
+								{/each}
+							{/if}
+						</div>
+					</div>
+
+					<div class="admin-panel">
+						<h3>{$t("console.relatedOrganizations")}</h3>
+						<div class="admin-list compact-list">
+							{#if relatedOrganizations.length === 0}
+								<p class="empty">{$t("console.noRelatedOrganizations")}</p>
+							{:else}
+								{#each relatedOrganizations as org}
+									<a class="admin-list-link" href={`/organizations/${encodeURIComponent(org.slug)}`}>
+										<span>{org.name}</span>
+										<span class="mini-badge">/{org.slug}</span>
+									</a>
+								{/each}
+							{/if}
+						</div>
+					</div>
+
+					<div class="admin-panel">
+						<h3>{$t("console.nextActions")}</h3>
+						<div class="inline-actions">
+							{#if selectedOrg}
+								<button class="ghost-button" type="button" onclick={() => setActiveTab("organization-edit", "organization")}>{$t("console.completeProfile")}</button>
+								<button class="ghost-button" type="button" onclick={() => setActiveTab("relationships", "organization")}>{$t("console.manageRelated")}</button>
+							{/if}
+							<a class="ghost-button" href="/organizations">{$t("console.findOrganization")}</a>
+						</div>
+					</div>
+				</div>
+			{/if}
+		</section>
+	{/if}
 
 	<section class="section">
 		<div class="section-head">
