@@ -212,6 +212,10 @@ function canManageOrganizationRole(role) {
 export async function load({ url, cookies }) {
 	const session = await loadSession(cookies);
 	const isScopedSession = Boolean(session && session.user?.role !== "superadmin");
+	if (isScopedSession && url.pathname === "/admin") {
+		const query = url.searchParams.toString();
+		throw redirect(303, `/console${query ? `?${query}` : ""}`);
+	}
 	const requestedSlug = url.searchParams.get("org");
 	const requestedView = url.searchParams.get("view");
 	const allowedViews = new Set(["dashboard", "organizations", "organization-edit", "members", "relationships", "posts", "impact", "claims", "audit"]);
@@ -302,6 +306,7 @@ export async function load({ url, cookies }) {
 		relationships: relationshipPayload.data ?? [],
 		selectedOrganization: selectedPayload.data,
 		selectedSlug,
+		consoleMode: url.pathname === "/console",
 		initialTab: allowedViews.has(requestedView) ? requestedView : requestedSlug ? "organization-edit" : "dashboard",
 		loadErrors: [
 			orgPayload.error,
@@ -326,9 +331,9 @@ export const actions = {
 			return actionError(error);
 		}
 	},
-	logout: async ({ cookies }) => {
+	logout: async ({ cookies, url }) => {
 		await logoutSession(cookies);
-		throw redirect(303, "/admin");
+		throw redirect(303, url.pathname === "/console" ? "/login" : "/admin");
 	},
 	createOrganization: async ({ request, cookies }) => {
 		try {
