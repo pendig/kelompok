@@ -247,6 +247,7 @@ export async function load({ url, cookies }) {
 	let selectedPayload = { data: null, error: null };
 	let memberPayload = { data: [], error: null };
 	let claimPayload = { data: [], error: null };
+	let delegatedClaimPayload = { data: [], error: null };
 	let auditPayload = { data: [], error: null };
 	let relationshipPayload = { data: [], error: null };
 	let selectedSlug = "";
@@ -267,7 +268,7 @@ export async function load({ url, cookies }) {
 		};
 
 		if (selectedSlug) {
-			[selectedPayload, postPayload, impactPayload, memberPayload, claimPayload, auditPayload, relationshipPayload] =
+			[selectedPayload, postPayload, impactPayload, memberPayload, claimPayload, delegatedClaimPayload, auditPayload, relationshipPayload] =
 				await Promise.all([
 					adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}`, null, cookies),
 					adminFetchJSONResult(
@@ -282,6 +283,7 @@ export async function load({ url, cookies }) {
 					),
 					adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/members?limit=30`, [], cookies),
 					adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/claims?limit=20`, [], cookies),
+					adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/delegated-claims?limit=20`, [], cookies),
 					adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/audit-logs?limit=20`, [], cookies),
 					adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/relationships?limit=50`, [], cookies),
 				]);
@@ -295,10 +297,11 @@ export async function load({ url, cookies }) {
 		selectedSlug = requestedSlug || orgPayload.data?.[0]?.slug || "";
 
 		if (selectedSlug) {
-			[selectedPayload, memberPayload, claimPayload, auditPayload, relationshipPayload] = await Promise.all([
+			[selectedPayload, memberPayload, claimPayload, delegatedClaimPayload, auditPayload, relationshipPayload] = await Promise.all([
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}`, null, cookies),
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/members?limit=30`, [], cookies),
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/claims?limit=20`, [], cookies),
+				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/delegated-claims?limit=20`, [], cookies),
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/audit-logs?limit=20`, [], cookies),
 				adminFetchJSONResult(`/api/v1/org-admin/organizations/${encodeURIComponent(selectedSlug)}/relationships?limit=50`, [], cookies),
 			]);
@@ -324,6 +327,7 @@ export async function load({ url, cookies }) {
 		impactReports,
 		members: memberPayload.data ?? [],
 		claims: claimPayload.data ?? [],
+		delegatedClaims: delegatedClaimPayload.data ?? [],
 		auditLogs: auditPayload.data ?? [],
 		relationships: relationshipPayload.data ?? [],
 		selectedOrganization: selectedPayload.data,
@@ -338,6 +342,7 @@ export async function load({ url, cookies }) {
 			selectedPayload.error,
 			memberPayload.error,
 			claimPayload.error,
+			delegatedClaimPayload.error,
 			auditPayload.error,
 			relationshipPayload.error,
 		].filter(Boolean),
