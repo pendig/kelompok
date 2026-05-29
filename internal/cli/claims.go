@@ -48,14 +48,15 @@ func runClaimList(ctx context.Context, args []string, stdout, stderr io.Writer, 
 	flags.SetOutput(stderr)
 	organizationSlug := flags.String("organization", "", "filter by organization slug")
 	status := flags.String("status", "", "filter by claim status (pending, approved, rejected, all)")
-	limit := flags.Int("limit", 50, "maximum number of claims to return")
+	limit := flags.Int("limit", 50, fmt.Sprintf("maximum number of claims to return (max %d)", organizations.MaxClaimListLimit))
 	jsonOut := flags.Bool("json", false, "print JSON output")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 
-	if *limit <= 0 {
-		return errors.New("--limit must be greater than zero")
+	normalizedLimit, err := organizations.NormalizeClaimListLimit(*limit)
+	if err != nil {
+		return fmt.Errorf("--%s", err)
 	}
 
 	effectiveStatus := *status
@@ -71,7 +72,7 @@ func runClaimList(ctx context.Context, args []string, stdout, stderr io.Writer, 
 		items, err := repo.ListClaims(ctx, organizations.ClaimListFilter{
 			Status:           normalizedStatus,
 			OrganizationSlug: strings.TrimSpace(*organizationSlug),
-		}, *limit)
+		}, normalizedLimit)
 		if err != nil {
 			return err
 		}

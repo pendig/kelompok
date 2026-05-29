@@ -7,11 +7,19 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pendig/kelompok/internal/jsonvalue"
 )
 
 // ClaimStatusAll is the sentinel filter value that means "any claim status".
 const ClaimStatusAll = ""
+
+const (
+	// MaxClaimListLimit caps admin/CLI claim list queries so user-supplied
+	// limits cannot request unbounded result sets.
+	MaxClaimListLimit      = 500
+	claimListPreallocLimit = 100
+)
 
 // ClaimRequestWithOrganization wraps ClaimRequest with the organization slug
 // and name so admin/CLI consumers can identify the parent organization without
@@ -50,8 +58,9 @@ func NormalizeClaimStatus(value string) (string, error) {
 // by status and/or organization slug. Results are ordered by creation time
 // (newest first) for stable, paginatable output.
 func (r *Repository) ListClaims(ctx context.Context, filter ClaimListFilter, limit int) ([]ClaimRequestWithOrganization, error) {
-	if limit <= 0 {
-		return nil, errors.New("limit must be greater than zero")
+	normalizedLimit, err := NormalizeClaimListLimit(limit)
+	if err != nil {
+		return nil, err
 	}
 
 	status, err := NormalizeClaimStatus(filter.Status)
@@ -81,13 +90,13 @@ func (r *Repository) ListClaims(ctx context.Context, filter ClaimListFilter, lim
 			AND ($2 = '' OR o.slug = $2)
 		ORDER BY cr.created_at DESC
 		LIMIT $3
-	`, status, organizationSlug, limit)
+	`, status, organizationSlug, normalizedLimit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	items := make([]ClaimRequestWithOrganization, 0, limit)
+	items := make([]ClaimRequestWithOrganization, 0, min(normalizedLimit, claimListPreallocLimit))
 	for rows.Next() {
 		var item ClaimRequestWithOrganization
 		var evidence string
@@ -136,6 +145,9 @@ func (r *Repository) FindClaimWithOrganizationByID(ctx context.Context, claimID 
 
 	var organizationName string
 	if err := r.db.QueryRow(ctx, `SELECT name FROM organizations WHERE slug = $1`, organizationSlug).Scan(&organizationName); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, sql.ErrNoRows) {
+			return ClaimRequestWithOrganization{}, ErrClaimNotFound
+		}
 		return ClaimRequestWithOrganization{}, err
 	}
 
@@ -144,6 +156,18 @@ func (r *Repository) FindClaimWithOrganizationByID(ctx context.Context, claimID 
 		OrganizationSlug: organizationSlug,
 		OrganizationName: organizationName,
 	}, nil
+}
+
+// NormalizeClaimListLimit validates user-controlled list limits before they
+// reach SQL LIMIT or slice allocation paths.
+func NormalizeClaimListLimit(limit int) (int, error) {
+	if limit <= 0 {
+		return 0, errors.New("limit must be greater than zero")
+	}
+	if limit > MaxClaimListLimit {
+		return 0, fmt.Errorf("limit must be less than or equal to %d", MaxClaimListLimit)
+	}
+	return limit, nil
 }
 
 // NormalizeClaimDecision accepts approve/reject (and the past-tense forms

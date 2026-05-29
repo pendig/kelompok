@@ -73,3 +73,37 @@ func TestNormalizeClaimDecision(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeClaimListLimit(t *testing.T) {
+	cases := []struct {
+		name    string
+		limit   int
+		want    int
+		wantErr bool
+	}{
+		{"minimum", 1, 1, false},
+		{"default", 50, 50, false},
+		{"maximum", MaxClaimListLimit, MaxClaimListLimit, false},
+		{"zero", 0, 0, true},
+		{"negative", -1, 0, true},
+		{"too high", MaxClaimListLimit + 1, 0, true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NormalizeClaimListLimit(tc.limit)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error for limit %d, got nil", tc.limit)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error for limit %d: %v", tc.limit, err)
+			}
+			if got != tc.want {
+				t.Fatalf("NormalizeClaimListLimit(%d) = %d, want %d", tc.limit, got, tc.want)
+			}
+		})
+	}
+}

@@ -76,13 +76,34 @@ func TestRunClaimListBadStatusFlag(t *testing.T) {
 }
 
 func TestRunClaimListBadLimitFlag(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	err := runClaim(context.Background(), []string{"list", "--limit", "0"}, &stdout, &stderr)
-	if err == nil {
-		t.Fatalf("expected error for non-positive limit")
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "zero",
+			args: []string{"list", "--limit", "0"},
+			want: "--limit must be greater than zero",
+		},
+		{
+			name: "too high",
+			args: []string{"list", "--limit", "501"},
+			want: "--limit must be less than or equal to 500",
+		},
 	}
-	if !strings.Contains(err.Error(), "--limit must be greater than zero") {
-		t.Fatalf("expected limit error, got %q", err.Error())
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			err := runClaim(context.Background(), tc.args, &stdout, &stderr)
+			if err == nil {
+				t.Fatalf("expected limit error")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("expected error to contain %q, got %q", tc.want, err.Error())
+			}
+		})
 	}
 }
 
