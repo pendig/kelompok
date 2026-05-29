@@ -102,19 +102,19 @@ func runOrganization(ctx context.Context, args []string, stdout, stderr io.Write
 			return err
 		}
 		var err error
-		input.ProfileData, err = parseJSONFlag(*profileData, "{}")
+		input.ProfileData, err = parseJSONFlag("--profile-data", *profileData, "{}")
 		if err != nil {
 			return err
 		}
-		input.SourceData, err = parseJSONFlag(*sourceData, "{}")
+		input.SourceData, err = parseJSONFlag("--source-data", *sourceData, "{}")
 		if err != nil {
 			return err
 		}
-		input.SDGSData, err = parseJSONFlag(*sdgsData, "{}")
+		input.SDGSData, err = parseJSONFlag("--sdgs-data", *sdgsData, "{}")
 		if err != nil {
 			return err
 		}
-		input.ImpactData, err = parseJSONFlag(*impactData, "{}")
+		input.ImpactData, err = parseJSONFlag("--impact-data", *impactData, "{}")
 		if err != nil {
 			return err
 		}
@@ -190,7 +190,7 @@ func runRelationship(ctx context.Context, args []string, stdout, stderr io.Write
 		if err != nil {
 			return err
 		}
-		input.Metadata, err = parseJSONFlag(*metadata, "{}")
+		input.Metadata, err = parseJSONFlag("--metadata", *metadata, "{}")
 		if err != nil {
 			return err
 		}
@@ -472,13 +472,13 @@ func parseOptionalDate(value string) (*time.Time, error) {
 	return &parsed, nil
 }
 
-func parseJSONFlag(value string, fallback string) (json.RawMessage, error) {
+func parseJSONFlag(flagName string, value string, fallback string) (json.RawMessage, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		value = fallback
 	}
 	if !json.Valid([]byte(value)) {
-		return nil, errors.New("JSON flag must be valid JSON")
+		return nil, fmt.Errorf("%s must be valid JSON", flagName)
 	}
 	return json.RawMessage(value), nil
 }

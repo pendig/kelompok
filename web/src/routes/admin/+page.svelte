@@ -71,6 +71,12 @@
 		return parts.length ? parts.join(", ") : "-";
 	}
 
+	const claimStatusOptions = ["unclaimed", "pending", "claimed", "rejected"];
+
+	function claimStatusLabel(status) {
+		return $t(`admin.claimStatusOptions.${status || "unclaimed"}`);
+	}
+
 	const socialPlaceholder = '{"instagram":"https://instagram.com/example"}';
 	const evidencePlaceholder = '{"note":"manual claim test"}';
 	const metricsPlaceholder = '{"beneficiaries":120}';
@@ -389,7 +395,7 @@
 											{getInitials(org.name)}
 										</div>
 										<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
-											{org.claim_status || "unclaimed"}
+											{claimStatusLabel(org.claim_status)}
 										</span>
 									</div>
 									<h3>{org.name}</h3>
@@ -428,10 +434,9 @@
 						<label>
 							<span>{$t("admin.claimStatus")}</span>
 							<select name="claim_status">
-								<option value="unclaimed">unclaimed</option>
-								<option value="pending">pending</option>
-								<option value="claimed">claimed</option>
-								<option value="rejected">rejected</option>
+								{#each claimStatusOptions as status}
+									<option value={status}>{claimStatusLabel(status)}</option>
+								{/each}
 							</select>
 						</label>
 						<label>
@@ -557,10 +562,9 @@
 						<label>
 							<span>{$t("admin.claimStatus")}</span>
 							<select name="claim_status" value={selectedOrg.claim_status || "unclaimed"}>
-								<option value="unclaimed">unclaimed</option>
-								<option value="pending">pending</option>
-								<option value="claimed">claimed</option>
-								<option value="rejected">rejected</option>
+								{#each claimStatusOptions as status}
+									<option value={status}>{claimStatusLabel(status)}</option>
+								{/each}
 							</select>
 						</label>
 						<label>
