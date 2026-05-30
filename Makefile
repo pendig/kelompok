@@ -1,6 +1,6 @@
 GOCACHE ?= $(CURDIR)/.gocache
 
-.PHONY: api clean db-migrate help seed-demo test tidy
+.PHONY: api clean db-migrate help seed-demo seed-staging-smoke test tidy
 
 help:
 	@GOCACHE=$(GOCACHE) go run ./cmd/kelompok help
@@ -19,6 +19,9 @@ db-migrate:
 
 seed-demo:
 	GOCACHE=$(GOCACHE) go run ./cmd/kelompok seed demo
+
+seed-staging-smoke:
+	GOCACHE=$(GOCACHE) go run ./cmd/kelompok seed staging-smoke
 
 clean:
 	rm -rf .gocache bin
