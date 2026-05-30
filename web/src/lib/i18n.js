@@ -21,6 +21,16 @@ const dictionaries = {
 			toggleMenu: "Buka menu navigasi",
 			skipToContent: "Lewati ke konten utama",
 		},
+		errorPage: {
+			eyebrow: "Ada kendala",
+			title: "Halaman tidak bisa dimuat",
+			notFoundTitle: "Halaman tidak ditemukan",
+			notFoundBody: "Halaman yang kamu tuju mungkin sudah dipindahkan atau tidak tersedia.",
+			genericBody: "Terjadi error saat memuat data. Coba muat ulang halaman atau kembali ke beranda.",
+			status: "Kode status: {status}",
+			backHome: "Kembali ke beranda",
+			browseOrganizations: "Jelajahi organisasi",
+		},
 		auth: {
 			loginEyebrow: "Masuk akun",
 			loginTitle: "Masuk ke Kelompok",
@@ -646,6 +656,16 @@ const dictionaries = {
 			source: "GitHub",
 			toggleMenu: "Open navigation menu",
 			skipToContent: "Skip to main content",
+		},
+		errorPage: {
+			eyebrow: "Something went wrong",
+			title: "We couldn't load this page",
+			notFoundTitle: "Page not found",
+			notFoundBody: "The page you're looking for may have moved or is no longer available.",
+			genericBody: "An error occurred while loading data. Try reloading the page or head back home.",
+			status: "Status code: {status}",
+			backHome: "Back to home",
+			browseOrganizations: "Browse organizations",
 		},
 		auth: {
 			loginEyebrow: "Account login",
