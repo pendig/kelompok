@@ -1,4 +1,5 @@
 <script>
+	import { enhance } from "$app/forms";
 	import { fallbackDate } from "../../../lib/api.js";
 	import StatusBadge from "$lib/components/StatusBadge.svelte";
 	import { locale, t } from "$lib/i18n.js";
@@ -22,6 +23,10 @@
 		sessionClaims.find((claim) => claim.organization_slug === org.slug && claim.status === "pending"),
 	);
 	let requesterEmailDefault = $derived(sessionUser?.email ?? "");
+	let claimPending = $state(false);
+	let claimTarget = $state("");
+	let claimEvidence = $state("");
+	let claimTargetTouched = $state(false);
 
 	// svelte-ignore state_referenced_locally
 	let activeTab = $state(form?.action === "submitClaim" ? "claim" : "profile");
@@ -32,6 +37,14 @@
 			activeTab = "claim";
 		}
 	});
+
+	$effect(() => {
+		if (!claimTarget) {
+			claimTarget = claimTargetDefault();
+		}
+	});
+
+	let claimTargetValid = $derived(claimTarget.trim().length > 0);
 
 	function organizationPath(path = "") {
 		return `/organizations/${encodeURIComponent(org.slug)}${path}`;
@@ -131,6 +144,14 @@
 			return $t(`organizationDetail.claimErrors.${claimErrorCode}`);
 		}
 		return claimError;
+	}
+
+	function submitClaim() {
+		claimPending = true;
+		return async ({ update }) => {
+			await update();
+			claimPending = false;
+		};
 	}
 </script>
 
@@ -454,8 +475,13 @@
 							{/if}
 						</div>
 					{/if}
+					{#if claimPending}
+						<p class="form-banner notice compact" role="status" aria-live="polite">
+							{$t("organizationDetail.claimSubmitting")}
+						</p>
+					{/if}
 					{#if claimError}
-						<p class="error compact" style="margin-top: 16px;">{$t("organizationDetail.claimError", { message: claimErrorLabel() })}</p>
+						<p class="form-banner error compact" style="margin-top: 16px;">{$t("organizationDetail.claimError", { message: claimErrorLabel() })}</p>
 					{/if}
 				</div>
 				{#if !sessionUser}
@@ -491,7 +517,7 @@
 						</a>
 					</div>
 				{:else}
-					<form class="claim-form" method="POST" action="?/submitClaim">
+					<form class="claim-form" method="POST" action="?/submitClaim" use:enhance={submitClaim}>
 						<label>
 							{$t("organizationDetail.claimMethod")}
 							<select name="method">
@@ -501,7 +527,17 @@
 						</label>
 						<label>
 							{$t("organizationDetail.claimTarget")}
-							<input name="target" value={claimTargetDefault()} placeholder="admin@example.org" required />
+							<input
+								name="target"
+								bind:value={claimTarget}
+								placeholder="admin@example.org"
+								onblur={() => claimTargetTouched = true}
+								aria-invalid={claimTargetTouched && !claimTargetValid ? "true" : undefined}
+								required
+							/>
+							<span class="form-help" class:error-text={claimTargetTouched && !claimTargetValid} class:muted={!(claimTargetTouched && !claimTargetValid)}>
+								{claimTargetTouched && !claimTargetValid ? $t("organizationDetail.claimTargetRequired") : $t("organizationDetail.claimTargetHelp")}
+							</span>
 						</label>
 						<label>
 							{$t("organizationDetail.claimRequesterEmail")}
@@ -516,9 +552,21 @@
 						</label>
 						<label>
 							{$t("organizationDetail.claimEvidence")}
-							<textarea name="evidence_note" rows="3" placeholder={$t("organizationDetail.claimEvidencePlaceholder")}></textarea>
+							<textarea
+								name="evidence_note"
+								rows="3"
+								bind:value={claimEvidence}
+								maxlength="500"
+								placeholder={$t("organizationDetail.claimEvidencePlaceholder")}
+								aria-describedby="claim-evidence-help"
+							></textarea>
+							<span id="claim-evidence-help" class="form-help muted">
+								{$t("organizationDetail.claimEvidenceHelp", { count: claimEvidence.length })}
+							</span>
 						</label>
-						<button class="btn primary" type="submit">{$t("organizationDetail.claimSubmit")}</button>
+						<button class="btn primary" type="submit" disabled={claimPending} aria-busy={claimPending}>
+							{claimPending ? $t("organizationDetail.claimSubmittingShort") : $t("organizationDetail.claimSubmit")}
+						</button>
 					</form>
 				{/if}
 			</div>

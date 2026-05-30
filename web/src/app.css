@@ -773,6 +773,71 @@ img {
 	color: hsl(142, 75%, 25%);
 }
 
+.notice.compact {
+	margin: 10px 0 0;
+	padding: 10px 14px;
+	border-radius: 8px;
+	color: var(--state-warning-text);
+	font-size: 13.5px;
+	font-weight: 600;
+}
+
+.form-banner {
+	margin-top: 0;
+}
+
+.form-help {
+	display: block;
+	margin-top: 4px;
+	color: var(--muted);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.45;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.error-text {
+	color: var(--state-danger-text);
+}
+
+.success-text {
+	color: var(--state-success-text);
+}
+
+.skeleton-stack {
+	display: grid;
+	gap: 10px;
+	margin-bottom: 4px;
+}
+
+.skeleton-line {
+	display: block;
+	width: 72%;
+	height: 12px;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--surface-soft), var(--border), var(--surface-soft));
+	background-size: 200% 100%;
+	animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-line.wide {
+	width: 88%;
+}
+
+.skeleton-line.short {
+	width: 44%;
+}
+
+@keyframes skeleton-pulse {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
 /* Core Layout Grids */
 .feature-grid,
 .grid {
@@ -1271,6 +1336,24 @@ select:focus,
 textarea:focus {
 	border-color: var(--purple-600);
 	box-shadow: 0 0 0 3px rgba(111, 53, 191, 0.12);
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+	border-color: var(--state-danger-text);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-danger-text) 14%, transparent);
+}
+
+button[disabled],
+.btn[disabled] {
+	cursor: not-allowed;
+	opacity: 0.64;
+	transform: none;
+}
+
+button[aria-busy="true"] {
+	position: relative;
 }
 
 /* Claim Organization Box */
