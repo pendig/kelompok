@@ -30,7 +30,19 @@
 		return $t("auth.error", { message: form?.error || code || "" });
 	}
 
-	function submitRegister() {
+	function emailHelp() {
+		if (!emailTouched || emailValid) return null;
+		return email.trim().length === 0 ? $t("auth.emailRequiredHelp") : $t("auth.emailInvalidHelp");
+	}
+
+	function submitRegister({ cancel }) {
+		nameTouched = true;
+		emailTouched = true;
+		passwordTouched = true;
+		if (!nameValid || !emailValid || !passwordValid) {
+			cancel();
+			return;
+		}
 		pending = true;
 		return async ({ update }) => {
 			await update();
@@ -53,7 +65,7 @@
 			<p class="form-banner notice compact" role="status" aria-live="polite">{$t("auth.registerPending")}</p>
 		{/if}
 
-		<form class="auth-form" method="POST" use:enhance={submitRegister}>
+		<form class="auth-form" method="POST" use:enhance={submitRegister} novalidate>
 			<label>
 				{$t("auth.name")}
 				<input
@@ -63,7 +75,6 @@
 					bind:value={name}
 					onblur={() => nameTouched = true}
 					aria-invalid={nameTouched && !nameValid ? "true" : undefined}
-					required
 				/>
 				{#if nameTouched && !nameValid}
 					<span class="form-help error-text">{$t("auth.nameRequiredHelp")}</span>
@@ -79,10 +90,9 @@
 					bind:value={email}
 					onblur={() => emailTouched = true}
 					aria-invalid={emailTouched && !emailValid ? "true" : undefined}
-					required
 				/>
-				{#if emailTouched && !emailValid}
-					<span class="form-help error-text">{$t("auth.emailInvalidHelp")}</span>
+				{#if emailHelp()}
+					<span class="form-help error-text">{emailHelp()}</span>
 				{/if}
 			</label>
 			<label>
@@ -91,12 +101,10 @@
 					name="password"
 					type="password"
 					autocomplete="new-password"
-					minlength="8"
 					bind:value={password}
 					onblur={() => passwordTouched = true}
 					aria-describedby="password-help"
 					aria-invalid={passwordTouched && !passwordValid ? "true" : undefined}
-					required
 				/>
 				<span id="password-help" class:success-text={passwordValid} class:error-text={passwordTouched && !passwordValid} class="form-help">
 					{$t("auth.passwordHelp")}
