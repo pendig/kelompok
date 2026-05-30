@@ -1,4 +1,5 @@
 <script>
+	import StatusBadge from "$lib/components/StatusBadge.svelte";
 	import { locale, t } from "$lib/i18n.js";
 
 	let { data } = $props();
@@ -19,17 +20,6 @@
 			timeStyle: "short",
 		}).format(new Date(data.checkedAt)),
 	);
-
-	function statusStyle(status) {
-		switch (status) {
-			case "pass":
-				return "admin-status-pass";
-			case "warn":
-				return "admin-status-warn";
-			default:
-				return "admin-status-fail";
-		}
-	}
 
 	function statusText(status) {
 		if (status === "pass") {
@@ -73,7 +63,7 @@
 			<article class="admin-card">
 				<div class="admin-card-head">
 					<p class="label">{$t(check.label)}</p>
-					<span class={["admin-status", statusStyle(check.status)].join(" ")}>{statusText(check.status)}</span>
+					<StatusBadge status={check.status} label={statusText(check.status)} />
 				</div>
 				<p>{check.detail}</p>
 			</article>

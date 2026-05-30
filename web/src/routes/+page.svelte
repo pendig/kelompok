@@ -1,5 +1,6 @@
 <script>
 	import { fallbackDate } from "../lib/api.js";
+	import StatusBadge from "$lib/components/StatusBadge.svelte";
 	import { locale, t } from "$lib/i18n.js";
 	import { getTheme, getInitials } from "../lib/theme.js";
 
@@ -31,16 +32,6 @@
 		return `${organizationPath(post.organization?.slug || post.organization_slug)}/posts/${encodeURIComponent(post.slug)}`;
 	}
 
-	function claimStatusLabel(status) {
-		const labels = {
-			claimed: $t("organizationDetail.claimStatusClaimed"),
-			pending: $t("organizationDetail.claimStatusPending"),
-			rejected: $t("organizationDetail.claimStatusRejected"),
-			unclaimed: $t("organizationDetail.claimStatusUnclaimed"),
-		};
-
-		return labels[status] || status || $t("organizationDetail.claimStatusUnclaimed");
-	}
 </script>
 
 <section class="hero">
@@ -226,32 +217,30 @@
 				<div style="display: grid; gap: 16px;">
 					{#each data.organizations.slice(0, 4) as org}
 						{@const theme = getTheme(org.name)}
-						<article class="surface-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 100%;">
+						<article class="surface-card org-card">
 							<!-- Mini Cover Banner -->
 							<div class="mini-card-cover" style="background: {theme.cover};"></div>
 							
 							<!-- Mini Avatar Overlapping Banner -->
-							<div style="padding-inline: 16px; margin-top: -24px; display: flex; align-items: flex-end; justify-content: space-between; position: relative; z-index: 2;">
-								<div class="mini-card-avatar" style="width: 48px; height: 48px; font-size: 16px; color: {theme.avatarText}; background: {theme.avatarBg};">
+							<div class="org-card-head">
+								<div class="mini-card-avatar org-card-avatar" style="color: {theme.avatarText}; background: {theme.avatarBg};">
 									{getInitials(org.name)}
 								</div>
 								{#if org.claim_status}
-									<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}" style="font-size: 9.5px; padding: 2px 8px;">
-										{claimStatusLabel(org.claim_status)}
-									</span>
+									<StatusBadge status={org.claim_status} size="sm" />
 								{/if}
 							</div>
 
 							<!-- Card Content -->
-							<div style="padding: 16px; display: flex; flex-direction: column; flex-grow: 1; gap: 8px;">
-								<h3 style="margin: 0; font-size: 17px; font-weight: 700; line-height: 1.3;">
+							<div class="org-card-body">
+								<h3 class="org-card-title">
 									<a href={organizationPath(org.slug)}>{org.name}</a>
 								</h3>
-								<p class="small" style="margin: 0; flex-grow: 1; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+								<p class="small org-card-summary">
 									{org.description || $t("home.noDescription")}
 								</p>
-								<p class="meta" style="margin: 0; font-size: 12px; font-weight: 600; color: var(--muted);">
-									📍 {formatLocation(org, $t("home.unknownLocation"))}{org.region ? ` · ${org.region}` : ""}
+								<p class="meta org-card-meta">
+									{$t("organizationDetail.location")}: {formatLocation(org, $t("home.unknownLocation"))}{org.region ? ` · ${org.region}` : ""}
 								</p>
 							</div>
 						</article>
