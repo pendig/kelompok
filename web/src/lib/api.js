@@ -99,5 +99,9 @@ export function fallbackDate(value, locale = "en-US") {
 	}
 
 	const dateLocale = locale === "id" ? "id-ID" : "en-US";
-	return new Intl.DateTimeFormat(dateLocale, { dateStyle: "medium" }).format(date);
+	// Pin the timezone so SSR (UTC container) and the client (visitor's local zone)
+	// format the same calendar day. Without this, an evening-UTC timestamp renders
+	// e.g. "30 Mei 2026" on the server but "31 Mei 2026" in WIB, which Svelte reports
+	// as a hydration_mismatch. Asia/Jakarta is the platform's primary audience zone.
+	return new Intl.DateTimeFormat(dateLocale, { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(date);
 }
