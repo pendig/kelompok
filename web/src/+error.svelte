@@ -45,6 +45,6 @@
 		background: var(--surface-soft);
 		color: var(--muted);
 		font-size: 13.5px;
-		word-break: break-word;
+		overflow-wrap: break-word;
 	}
 </style>
