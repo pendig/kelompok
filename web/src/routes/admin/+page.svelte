@@ -1,4 +1,5 @@
 <script>
+	import StatusBadge from "$lib/components/StatusBadge.svelte";
 	import { locale, t } from "$lib/i18n.js";
 	import { getTheme, getInitials } from "$lib/theme.js";
 
@@ -180,16 +181,6 @@
 	function isProfileReady(org) {
 		const completeness = profileCompleteness(org);
 		return completeness !== null && completeness >= 75;
-	}
-
-	function statusTone(status) {
-		if (["claimed", "approved", "active", "published", "admin", "owner"].includes(status)) {
-			return "admin-status-pass";
-		}
-		if (["pending", "draft", "unclaimed"].includes(status)) {
-			return "admin-status-warn";
-		}
-		return "admin-status-fail";
 	}
 
 	function reviewStatusLabel(status) {
@@ -546,7 +537,7 @@
 							{#each orgSummary as org}
 								<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
 									<span>{org.name}</span>
-									<span class="admin-status {statusTone(org.claim_status)}">{claimStatusLabel(org.claim_status)}</span>
+									<StatusBadge status={org.claim_status} label={claimStatusLabel(org.claim_status)} />
 								</a>
 							{/each}
 						</div>
@@ -589,7 +580,7 @@
 								{#each consoleClaimStatuses as claim}
 									<a class="admin-list-link" href="/account">
 										<span>{claim.organization_name || claim.organization_slug}</span>
-										<span class="admin-status {statusTone(claim.status)}">{reviewStatusLabel(claim.status)}</span>
+										<StatusBadge status={claim.status} label={reviewStatusLabel(claim.status)} />
 									</a>
 								{/each}
 							{/if}
@@ -678,9 +669,10 @@
 						<p class="label">{$t("admin.pendingClaimQueue")}</p>
 						<h3>{pendingClaimQueue.length}</h3>
 					</div>
-					<span class="admin-status {pendingClaimQueue.length ? 'admin-status-warn' : 'admin-status-pass'}">
-						{pendingClaimQueue.length ? $t("admin.needsReview") : $t("admin.clearQueue")}
-					</span>
+					<StatusBadge
+						status={pendingClaimQueue.length ? "pending" : "verified"}
+						label={pendingClaimQueue.length ? $t("admin.needsReview") : $t("admin.clearQueue")}
+					/>
 				</div>
 				{#if pendingClaimQueue.length === 0}
 					<p class="empty">{$t("admin.noPendingClaimsQueue")}</p>
@@ -715,9 +707,10 @@
 						<p class="label">{$t("admin.incompleteProfiles")}</p>
 						<h3>{incompleteOrganizations.length}</h3>
 					</div>
-					<span class="admin-status {incompleteOrganizations.length ? 'admin-status-warn' : 'admin-status-pass'}">
-						{$t("admin.profileCompleteness")}
-					</span>
+					<StatusBadge
+						status={incompleteOrganizations.length ? "draft" : "verified"}
+						label={$t("admin.profileCompleteness")}
+					/>
 				</div>
 				<div class="admin-list compact-list">
 					{#if incompleteOrganizations.length === 0}
@@ -739,9 +732,10 @@
 						<p class="label">{$t("admin.verificationQueue")}</p>
 						<h3>{pendingOrganizations.length}</h3>
 					</div>
-					<span class="admin-status {pendingOrganizations.length ? 'admin-status-warn' : 'admin-status-pass'}">
-						{$t("admin.claimStatusOptions.pending")}
-					</span>
+					<StatusBadge
+						status={pendingOrganizations.length ? "pending" : "verified"}
+						label={$t("admin.claimStatusOptions.pending")}
+					/>
 				</div>
 				<div class="admin-list compact-list">
 					{#if pendingOrganizations.length === 0}
@@ -763,9 +757,10 @@
 						<p class="label">{$t("admin.potentialDuplicates")}</p>
 						<h3>{duplicateGroups.length}</h3>
 					</div>
-					<span class="admin-status {duplicateGroups.length ? 'admin-status-fail' : 'admin-status-pass'}">
-						{$t("admin.duplicateSignal")}
-					</span>
+					<StatusBadge
+						status={duplicateGroups.length ? "rejected" : "verified"}
+						label={$t("admin.duplicateSignal")}
+					/>
 				</div>
 				<div class="admin-list compact-list">
 					{#if duplicateGroups.length === 0}
@@ -801,7 +796,7 @@
 						{#each recentOrganizations as org}
 							<a class="admin-list-link" href={selectedPath(org, "organization-edit")}>
 								<span>{org.name}</span>
-								<span class="admin-status {statusTone(org.claim_status)}">{claimStatusLabel(org.claim_status)}</span>
+								<StatusBadge status={org.claim_status} label={claimStatusLabel(org.claim_status)} />
 							</a>
 						{/each}
 					{/if}
@@ -890,9 +885,7 @@
 										<div class="mini-card-avatar" style="width: 48px; height: 48px; font-size: 16px; color: {theme.avatarText}; background: {theme.avatarBg};">
 											{getInitials(org.name)}
 										</div>
-										<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
-											{claimStatusLabel(org.claim_status)}
-										</span>
+										<StatusBadge status={org.claim_status} label={claimStatusLabel(org.claim_status)} />
 									</div>
 									<h3>{org.name}</h3>
 									<p class="small">{org.description || $t("organizationsPage.noDescription")}</p>
@@ -1618,7 +1611,7 @@
 								<div class="admin-list-item">
 									<div class="admin-list-item__meta">
 										<p class="label">{claim.method} · {claim.target}</p>
-										<span class="admin-status {statusTone(claim.status)}">{reviewStatusLabel(claim.status)}</span>
+										<StatusBadge status={claim.status} label={reviewStatusLabel(claim.status)} />
 									</div>
 									<p class="small">{claim.id}</p>
 									{#if claim.status === "pending"}

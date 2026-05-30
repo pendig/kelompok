@@ -1,6 +1,7 @@
 <script>
 	import { untrack } from "svelte";
 	import { fallbackDate } from "$lib/api.js";
+	import StatusBadge from "$lib/components/StatusBadge.svelte";
 	import { locale, t } from "$lib/i18n.js";
 
 	let { data, form } = $props();
@@ -301,9 +302,7 @@
 											<h3>{claim.organization_name}</h3>
 											<p class="muted small">/{claim.organization_slug}</p>
 										</div>
-										<span class="admin-status admin-status-warn">
-											{$t("account.claimStatusPending")}
-										</span>
+										<StatusBadge status="pending" label={$t("account.claimStatusPending")} />
 									</div>
 									<dl class="claim-status-card-meta">
 										<div>
@@ -357,9 +356,7 @@
 											<h3>{claim.organization_name}</h3>
 											<p class="muted small">/{claim.organization_slug}</p>
 										</div>
-										<span class="admin-status admin-status-fail">
-											{$t("account.claimStatusRejected")}
-										</span>
+										<StatusBadge status="rejected" label={$t("account.claimStatusRejected")} />
 									</div>
 									<dl class="claim-status-card-meta">
 										<div>
@@ -575,12 +572,12 @@
 	}
 
 	.claim-status-card--pending {
-		border-color: hsl(38, 90%, 88%);
+		border-color: var(--state-warning-border);
 		background: linear-gradient(135deg, hsl(38, 90%, 99%) 0%, var(--surface) 60%);
 	}
 
 	.claim-status-card--rejected {
-		border-color: hsl(0, 85%, 90%);
+		border-color: var(--state-danger-border);
 		background: linear-gradient(135deg, hsl(0, 80%, 99%) 0%, var(--surface) 60%);
 	}
 

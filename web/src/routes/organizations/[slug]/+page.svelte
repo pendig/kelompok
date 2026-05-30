@@ -1,5 +1,6 @@
 <script>
 	import { fallbackDate } from "../../../lib/api.js";
+	import StatusBadge from "$lib/components/StatusBadge.svelte";
 	import { locale, t } from "$lib/i18n.js";
 	import { normalizeSdgGoals } from "$lib/sdgs.js";
 	import { getTheme, getInitials } from "../../../lib/theme.js";
@@ -125,17 +126,6 @@
 		return firstContactValue("email") || firstContactValue("");
 	}
 
-	function claimStatusLabel(status) {
-		const labels = {
-			claimed: $t("organizationDetail.claimStatusClaimed"),
-			pending: $t("organizationDetail.claimStatusPending"),
-			rejected: $t("organizationDetail.claimStatusRejected"),
-			unclaimed: $t("organizationDetail.claimStatusUnclaimed"),
-		};
-
-		return labels[status] || status || $t("organizationDetail.claimStatusUnclaimed");
-	}
-
 	function claimErrorLabel() {
 		if (claimErrorCode) {
 			return $t(`organizationDetail.claimErrors.${claimErrorCode}`);
@@ -190,13 +180,11 @@
 		
 		<div class="profile-meta-row" style="margin-top: 4px;">
 			<span class="profile-meta-badge">
-				<strong>📍 {$t("organizationDetail.location")}:</strong> {formatLocation()}
+				<strong>{$t("organizationDetail.location")}:</strong> {formatLocation()}
 			</span>
 				<span class="profile-meta-badge">
-					<strong>🛡️ {$t("organizationDetail.claim")}:</strong>
-					<span class="admin-status {org.claim_status === 'claimed' ? 'admin-status-pass' : 'admin-status-warn'}">
-						{claimStatusLabel(org.claim_status)}
-					</span>
+					<strong>{$t("organizationDetail.claim")}:</strong>
+					<StatusBadge status={org.claim_status} />
 				</span>
 				{#if visibleSdgGoals.length}
 					<span class="profile-meta-badge sdg-meta-badge">
