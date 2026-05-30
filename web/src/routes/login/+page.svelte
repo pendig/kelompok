@@ -1,7 +1,9 @@
 <script>
+	import { enhance } from "$app/forms";
 	import { t } from "$lib/i18n.js";
 
 	let { data, form } = $props();
+	let pending = $state(false);
 
 	const FRIENDLY_CODES = new Set([
 		"invalid_credentials",
@@ -18,6 +20,14 @@
 		}
 		return $t("auth.error", { message: form?.error || code || "" });
 	}
+
+	function submitLogin() {
+		pending = true;
+		return async ({ update }) => {
+			await update();
+			pending = false;
+		};
+	}
 </script>
 
 <section class="auth-page">
@@ -29,10 +39,12 @@
 		</div>
 
 		{#if form?.ok === false}
-			<p class="error compact" role="alert">{loginErrorMessage()}</p>
+			<p class="form-banner error compact" role="alert">{loginErrorMessage()}</p>
+		{:else if pending}
+			<p class="form-banner notice compact" role="status" aria-live="polite">{$t("auth.loginPending")}</p>
 		{/if}
 
-		<form class="auth-form" method="POST">
+		<form class="auth-form" method="POST" use:enhance={submitLogin}>
 			<input type="hidden" name="return_to" value={data.returnTo} />
 			<label>
 				{$t("auth.email")}
@@ -42,7 +54,9 @@
 				{$t("auth.password")}
 				<input name="password" type="password" autocomplete="current-password" required />
 			</label>
-			<button class="btn primary" type="submit">{$t("auth.login")}</button>
+			<button class="btn primary" type="submit" disabled={pending} aria-busy={pending}>
+				{pending ? $t("auth.loginPendingShort") : $t("auth.login")}
+			</button>
 		</form>
 
 		<p class="auth-switch">

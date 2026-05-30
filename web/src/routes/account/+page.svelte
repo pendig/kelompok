@@ -1,4 +1,5 @@
 <script>
+	import { enhance } from "$app/forms";
 	import { untrack } from "svelte";
 	import { fallbackDate } from "$lib/api.js";
 	import StatusBadge from "$lib/components/StatusBadge.svelte";
@@ -14,12 +15,15 @@
 	let claimId = $derived(data.claimId ?? "");
 
 	let nameInput = $state(untrack(() => data.session?.user?.name ?? ""));
+	let profilePending = $state(false);
+	let nameTouched = $state(false);
 	$effect(() => {
 		if (user?.name) {
 			nameInput = user.name;
 		}
 	});
 
+	let profileNameValid = $derived(nameInput.trim().length > 0 && nameInput.trim().length <= 120);
 	let isUpdateProfile = $derived(form?.action === "updateProfile");
 	let updateSuccess = $derived(isUpdateProfile && form?.ok === true);
 	let updateError = $derived(isUpdateProfile && form?.ok === false ? form.error : null);
@@ -80,6 +84,14 @@
 		}
 		return $t("account.errors.generic", { message: message || code });
 	}
+
+	function submitProfile() {
+		profilePending = true;
+		return async ({ update }) => {
+			await update();
+			profilePending = false;
+		};
+	}
 </script>
 
 {#if unverified}
@@ -109,6 +121,11 @@
 		</div>
 
 		<div class="notice account-state-card" role="status" aria-live="polite">
+			<div class="skeleton-stack" aria-hidden="true">
+				<span class="skeleton-line wide"></span>
+				<span class="skeleton-line"></span>
+				<span class="skeleton-line short"></span>
+			</div>
 			<strong>{$t("account.loadingTitle")}</strong>
 			<p>{$t("account.loadingBody")}</p>
 		</div>
@@ -158,7 +175,13 @@
 			</div>
 		</div>
 
-		<form class="auth-form profile-form" method="POST" action="?/updateProfile" aria-describedby="profile-form-status">
+		<form
+			class="auth-form profile-form"
+			method="POST"
+			action="?/updateProfile"
+			aria-describedby="profile-form-status"
+			use:enhance={submitProfile}
+		>
 			<label>
 				{$t("account.profileName")}
 				<input
@@ -166,11 +189,14 @@
 					type="text"
 					autocomplete="name"
 					bind:value={nameInput}
+					onblur={() => nameTouched = true}
 					maxlength="120"
 					required
-					aria-invalid={updateError ? "true" : undefined}
+					aria-invalid={updateError || (nameTouched && !profileNameValid) ? "true" : undefined}
 				/>
-				<span class="form-help muted">{$t("account.profileNameHelp")}</span>
+				<span class="form-help" class:error-text={nameTouched && !profileNameValid} class:muted={!(nameTouched && !profileNameValid)}>
+					{nameTouched && !profileNameValid ? $t("account.profileNameInvalid") : $t("account.profileNameHelp")}
+				</span>
 			</label>
 
 			<label>
@@ -180,14 +206,18 @@
 			</label>
 
 			<div id="profile-form-status" class="form-status" aria-live="polite">
-				{#if updateSuccess}
+				{#if profilePending}
+					<p class="notice compact">{$t("account.profileSaving")}</p>
+				{:else if updateSuccess}
 					<p class="success compact">{$t("account.profileUpdated")}</p>
 				{:else if updateError}
 					<p class="error compact">{profileErrorMessage(updateErrorCode, updateError)}</p>
 				{/if}
 			</div>
 
-			<button class="btn primary" type="submit">{$t("account.profileSave")}</button>
+			<button class="btn primary" type="submit" disabled={profilePending} aria-busy={profilePending}>
+				{profilePending ? $t("account.profileSavingShort") : $t("account.profileSave")}
+			</button>
 		</form>
 	</section>
 
