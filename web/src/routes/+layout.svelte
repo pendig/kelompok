@@ -39,6 +39,8 @@
 	<link rel="icon" href="/favicon.ico" />
 </svelte:head>
 
+<a class="skip-link" href="#main-content">{$t("nav.skipToContent")}</a>
+
 <div class="topbar">
 	<div class="container topbar-inner">
 		<a href="/" class="brand" aria-label="Kelompok home">
@@ -94,7 +96,7 @@
 	</div>
 </div>
 
-<main class="page">
+<main id="main-content" class="page" tabindex="-1">
 	<div class="container">
 		{@render children()}
 	</div>
