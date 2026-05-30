@@ -19,6 +19,7 @@ const dictionaries = {
 			account: "Akun",
 			source: "GitHub",
 			toggleMenu: "Buka menu navigasi",
+			skipToContent: "Lewati ke konten utama",
 		},
 		auth: {
 			loginEyebrow: "Masuk akun",
@@ -644,6 +645,7 @@ const dictionaries = {
 			account: "Account",
 			source: "GitHub",
 			toggleMenu: "Open navigation menu",
+			skipToContent: "Skip to main content",
 		},
 		auth: {
 			loginEyebrow: "Account login",
