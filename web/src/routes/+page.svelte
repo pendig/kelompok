@@ -42,7 +42,7 @@
 			<p>{$t("home.subtitle")}</p>
 
 			<div class="hero-actions">
-				<a class="btn primary" href={managerPath}>{$t("home.managerAction")}</a>
+				<a class="btn primary" href={managerPath}>{$t(managerActionKey)}</a>
 				<a class="btn secondary" href="/organizations">{$t("home.seekerAction")}</a>
 				<a class="btn secondary" href="/sdgs">{$t("home.sdgsAction")}</a>
 			</div>
