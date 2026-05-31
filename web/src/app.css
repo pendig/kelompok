@@ -2959,3 +2959,59 @@ button.btn,
 		border-color: var(--border-strong);
 	}
 }
+
+/* Detail Article Premium Typography & Layout */
+.detail-article:hover {
+	transform: none !important;
+	border-color: var(--border) !important;
+	box-shadow: var(--shadow-sm) !important;
+}
+
+.detail-article h1 {
+	font-size: 32px;
+	font-weight: 800;
+	line-height: 1.25;
+	margin: 12px 0 20px 0;
+	color: var(--foreground);
+}
+
+.detail-article p.eyebrow {
+	font-size: 11px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--purple-700);
+	margin-bottom: 8px;
+}
+
+.detail-article p.meta {
+	font-size: 13px;
+	color: var(--muted);
+	margin-bottom: 24px;
+	border-bottom: 1px solid var(--border-soft);
+	padding-bottom: 16px;
+}
+
+.detail-article p.small {
+	font-size: 15px;
+	font-style: italic;
+	color: var(--muted);
+	background: var(--surface-soft);
+	padding: 16px;
+	border-left: 4px solid var(--purple-600);
+	border-radius: 4px;
+	margin-bottom: 24px;
+	line-height: 1.6;
+}
+
+.detail-article .article-content p {
+	font-size: 16px;
+	line-height: 1.75;
+	color: var(--foreground);
+	margin: 0 0 16px 0 !important;
+}
+
+.detail-article .article-content p:last-child {
+	margin-bottom: 0 !important;
+}
+
