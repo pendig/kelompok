@@ -20,6 +20,9 @@ const dictionaries = {
 			source: "GitHub",
 			toggleMenu: "Buka menu navigasi",
 			skipToContent: "Lewati ke konten utama",
+			themeToggle: "Ganti mode terang/gelap",
+			themeLight: "Mode terang",
+			themeDark: "Mode gelap",
 		},
 		errorPage: {
 			eyebrow: "Ada kendala",
@@ -656,6 +659,9 @@ const dictionaries = {
 			source: "GitHub",
 			toggleMenu: "Open navigation menu",
 			skipToContent: "Skip to main content",
+			themeToggle: "Toggle light/dark mode",
+			themeLight: "Light mode",
+			themeDark: "Dark mode",
 		},
 		errorPage: {
 			eyebrow: "Something went wrong",
