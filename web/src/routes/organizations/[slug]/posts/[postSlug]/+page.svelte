@@ -29,7 +29,13 @@
 	</p>
 	<p class="small">{post.summary || $t("postDetail.noSummary")}</p>
 	{#if post.content}
-		<p>{post.content}</p>
+		<div class="article-content">
+			{#each post.content.split(/\n\n+/) as paragraph}
+				{#if paragraph.trim()}
+					<p>{paragraph.trim()}</p>
+				{/if}
+			{/each}
+		</div>
 	{:else}
 		<p class="empty">{$t("postDetail.noContent")}</p>
 	{/if}
