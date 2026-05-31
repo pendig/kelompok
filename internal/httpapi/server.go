@@ -48,7 +48,7 @@ func New(config config.Config, db *pgxpool.Pool) *Server {
 }
 
 func (s *Server) Handler() http.Handler {
-	return s.mux
+	return s.maintenanceMiddleware(s.mux)
 }
 
 func (s *Server) HTTPServer() *http.Server {
@@ -126,6 +126,9 @@ func RegisteredRoutes() []Route {
 		{"PATCH", "/api/v1/org-admin/impact-reports/{id}"},
 		{"POST", "/api/v1/org-admin/impact-reports/{id}/publish"},
 		{"POST", "/api/v1/org-admin/impact-reports/{id}/archive"},
+
+		{"GET", "/api/v1/maintenance"},
+		{"POST", "/api/v1/org-admin/maintenance"},
 	}
 }
 
@@ -178,6 +181,9 @@ func (s *Server) routes() {
 		{"PATCH", "/api/v1/org-admin/impact-reports/{id}"}:                       s.requireAdmin(s.handleUpdateAdminImpactReport),
 		{"POST", "/api/v1/org-admin/impact-reports/{id}/publish"}:                s.requireAdmin(s.handlePublishAdminImpactReport),
 		{"POST", "/api/v1/org-admin/impact-reports/{id}/archive"}:                s.requireAdmin(s.handleArchiveAdminImpactReport),
+
+		{"GET", "/api/v1/maintenance"}:            s.handleGetMaintenance,
+		{"POST", "/api/v1/org-admin/maintenance"}: s.requireAdmin(s.handleUpdateMaintenance),
 	}
 
 	for _, route := range RegisteredRoutes() {

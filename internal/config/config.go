@@ -19,6 +19,7 @@ type Config struct {
 	DatabaseMaxConnLifetime   time.Duration
 	DatabaseMaxConnIdleTime   time.Duration
 	DatabaseHealthCheckPeriod time.Duration
+	MaintenanceMode           bool
 }
 
 func Load() (Config, error) {
@@ -51,6 +52,11 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	maintenanceMode, err := envBool("KELOMPOK_MAINTENANCE_MODE", false)
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		Env:                       env("KELOMPOK_ENV", "development"),
 		APIAddr:                   env("KELOMPOK_API_ADDR", ":4621"),
@@ -62,6 +68,7 @@ func Load() (Config, error) {
 		DatabaseMaxConnLifetime:   maxConnLifetime,
 		DatabaseMaxConnIdleTime:   maxConnIdleTime,
 		DatabaseHealthCheckPeriod: healthCheckPeriod,
+		MaintenanceMode:           maintenanceMode,
 	}, nil
 }
 
@@ -120,6 +127,20 @@ func envDuration(key string, fallback time.Duration) (time.Duration, error) {
 	}
 	if parsed < 0 {
 		return 0, fmt.Errorf("parse %s: must be non-negative", key)
+	}
+
+	return parsed, nil
+}
+
+func envBool(key string, fallback bool) (bool, error) {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("parse %s: %w", key, err)
 	}
 
 	return parsed, nil
