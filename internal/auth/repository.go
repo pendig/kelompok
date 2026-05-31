@@ -519,3 +519,62 @@ func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }
+
+func (r *Repository) FindOrCreateUserByEmail(ctx context.Context, email, name string) (User, error) {
+	email = normalizeEmail(email)
+	if email == "" {
+		return User{}, errors.New("email is required")
+	}
+
+	// 1. Try to find the user first
+	var user User
+	err := r.db.QueryRow(ctx, `
+		SELECT id::text, name, email, role, created_at, updated_at
+		FROM users
+		WHERE email = $1
+	`, email).Scan(&user.ID, &user.Name, &user.Email, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+
+	if err == nil {
+		return user, nil
+	}
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return User{}, err
+	}
+
+	// 2. If user doesn't exist, create them (with password_hash = NULL)
+	if name == "" {
+		name = strings.Split(email, "@")[0]
+	}
+
+	row := r.db.QueryRow(ctx, `
+		INSERT INTO users (name, email, password_hash, role)
+		VALUES ($1, $2, NULL, 'viewer')
+		RETURNING id::text, name, email, role, created_at, updated_at
+	`, name, email)
+
+	user, err = scanUser(row)
+	if err == nil {
+		_ = audit.Record(ctx, r.db, user.ID, "user", user.ID, "register", nil, user, nil)
+	}
+	return user, err
+}
+
+func (r *Repository) CreateSessionForUser(ctx context.Context, user User) (Session, error) {
+	token, tokenHash, err := newSessionToken()
+	if err != nil {
+		return Session{}, err
+	}
+	expiresAt := time.Now().UTC().Add(SessionTTL)
+
+	if _, err := r.db.Exec(ctx, `
+		INSERT INTO user_sessions (user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)
+	`, user.ID, tokenHash, expiresAt); err != nil {
+		return Session{}, err
+	}
+
+	_ = audit.Record(ctx, r.db, user.ID, "user_session", nil, "login", nil, nil, nil)
+	return Session{Token: token, ExpiresAt: expiresAt, User: user}, nil
+}
+

@@ -75,6 +75,8 @@ const dictionaries = {
 			},
 			agreePrefix: "Dengan melanjutkan, kamu menyetujui",
 			agreeLink: "Syarat & Ketentuan",
+			loginWithGoogle: "Lanjutkan dengan Google",
+			or: "atau",
 		},
 		termsPage: {
 			home: "Beranda",
@@ -735,6 +737,8 @@ const dictionaries = {
 			},
 			agreePrefix: "By continuing, you agree to our",
 			agreeLink: "Terms & Conditions",
+			loginWithGoogle: "Continue with Google",
+			or: "or",
 		},
 		termsPage: {
 			home: "Home",
