@@ -577,4 +577,3 @@ func (r *Repository) CreateSessionForUser(ctx context.Context, user User) (Sessi
 	_ = audit.Record(ctx, r.db, user.ID, "user_session", nil, "login", nil, nil, nil)
 	return Session{Token: token, ExpiresAt: expiresAt, User: user}, nil
 }
-

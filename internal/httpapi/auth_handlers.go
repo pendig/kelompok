@@ -255,4 +255,3 @@ func (s *Server) fetchGoogleUserInfo(ctx context.Context, accessToken string) (G
 
 	return info, nil
 }
-
