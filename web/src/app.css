@@ -1579,6 +1579,23 @@ button[aria-busy="true"] {
 	text-decoration: underline;
 }
 
+.auth-terms {
+	margin: -8px 0 0;
+	color: var(--muted);
+	font-size: 12.5px;
+	text-align: center;
+}
+
+.auth-terms a {
+	color: var(--purple-700);
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.auth-terms a:hover {
+	text-decoration: underline;
+}
+
 .auth-side {
 	display: grid;
 	align-content: end;

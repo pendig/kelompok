@@ -63,6 +63,11 @@
 			{$t("auth.noAccount")}
 			<a href="/register">{$t("auth.createAccount")}</a>
 		</p>
+
+		<p class="auth-terms">
+			{$t("auth.agreePrefix")}
+			<a href="/terms">{$t("auth.agreeLink")}</a>.
+		</p>
 	</div>
 
 	<aside class="auth-side">
