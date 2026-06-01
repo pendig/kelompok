@@ -102,3 +102,22 @@ export async function updateProfile(cookies, { name }) {
 	});
 	return payload?.data ?? null;
 }
+
+export async function loginWithGoogle(cookies, code, redirectUri) {
+	const payload = await fetchJSON("/api/v1/auth/google", {
+		method: "POST",
+		headers: {
+			"content-type": "application/json",
+		},
+		body: JSON.stringify({ code, redirect_uri: redirectUri }),
+	});
+	const session = payload?.data;
+	if (!session?.token || !session?.expires_at) {
+		throw new Error("Google login response is missing session data");
+	}
+
+	cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expires_at));
+	cookies.delete(SESSION_UNVERIFIED_COOKIE, { path: "/" });
+	return session;
+}
+

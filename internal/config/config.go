@@ -19,6 +19,8 @@ type Config struct {
 	DatabaseMaxConnLifetime   time.Duration
 	DatabaseMaxConnIdleTime   time.Duration
 	DatabaseHealthCheckPeriod time.Duration
+	GoogleOAuthClientID       string
+	GoogleOAuthClientSecret   string
 }
 
 func Load() (Config, error) {
@@ -62,6 +64,8 @@ func Load() (Config, error) {
 		DatabaseMaxConnLifetime:   maxConnLifetime,
 		DatabaseMaxConnIdleTime:   maxConnIdleTime,
 		DatabaseHealthCheckPeriod: healthCheckPeriod,
+		GoogleOAuthClientID:       os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+		GoogleOAuthClientSecret:   os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
 	}, nil
 }
 
