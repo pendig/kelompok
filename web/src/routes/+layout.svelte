@@ -2,6 +2,7 @@
 	import { page } from "$app/state";
 	import { onMount } from "svelte";
 	import { initLocale, languages, locale, setLocale, t } from "$lib/i18n.js";
+	import { theme, toggleTheme, initTheme } from "$lib/theme-mode.js";
 	import "../app.css";
 
 	let { children, data } = $props();
@@ -27,6 +28,7 @@
 
 	onMount(() => {
 		initLocale();
+		initTheme();
 		isOnline = navigator.onLine;
 		window.addEventListener("online", updateConnectionStatus);
 		window.addEventListener("offline", updateConnectionStatus);
@@ -144,6 +146,25 @@
 					</button>
 				{/each}
 			</div>
+			<button
+				type="button"
+				class="theme-toggle"
+				aria-label={$t("nav.themeToggle")}
+				aria-pressed={$theme === "dark"}
+				title={$theme === "dark" ? $t("nav.themeLight") : $t("nav.themeDark")}
+				onclick={toggleTheme}
+			>
+				{#if $theme === "dark"}
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<circle cx="12" cy="12" r="4" />
+						<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+					</svg>
+				{:else}
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+					</svg>
+				{/if}
+			</button>
 		</nav>
 	</div>
 </div>

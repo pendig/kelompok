@@ -149,6 +149,7 @@ cp .env.example .env
 # Edit KELOMPOK_DATABASE_URL and KELOMPOK_ADMIN_API_KEY before starting.
 go run ./cmd/kelompok db migrate
 go run ./cmd/kelompok seed demo
+KELOMPOK_STAGING_SEED_PASSWORD='change-this-strong-password' go run ./cmd/kelompok seed staging-smoke
 go run ./cmd/kelompok-api
 ```
 
@@ -165,6 +166,7 @@ Common shortcuts:
 make test
 make db-migrate
 make seed-demo
+make seed-staging-smoke
 make api
 ```
 

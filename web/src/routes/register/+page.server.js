@@ -1,4 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
+import { env } from "$env/dynamic/private";
 import { APIError, fetchJSON } from "$lib/api.js";
 import { loadSession, loginWithPassword } from "$lib/server/session.js";
 
@@ -21,13 +22,16 @@ function actionError(error) {
 	});
 }
 
-export async function load({ cookies }) {
+export async function load({ cookies, url }) {
 	const session = await loadSession(cookies);
 	if (session) {
 		throw redirect(303, "/account");
 	}
 
-	return {};
+	return {
+		googleClientId: env.GOOGLE_OAUTH_CLIENT_ID || "",
+		error: url.searchParams.get("error") || "",
+	};
 }
 
 export const actions = {
