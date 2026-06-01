@@ -4,21 +4,36 @@ import { writable } from "svelte/store";
 const STORAGE_KEY = "kelompok:theme";
 
 function systemTheme() {
-	return browser && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+	return browser && window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function savedTheme() {
+	if (!browser) return null;
+
+	try {
+		const saved = localStorage.getItem(STORAGE_KEY);
+		return saved === "light" || saved === "dark" ? saved : null;
+	} catch (error) {
+		return null;
+	}
 }
 
 function initialTheme() {
 	if (!browser) return "light";
-	const saved = localStorage.getItem(STORAGE_KEY);
-	return saved === "light" || saved === "dark" ? saved : systemTheme();
+	return savedTheme() ?? systemTheme();
 }
 
-export const theme = writable(initialTheme());
+export const theme = writable("light");
 
 function apply(value) {
-	if (browser) {
-		document.documentElement.dataset.theme = value;
+	if (!browser) return;
+
+	document.documentElement.dataset.theme = value;
+
+	try {
 		localStorage.setItem(STORAGE_KEY, value);
+	} catch (error) {
+		// Theme still applies for this page view when storage is unavailable.
 	}
 }
 
