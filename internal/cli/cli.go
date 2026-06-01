@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -306,6 +307,8 @@ func runSeed(ctx context.Context, args []string, stdout io.Writer) error {
 	switch args[0] {
 	case "demo":
 		return seedDemo(ctx, stdout)
+	case "staging-smoke":
+		return seedStagingSmoke(ctx, args[1:], stdout)
 	default:
 		return fmt.Errorf("unknown seed subcommand: %s", args[0])
 	}
@@ -430,6 +433,42 @@ func seedDemo(ctx context.Context, stdout io.Writer) error {
 	return nil
 }
 
+func seedStagingSmoke(ctx context.Context, args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("seed staging-smoke", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	password := flags.String("password", "", "shared staging smoke password; defaults to KELOMPOK_STAGING_SEED_PASSWORD")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*password) == "" {
+		*password = os.Getenv("KELOMPOK_STAGING_SEED_PASSWORD")
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	pool, err := database.Open(ctx, cfg.DatabaseURL, poolSettings(cfg))
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	result, err := seed.StagingSmoke(ctx, pool, *password)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(
+		stdout,
+		"staging smoke seed: ok user=%s admin=%s organization=%s\n",
+		result.UserEmail,
+		result.AdminEmail,
+		result.OrganizationSlug,
+	)
+	return nil
+}
+
 func withOrganizationRepository(ctx context.Context, fn func(*organizations.Repository) error) error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -493,6 +532,8 @@ Usage:
   kelompok health       Check database connectivity
   kelompok migrate      Apply pending SQL migrations
   kelompok seed demo    Insert or update demo public MVP data
+  kelompok seed staging-smoke
+                       Insert or update staging auth/org smoke data
   kelompok db ping      Check database connectivity
   kelompok db migrate   Apply pending SQL migrations
   kelompok org list      List organizations
@@ -516,6 +557,7 @@ Environment:
   KELOMPOK_DB_MAX_CONN_LIFETIME
   KELOMPOK_DB_MAX_CONN_IDLE_TIME
   KELOMPOK_DB_HEALTH_CHECK_PERIOD
+  KELOMPOK_STAGING_SEED_PASSWORD
 `)
 }
 
