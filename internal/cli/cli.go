@@ -435,6 +435,7 @@ func seedDemo(ctx context.Context, stdout io.Writer) error {
 
 func seedStagingSmoke(ctx context.Context, args []string, stdout io.Writer) error {
 	flags := flag.NewFlagSet("seed staging-smoke", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
 	password := flags.String("password", "", "shared staging smoke password; defaults to KELOMPOK_STAGING_SEED_PASSWORD")
 	if err := flags.Parse(args); err != nil {
 		return err

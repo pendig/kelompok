@@ -23,6 +23,10 @@ type StagingSmokeResult struct {
 }
 
 func StagingSmoke(ctx context.Context, pool *pgxpool.Pool, password string) (StagingSmokeResult, error) {
+	if pool == nil {
+		return StagingSmokeResult{}, errors.New("staging smoke seed requires a database pool")
+	}
+
 	password = strings.TrimSpace(password)
 	if len(password) < 12 {
 		return StagingSmokeResult{}, errors.New("staging smoke seed password must be at least 12 characters")
