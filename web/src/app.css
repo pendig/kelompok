@@ -3297,3 +3297,18 @@ button.btn,
 	}
 }
 
+/* Responsive visibility for theme toggles */
+.theme-toggle.mobile-only {
+	display: none;
+}
+
+@media (max-width: 720px) {
+	.theme-toggle.desktop-only {
+		display: none !important;
+	}
+	.theme-toggle.mobile-only {
+		display: inline-flex !important;
+	}
+}
+
+
