@@ -42,9 +42,8 @@
 	--shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		color-scheme: dark;
+:root[data-theme="dark"] {
+	color-scheme: dark;
 		--bg: hsl(250, 16%, 8%);
 		--surface: hsl(250, 14%, 12%);
 		--surface-soft: hsl(250, 12%, 16%);
@@ -75,7 +74,6 @@
 		--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
 		--shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.35), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
 		--shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.42), 0 8px 10px -6px rgba(0, 0, 0, 0.34);
-	}
 }
 
 /* Base Styles & Resets */
@@ -168,19 +166,17 @@ img {
 	-webkit-backdrop-filter: blur(16px);
 }
 
-@media (prefers-color-scheme: dark) {
-	body {
-		background: radial-gradient(circle at top, hsl(262, 26%, 14%) 0%, var(--bg) 58%);
-	}
+:root[data-theme="dark"] body {
+	background: radial-gradient(circle at top, hsl(262, 26%, 14%) 0%, var(--bg) 58%);
+}
 
-	.topbar {
-		border-bottom-color: hsla(250, 12%, 28%, 0.8);
-		background: hsla(250, 14%, 10%, 0.82);
-	}
+:root[data-theme="dark"] .topbar {
+	border-bottom-color: hsla(250, 12%, 28%, 0.8);
+	background: hsla(250, 14%, 10%, 0.82);
+}
 
-	.language-switch {
-		background: hsla(250, 12%, 18%, 0.75);
-	}
+:root[data-theme="dark"] .language-switch {
+	background: hsla(250, 12%, 18%, 0.75);
 }
 
 .topbar-inner {
@@ -328,6 +324,35 @@ img {
 	background: var(--purple-700);
 	border-color: var(--purple-700);
 	box-shadow: var(--shadow-sm);
+}
+
+/* Theme toggle */
+.theme-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface);
+	color: var(--text);
+	cursor: pointer;
+	transition:
+		background 150ms ease,
+		border-color 150ms ease,
+		color 150ms ease;
+}
+
+.theme-toggle:hover {
+	border-color: var(--border-strong);
+	color: var(--purple-700);
+}
+
+.theme-toggle svg {
+	width: 18px;
+	height: 18px;
 }
 
 /* Eyebrows & Headings */
@@ -2923,42 +2948,40 @@ button.btn,
    The purple scale inverts for dark mode (used elsewhere as light foreground accents),
    so the hero, its preview card, and the lower CTA must keep explicit dark surfaces;
    otherwise their hardcoded white / token text lands on near-white and fails WCAG AA. */
-@media (prefers-color-scheme: dark) {
-	.hero {
-		background: radial-gradient(circle at top left, hsl(262, 75%, 30%) 0%, hsl(262, 80%, 9%) 100%);
-		border-color: rgba(255, 255, 255, 0.1);
-	}
+:root[data-theme="dark"] .hero {
+	background: radial-gradient(circle at top left, hsl(262, 75%, 30%) 0%, hsl(262, 80%, 9%) 100%);
+	border-color: rgba(255, 255, 255, 0.1);
+}
 
-	/* --purple-100 inverts to dark in this theme; keep the inverse eyebrow light on the hero. */
-	.eyebrow.inverse {
-		color: hsl(262, 70%, 88%);
-		opacity: 1;
-	}
+/* --purple-100 inverts to dark in this theme; keep the inverse eyebrow light on the hero. */
+:root[data-theme="dark"] .eyebrow.inverse {
+	color: hsl(262, 70%, 88%);
+	opacity: 1;
+}
 
-	/* Hero copy/labels need fuller opacity against the deep-purple surface. */
-	.hero-copy p {
-		color: rgba(255, 255, 255, 0.9);
-	}
+/* Hero copy/labels need fuller opacity against the deep-purple surface. */
+:root[data-theme="dark"] .hero-copy p {
+	color: rgba(255, 255, 255, 0.9);
+}
 
-	.stat-label {
-		color: rgba(255, 255, 255, 0.78);
-	}
+:root[data-theme="dark"] .stat-label {
+	color: rgba(255, 255, 255, 0.78);
+}
 
-	/* Preview card hardcodes a white background — repaint on the dark surface. */
-	.preview-profile-card {
-		background: var(--surface);
-		border-color: var(--border-strong);
-	}
+/* Preview card hardcodes a white background — repaint on the dark surface. */
+:root[data-theme="dark"] .preview-profile-card {
+	background: var(--surface);
+	border-color: var(--border-strong);
+}
 
-	.preview-profile-avatar {
-		border-color: var(--surface);
-	}
+:root[data-theme="dark"] .preview-profile-avatar {
+	border-color: var(--surface);
+}
 
-	/* Lower CTA band hardcodes a white→soft gradient; use dark surfaces instead. */
-	.callout {
-		background: linear-gradient(135deg, var(--surface), var(--surface-soft));
-		border-color: var(--border-strong);
-	}
+/* Lower CTA band hardcodes a white→soft gradient; use dark surfaces instead. */
+:root[data-theme="dark"] .callout {
+	background: linear-gradient(135deg, var(--surface), var(--surface-soft));
+	border-color: var(--border-strong);
 }
 
 /* Detail Article Premium Typography & Layout */
