@@ -3075,3 +3075,225 @@ button.btn,
 	margin-bottom: 0 !important;
 }
 
+/* ==========================================
+   PWA & Mobile Native Experience Enhancements
+   ========================================== */
+
+/* Brand Horizontal Logo Navbar */
+.brand-logo-horizontal {
+	height: 32px;
+	width: auto;
+	max-width: 100%;
+	object-fit: contain;
+	display: block;
+}
+
+/* Floating Bottom Navbar - Liquid Glassmorphism Theme (iOS style) */
+.floating-bottom-nav {
+	display: none; /* Hidden on desktop */
+	position: fixed;
+	bottom: 24px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 100;
+	width: calc(100% - 32px);
+	max-width: 440px;
+	height: 66px;
+	padding-inline: 8px;
+	align-items: center;
+	justify-content: space-around;
+	
+	/* Liquid Glass styling */
+	background: rgba(255, 255, 255, 0.45);
+	backdrop-filter: blur(24px) saturate(180%);
+	-webkit-backdrop-filter: blur(24px) saturate(180%);
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 36px;
+	box-shadow: 
+		0 8px 32px 0 rgba(31, 38, 135, 0.08),
+		0 4px 12px 0 rgba(0, 0, 0, 0.05),
+		inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+	
+	transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+	.floating-bottom-nav {
+		background: rgba(18, 12, 28, 0.55);
+		border-color: rgba(255, 255, 255, 0.08);
+		box-shadow: 
+			0 8px 32px 0 rgba(0, 0, 0, 0.3),
+			0 4px 12px 0 rgba(0, 0, 0, 0.15),
+			inset 0 1px 1px 0 rgba(255, 255, 255, 0.03);
+	}
+}
+
+.bottom-nav-link {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	flex: 1;
+	height: 100%;
+	color: var(--muted) !important;
+	text-decoration: none;
+	font-size: 10px;
+	font-weight: 600;
+	transition: all 200ms ease;
+	border-radius: 20px;
+}
+
+.bottom-nav-link .nav-icon {
+	width: 20px;
+	height: 20px;
+	stroke: var(--muted);
+	opacity: 0.85;
+	transition: transform 200ms cubic-bezier(0.175, 0.885, 0.32, 1.275), stroke 200ms ease;
+}
+
+.bottom-nav-link:hover .nav-icon,
+.bottom-nav-link:focus-visible .nav-icon {
+	transform: scale(1.15) translateY(-2px);
+}
+
+.bottom-nav-link.active {
+	color: var(--purple-700) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+	.bottom-nav-link.active {
+		color: var(--purple-400) !important;
+	}
+}
+
+.bottom-nav-link.active .nav-icon {
+	stroke: var(--purple-700) !important;
+	opacity: 1;
+	transform: scale(1.15) translateY(-2px);
+}
+
+@media (prefers-color-scheme: dark) {
+	.bottom-nav-link.active .nav-icon {
+		stroke: var(--purple-400) !important;
+	}
+}
+
+/* Connection Status Indicator - Mobile Native Floating Pill */
+.connection-indicator {
+	position: fixed;
+	top: 20px;
+	left: 50%;
+	transform: translateX(-50%) translateY(-150%);
+	z-index: 120;
+	padding: 10px 18px;
+	border-radius: 24px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 13px;
+	font-weight: 600;
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+	transition: all 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	pointer-events: none;
+	width: max-content;
+	max-width: 90vw;
+}
+
+.connection-indicator.visible {
+	transform: translateX(-50%) translateY(0);
+}
+
+.connection-indicator.offline {
+	background: rgba(239, 68, 68, 0.95);
+	backdrop-filter: blur(12px);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	color: #ffffff;
+}
+
+.connection-indicator.online {
+	background: rgba(16, 185, 129, 0.95);
+	backdrop-filter: blur(12px);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	color: #ffffff;
+}
+
+.connection-indicator svg {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+}
+
+/* Mobile Responsive Overrides for Compact spacing & bottom floating navbar */
+@media (max-width: 720px) {
+	.container {
+		width: calc(100% - 24px) !important; /* 12px margin on each side for native PWA */
+	}
+
+	.page {
+		padding-bottom: 120px !important; /* Leave room for floating bottom navbar */
+	}
+
+	.section {
+		margin-block: 24px !important;
+	}
+
+	.section-head {
+		margin-bottom: 16px !important;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.section-note {
+		max-width: 100% !important;
+	}
+
+	/* Native-feeling compact cards */
+	.card, .surface-card, .detail-article, .feature-card {
+		padding: 16px !important;
+		border-radius: 16px !important;
+	}
+
+	/* Floating Navbar display */
+	.floating-bottom-nav {
+		display: flex !important;
+	}
+
+	/* Topbar navigation menu and toggles are hidden on mobile since we have a persistent bottom bar */
+	.mobile-menu-button {
+		display: none !important;
+	}
+
+	.nav {
+		display: none !important;
+	}
+	
+	.brand-logo-horizontal {
+		height: 28px;
+	}
+
+	/* Reduce hero banner padding and typography for compact mobile screens */
+	.hero {
+		padding: 32px 16px !important;
+		border-radius: 20px !important;
+	}
+
+	.hero-title {
+		font-size: 32px !important;
+	}
+
+	.hero-stats {
+		grid-template-columns: repeat(3, 1fr) !important;
+		gap: 12px !important;
+	}
+
+	.stat-value {
+		font-size: 20px !important;
+	}
+
+	.stat-label {
+		font-size: 10px !important;
+	}
+}
+
