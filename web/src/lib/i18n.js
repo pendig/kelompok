@@ -9,6 +9,7 @@ export const languages = [
 const dictionaries = {
 	id: {
 		nav: {
+			home: "Beranda",
 			organizations: "Organisasi",
 			posts: "Artikel",
 			sdgs: "SDGs",
@@ -20,6 +21,12 @@ const dictionaries = {
 			source: "GitHub",
 			toggleMenu: "Buka menu navigasi",
 			skipToContent: "Lewati ke konten utama",
+		},
+		connection: {
+			offlineTitle: "Koneksi Terputus",
+			offlineBody: "Anda sedang offline. Beberapa fitur mungkin tidak berfungsi sampai koneksi kembali.",
+			onlineTitle: "Koneksi Tersambung",
+			onlineBody: "Anda kembali online.",
 		},
 		errorPage: {
 			eyebrow: "Ada kendala",
@@ -645,6 +652,7 @@ const dictionaries = {
 	},
 	en: {
 		nav: {
+			home: "Home",
 			organizations: "Organizations",
 			posts: "Posts",
 			sdgs: "SDGs",
@@ -656,6 +664,12 @@ const dictionaries = {
 			source: "GitHub",
 			toggleMenu: "Open navigation menu",
 			skipToContent: "Skip to main content",
+		},
+		connection: {
+			offlineTitle: "Connection Lost",
+			offlineBody: "You are currently offline. Some features may not work until the connection is restored.",
+			onlineTitle: "Connection Restored",
+			onlineBody: "You are back online.",
 		},
 		errorPage: {
 			eyebrow: "Something went wrong",
