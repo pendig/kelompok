@@ -18,8 +18,8 @@
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
 	<a href="/">{$t("termsPage.home")}</a>
-	<span aria-hidden="true">›</span>
-	<span>{$t("termsPage.eyebrow")}</span>
+	<span class="breadcrumb-separator" aria-hidden="true">›</span>
+	<span class="breadcrumb-current" aria-current="page">{$t("termsPage.eyebrow")}</span>
 </nav>
 
 <section class="section">

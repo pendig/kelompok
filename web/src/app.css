@@ -1357,8 +1357,12 @@ img {
 	font-weight: 500;
 }
 
-.breadcrumbs span {
+.breadcrumbs .breadcrumb-separator {
 	font-size: 11px;
+}
+
+.breadcrumbs .breadcrumb-current {
+	color: var(--muted);
 }
 
 .code {

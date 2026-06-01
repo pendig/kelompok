@@ -129,10 +129,7 @@
 			<a href="/login">{$t("auth.signIn")}</a>
 		</p>
 
-		<p class="auth-terms">
-			{$t("auth.agreePrefix")}
-			<a href="/terms">{$t("auth.agreeLink")}</a>.
-		</p>
+		<p class="auth-terms">{$t("auth.agreePrefix")} <a href="/terms">{$t("auth.agreeLink")}</a>.</p>
 	</div>
 
 	<aside class="auth-side">
