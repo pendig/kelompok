@@ -2595,6 +2595,21 @@ button.btn,
 	}
 }
 
+/* Hero profile preview: relieve density on small phones (≤400px, covers the 320–390px QA range) */
+@media (max-width: 400px) {
+	.hero {
+		padding: 24px 20px;
+	}
+
+	.hero-preview {
+		padding: 16px;
+	}
+
+	.preview-profile-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
 /* Modern Profile Page Styles */
 .profile-cover {
 	position: relative;
