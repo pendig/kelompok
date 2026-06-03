@@ -280,7 +280,7 @@
 						{#if contactItems().length}
 							<ul class="detail-list" style="margin-top: 8px">
 								{#each contactItems() as item}
-									<li><strong>{item.label}:</strong> {item.value}</li>
+									<li><strong>{item.label}:</strong> {@html "<!--email_off-->"}{item.value}{@html "<!--/email_off-->"}</li>
 								{/each}
 							</ul>
 						{:else}
