@@ -72,6 +72,7 @@
 				<h3 class="footer-heading">{$t("footer.legalTitle")}</h3>
 				<nav class="footer-nav" aria-label="Footer Legal Links">
 					<a href="/terms" class="footer-link">{$t("auth.agreeLink")}</a>
+					<a href="/privacy" class="footer-link">{$t("footer.privacyLink")}</a>
 				</nav>
 			</div>
 		</div>
