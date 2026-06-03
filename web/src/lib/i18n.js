@@ -680,6 +680,14 @@ const dictionaries = {
 			status: "Status",
 			publicAt: "Publik",
 		},
+		footer: {
+			aboutTitle: "Tentang Kelompok",
+			aboutText: "Kelompok adalah platform gratis dan open-source untuk profil organisasi nonprofit, publikasi artikel, dan laporan dampak gerakan sosial.",
+			linksTitle: "Tautan Penting",
+			legalTitle: "Hukum & Ketentuan",
+			rights: "© {year} Kelompok. Hak Cipta Dilindungi.",
+			builtWith: "Dibuat dengan dedikasi untuk perubahan sosial.",
+		},
 	},
 	en: {
 		nav: {
@@ -1350,6 +1358,14 @@ const dictionaries = {
 			noSummary: "No summary yet.",
 			status: "Status",
 			publicAt: "Public",
+		},
+		footer: {
+			aboutTitle: "About Kelompok",
+			aboutText: "Kelompok is a free, open-source platform for nonprofit organization profiles, posts, and social movement impact reports.",
+			linksTitle: "Quick Links",
+			legalTitle: "Legal & Terms",
+			rights: "© {year} Kelompok. All rights reserved.",
+			builtWith: "Built with dedication for social change.",
 		},
 	},
 };
