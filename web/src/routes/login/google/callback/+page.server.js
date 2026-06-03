@@ -1,4 +1,5 @@
 import { redirect } from "@sveltejs/kit";
+import { env } from "$env/dynamic/private";
 import { loginWithGoogle } from "$lib/server/session.js";
 
 export async function load({ url, cookies }) {
@@ -10,7 +11,11 @@ export async function load({ url, cookies }) {
 	}
 
 	try {
-		const redirectUri = `${url.origin}${url.pathname}`;
+		let origin = env.ORIGIN || url.origin;
+		if (!origin.includes("localhost") && !origin.includes("127.0.0.1") && origin.startsWith("http://")) {
+			origin = origin.replace("http://", "https://");
+		}
+		const redirectUri = `${origin}${url.pathname}`;
 		await loginWithGoogle(cookies, code, redirectUri);
 		throw redirect(303, returnTo);
 	} catch (error) {
