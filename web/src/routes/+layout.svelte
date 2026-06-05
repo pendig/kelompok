@@ -3,6 +3,7 @@
 	import { onMount } from "svelte";
 	import { initLocale, languages, locale, setLocale, t } from "$lib/i18n.js";
 	import { theme, toggleTheme, initTheme } from "$lib/theme-mode.js";
+	import Footer from "$lib/components/Footer.svelte";
 	import "../app.css";
 
 	let { children, data } = $props();
@@ -195,6 +196,8 @@
 		{@render children()}
 	</div>
 </main>
+
+<Footer />
 
 <!-- Floating Liquid Glass Bottom Navigation for Mobile -->
 <div class="floating-bottom-nav">
