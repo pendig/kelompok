@@ -48,6 +48,20 @@ export const actions = {
 					error: "Name is required",
 				});
 			}
+			if (!password) {
+				return fail(400, {
+					ok: false,
+					code: "password_required",
+					error: "Password is required",
+				});
+			}
+			if (password.length < 8) {
+				return fail(400, {
+					ok: false,
+					code: "password_too_short",
+					error: "Password must be at least 8 characters",
+				});
+			}
 
 			await fetchJSON("/api/v1/auth/register", {
 				method: "POST",
