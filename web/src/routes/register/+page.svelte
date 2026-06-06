@@ -19,6 +19,7 @@
 	const FRIENDLY_CODES = new Set([
 		"user_exists",
 		"name_required",
+		"password_min_length",
 	]);
 
 	function registerErrorMessage() {
@@ -117,6 +118,8 @@
 				<input
 					name="password"
 					type="password"
+					required
+					minlength="8"
 					autocomplete="new-password"
 					bind:value={password}
 					onblur={() => passwordTouched = true}
