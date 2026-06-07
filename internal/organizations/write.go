@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/mail"
 	"regexp"
 	"strings"
 	"time"
@@ -18,6 +20,14 @@ import (
 var (
 	ErrClaimNotFound   = errors.New("claim request not found")
 	ErrClaimNotPending = errors.New("claim request is not pending")
+)
+
+var (
+	ErrOrganizationNameRequired         = errors.New("organization name is required")
+	ErrOrganizationSlugRequired         = errors.New("organization slug is required")
+	ErrOrganizationClaimStatusInvalid   = errors.New("organization claim_status is invalid")
+	ErrOrganizationOfficialEmailInvalid = errors.New("organization official_email is invalid")
+	ErrOrganizationJSONInvalid          = errors.New("organization JSON field is invalid")
 )
 
 type AdminInput struct {
@@ -73,14 +83,9 @@ type RelatedOrganizationResult struct {
 }
 
 func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization, error) {
-	name := strings.TrimSpace(input.Name)
-	if name == "" {
-		return Organization{}, errors.New("organization name is required")
-	}
-
-	slug := normalizeSlug(input.Slug)
-	if slug == "" {
-		slug = normalizeSlug(name)
+	normalized, err := NormalizeAdminInput(input)
+	if err != nil {
+		return Organization{}, err
 	}
 
 	row := r.db.QueryRow(ctx, `
@@ -138,21 +143,21 @@ func (r *Repository) Create(ctx context.Context, input AdminInput) (Organization
 			created_at,
 			updated_at
 	`,
-		slug,
-		name,
-		input.LegalName,
-		input.Description,
-		input.History,
-		input.Country,
-		input.Region,
-		input.City,
-		input.WebsiteURL,
-		input.OfficialEmail,
-		input.ClaimStatus,
-		jsonOrFallback(input.ProfileData),
-		jsonOrFallback(input.SourceData),
-		jsonOrFallback(input.SDGSData),
-		jsonOrFallback(input.ImpactData),
+		normalized.Slug,
+		normalized.Name,
+		normalized.LegalName,
+		normalized.Description,
+		normalized.History,
+		normalized.Country,
+		normalized.Region,
+		normalized.City,
+		normalized.WebsiteURL,
+		normalized.OfficialEmail,
+		normalized.ClaimStatus,
+		jsonOrFallback(normalized.ProfileData),
+		jsonOrFallback(normalized.SourceData),
+		jsonOrFallback(normalized.SDGSData),
+		jsonOrFallback(normalized.ImpactData),
 	)
 
 	item, err := scanOrganization(row)
@@ -170,18 +175,14 @@ func (r *Repository) CreateRelatedOrganization(ctx context.Context, parentSlug s
 	if strings.TrimSpace(organizationInput.ClaimStatus) == "" {
 		organizationInput.ClaimStatus = "unclaimed"
 	}
-	name := strings.TrimSpace(organizationInput.Name)
-	if name == "" {
-		return RelatedOrganizationResult{}, errors.New("organization name is required")
-	}
-	slug := normalizeSlug(organizationInput.Slug)
-	if slug == "" {
-		slug = normalizeSlug(name)
+	normalizedOrganization, err := NormalizeAdminInput(organizationInput)
+	if err != nil {
+		return RelatedOrganizationResult{}, err
 	}
 
 	relationshipInput := RelationshipInput{
 		ParentOrganizationSlug: parentSlug,
-		ChildOrganizationSlug:  slug,
+		ChildOrganizationSlug:  normalizedOrganization.Slug,
 		RelationshipType:       input.RelationshipType,
 		Label:                  input.RelationshipLabel,
 		Status:                 input.RelationshipStatus,
@@ -266,23 +267,26 @@ func (r *Repository) CreateRelatedOrganization(ctx context.Context, parentSlug s
 			created_at,
 			updated_at
 	`,
-		slug,
-		name,
-		organizationInput.LegalName,
-		organizationInput.Description,
-		organizationInput.History,
-		organizationInput.Country,
-		organizationInput.Region,
-		organizationInput.City,
-		organizationInput.WebsiteURL,
-		organizationInput.OfficialEmail,
-		organizationInput.ClaimStatus,
-		jsonOrFallback(organizationInput.ProfileData),
-		jsonOrFallback(organizationInput.SourceData),
-		jsonOrFallback(organizationInput.SDGSData),
-		jsonOrFallback(organizationInput.ImpactData),
+		normalizedOrganization.Slug,
+		normalizedOrganization.Name,
+		normalizedOrganization.LegalName,
+		normalizedOrganization.Description,
+		normalizedOrganization.History,
+		normalizedOrganization.Country,
+		normalizedOrganization.Region,
+		normalizedOrganization.City,
+		normalizedOrganization.WebsiteURL,
+		normalizedOrganization.OfficialEmail,
+		normalizedOrganization.ClaimStatus,
+		jsonOrFallback(normalizedOrganization.ProfileData),
+		jsonOrFallback(normalizedOrganization.SourceData),
+		jsonOrFallback(normalizedOrganization.SDGSData),
+		jsonOrFallback(normalizedOrganization.ImpactData),
 	))
 	if err != nil {
+		if isSlugConflict(err) {
+			return RelatedOrganizationResult{}, ErrSlugTaken
+		}
 		return RelatedOrganizationResult{}, err
 	}
 
@@ -836,6 +840,58 @@ func NormalizeSlug(value string) string {
 	trimmed = slugPattern.ReplaceAllString(trimmed, "-")
 	trimmed = strings.Trim(trimmed, "-")
 	return trimmed
+}
+
+// NormalizeAdminInput validates the create/update payload shape shared by
+// admin organization endpoints before it reaches SQL constraints.
+func NormalizeAdminInput(input AdminInput) (AdminInput, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" {
+		return AdminInput{}, ErrOrganizationNameRequired
+	}
+
+	input.Slug = NormalizeSlug(input.Slug)
+	if input.Slug == "" {
+		input.Slug = NormalizeSlug(input.Name)
+	}
+	if input.Slug == "" {
+		return AdminInput{}, ErrOrganizationSlugRequired
+	}
+
+	input.ClaimStatus = strings.ToLower(strings.TrimSpace(input.ClaimStatus))
+	if input.ClaimStatus == "" {
+		input.ClaimStatus = "unclaimed"
+	}
+	switch input.ClaimStatus {
+	case "unclaimed", "pending", "claimed", "rejected":
+	default:
+		return AdminInput{}, fmt.Errorf("%w: %s", ErrOrganizationClaimStatusInvalid, input.ClaimStatus)
+	}
+
+	input.OfficialEmail = strings.TrimSpace(input.OfficialEmail)
+	if input.OfficialEmail != "" {
+		if _, err := mail.ParseAddress(input.OfficialEmail); err != nil {
+			return AdminInput{}, fmt.Errorf("%w: %s", ErrOrganizationOfficialEmailInvalid, err)
+		}
+	}
+
+	for name, value := range map[string]json.RawMessage{
+		"profile_data": input.ProfileData,
+		"source_data":  input.SourceData,
+		"sdgs_data":    input.SDGSData,
+		"impact_data":  input.ImpactData,
+	} {
+		if len(value) > 0 && !validJSONObject(value) {
+			return AdminInput{}, fmt.Errorf("%w: %s", ErrOrganizationJSONInvalid, name)
+		}
+	}
+
+	return input, nil
+}
+
+func validJSONObject(value json.RawMessage) bool {
+	var object map[string]any
+	return json.Unmarshal(value, &object) == nil
 }
 
 func jsonOrFallback(value json.RawMessage) any {

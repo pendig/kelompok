@@ -71,6 +71,9 @@ func (s *Server) handleCreateAdminOrganization(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusConflict, "organization_slug_taken", "Organization slug is already used", nil)
 		return
 	}
+	if writeOrganizationValidationError(w, err) {
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "organization_create_failed", err.Error(), nil)
 		return
@@ -200,6 +203,13 @@ func (s *Server) handleCreateRelatedOrganization(w http.ResponseWriter, r *http.
 	}
 	if errors.Is(err, organizations.ErrRelationshipSelfLink) {
 		writeError(w, http.StatusBadRequest, "relationship_self_link", "Organization cannot be related to itself", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrSlugTaken) {
+		writeError(w, http.StatusConflict, "organization_slug_taken", "Organization slug is already used", nil)
+		return
+	}
+	if writeOrganizationValidationError(w, err) {
 		return
 	}
 	if err != nil {
@@ -796,6 +806,28 @@ func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst any) bool {
 		writeError(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON", map[string]string{
 			"error": err.Error(),
 		})
+		return false
+	}
+	return true
+}
+
+func writeOrganizationValidationError(w http.ResponseWriter, err error) bool {
+	if err == nil {
+		return false
+	}
+
+	switch {
+	case errors.Is(err, organizations.ErrOrganizationNameRequired):
+		writeError(w, http.StatusBadRequest, "organization_name_required", "Organization name is required", nil)
+	case errors.Is(err, organizations.ErrOrganizationSlugRequired):
+		writeError(w, http.StatusBadRequest, "organization_slug_required", "Organization slug is required", nil)
+	case errors.Is(err, organizations.ErrOrganizationClaimStatusInvalid):
+		writeError(w, http.StatusBadRequest, "organization_claim_status_invalid", "Organization claim_status must be unclaimed, pending, claimed, or rejected", nil)
+	case errors.Is(err, organizations.ErrOrganizationOfficialEmailInvalid):
+		writeError(w, http.StatusBadRequest, "organization_official_email_invalid", "Organization official_email must be a valid email address", nil)
+	case errors.Is(err, organizations.ErrOrganizationJSONInvalid):
+		writeError(w, http.StatusBadRequest, "organization_json_invalid", "Organization JSON fields must contain valid JSON values", nil)
+	default:
 		return false
 	}
 	return true

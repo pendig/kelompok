@@ -141,6 +141,55 @@ func TestOrgAdminAnyOrganizationScopeRejectsUnlistedRelationshipSides(t *testing
 	}
 }
 
+func TestCreateAdminOrganizationRejectsInvalidContractFieldsBeforeDB(t *testing.T) {
+	server := New(config.Config{APIAddr: ":0", AdminAPIKey: "test-secret"}, nil)
+
+	cases := []struct {
+		name string
+		body string
+		code string
+	}{
+		{
+			name: "missing name",
+			body: `{"slug":"new-org"}`,
+			code: "organization_name_required",
+		},
+		{
+			name: "invalid claim status",
+			body: `{"name":"New Org","claim_status":"approved"}`,
+			code: "organization_claim_status_invalid",
+		},
+		{
+			name: "invalid official email",
+			body: `{"name":"New Org","official_email":"not an email"}`,
+			code: "organization_official_email_invalid",
+		},
+		{
+			name: "json field must be object",
+			body: `{"name":"New Org","profile_data":[]}`,
+			code: "organization_json_invalid",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/org-admin/organizations", strings.NewReader(tc.body))
+			request.Header.Set("X-Kelompok-Admin-Key", "test-secret")
+			request.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+
+			server.Handler().ServeHTTP(recorder, request)
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d (body: %s)", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.code) {
+				t.Fatalf("missing stable error code %q: %s", tc.code, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestDecodeRelationshipPatchBodyCanClearDates(t *testing.T) {
 	request := httptest.NewRequest(
 		http.MethodPatch,
