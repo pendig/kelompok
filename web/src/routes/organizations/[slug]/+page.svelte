@@ -1,6 +1,5 @@
 <script>
 	import { enhance } from "$app/forms";
-	import { onMount } from "svelte";
 	import { fallbackDate } from "../../../lib/api.js";
 	import StatusBadge from "$lib/components/StatusBadge.svelte";
 	import { locale, t } from "$lib/i18n.js";
@@ -28,15 +27,10 @@
 	let claimTarget = $state("");
 	let claimEvidence = $state("");
 	let claimTargetTouched = $state(false);
-	let contactValuesMounted = $state(false);
 
 	// svelte-ignore state_referenced_locally
 	let activeTab = $state(form?.action === "submitClaim" ? "claim" : "profile");
 	let theme = $derived(getTheme(org.name));
-
-	onMount(() => {
-		contactValuesMounted = true;
-	});
 
 	$effect.pre(() => {
 		if (form?.action === "submitClaim") {
@@ -288,9 +282,7 @@
 								{#each contactItems() as item}
 									<li>
 										<strong>{item.label}:</strong>
-										{#if contactValuesMounted}
-											{item.value}
-										{/if}
+										{item.value}
 									</li>
 								{/each}
 							</ul>
