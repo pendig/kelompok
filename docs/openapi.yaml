@@ -464,6 +464,14 @@ paths:
     post:
       tags: [Org Admin — Organizations]
       summary: Create an organization (admin)
+      description: |
+        Creates a new organization profile through the admin contract. Public
+        users cannot create organizations directly through this endpoint; they
+        must use claim/onboarding flows exposed by the product UI. `name` is
+        required, `slug` is normalized from the supplied slug or generated from
+        `name`, and `claim_status` defaults to `unclaimed`. Duplicate slugs
+        return `409 organization_slug_taken`; invalid names, claim status,
+        official email, or JSON object fields return stable 400 error codes.
       operationId: createAdminOrganization
       security:
         - sessionBearer: []
@@ -487,6 +495,8 @@ paths:
           $ref: "#/components/responses/AdminAuthRequired"
         "403":
           $ref: "#/components/responses/AdminOrgForbidden"
+        "409":
+          $ref: "#/components/responses/OrganizationSlugTaken"
 
   /api/v1/org-admin/organizations/{slug}:
     parameters:
@@ -1378,6 +1388,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    OrganizationSlugTaken:
+      description: Organization slug is already used.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     SessionRequired:
       description: A user session is required.
       content:
@@ -1959,6 +1975,9 @@ components:
         profile_data:
           type: object
           additionalProperties: true
+        source_data:
+          type: object
+          additionalProperties: true
         sdgs_data:
           type: object
           additionalProperties: true
@@ -2000,6 +2019,9 @@ components:
           type: string
           enum: [unclaimed, pending, claimed, rejected]
         profile_data:
+          type: object
+          additionalProperties: true
+        source_data:
           type: object
           additionalProperties: true
         sdgs_data:

@@ -212,6 +212,15 @@ For relationship updates, omit `started_at` or `ended_at` to keep the existing d
 
 `POST /api/v1/org-admin/organizations` and `PATCH /api/v1/org-admin/organizations/{slug}` accept the release admin organization fields: `slug`, `name`, `legal_name`, `description`, `history`, `country`, `region`, `city`, `website_url`, `official_email`, `claim_status`, `profile_data`, `source_data`, `sdgs_data`, and `impact_data`.
 
+Create organization is an admin-only operation. Public account/onboarding flows
+must not call it without an authenticated admin/session context. The create
+contract requires `name`; if `slug` is omitted it is normalized from `name`, and
+`claim_status` defaults to `unclaimed`. Duplicate slugs return HTTP `409` with
+`organization_slug_taken`. Invalid create payloads return HTTP `400` with stable
+codes: `organization_name_required`, `organization_slug_required`,
+`organization_claim_status_invalid`, `organization_official_email_invalid`, or
+`organization_json_invalid`.
+
 Post management:
 
 ```text
