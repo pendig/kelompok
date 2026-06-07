@@ -1483,12 +1483,19 @@ button[aria-busy="true"] {
 	box-shadow: var(--shadow-md);
 }
 
+:root[data-theme="dark"] .claim-card {
+	border-color: color-mix(in srgb, var(--border-strong) 82%, transparent);
+	background: linear-gradient(135deg, hsl(250, 14%, 13%) 0%, hsl(252, 16%, 17%) 100%);
+	box-shadow: var(--shadow-lg);
+}
+
 .claim-copy h2 {
 	margin: 6px 0 10px;
 	font-size: 24px;
 	font-weight: 800;
 	line-height: 1.2;
 	letter-spacing: 0;
+	color: var(--text);
 }
 
 .claim-copy p {
@@ -1496,6 +1503,12 @@ button[aria-busy="true"] {
 	color: var(--muted);
 	font-size: 14px;
 	line-height: 1.6;
+}
+
+:root[data-theme="dark"] .claim-copy p,
+:root[data-theme="dark"] .claim-form label,
+:root[data-theme="dark"] .claim-form .form-help {
+	color: hsl(250, 14%, 82%);
 }
 
 .claim-form {
@@ -1513,6 +1526,32 @@ button[aria-busy="true"] {
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
+}
+
+.claim-form input,
+.claim-form select,
+.claim-form textarea {
+	background: var(--surface);
+	border-color: var(--border-strong);
+	color: var(--text);
+}
+
+:root[data-theme="dark"] .claim-form input,
+:root[data-theme="dark"] .claim-form select,
+:root[data-theme="dark"] .claim-form textarea {
+	background: hsl(250, 14%, 10%);
+	border-color: hsl(250, 11%, 36%);
+	color: hsl(0, 0%, 98%);
+}
+
+:root[data-theme="dark"] .claim-form input::placeholder,
+:root[data-theme="dark"] .claim-form textarea::placeholder {
+	color: hsl(250, 9%, 64%);
+}
+
+:root[data-theme="dark"] .claim-form input[readonly] {
+	background: hsl(250, 12%, 15%);
+	color: hsl(250, 10%, 86%);
 }
 
 .claim-form label:has(textarea),
@@ -2567,6 +2606,31 @@ button.btn,
 	.hero {
 		padding: 28px;
 		border-radius: 16px;
+	}
+
+	.claim-card {
+		gap: 18px;
+		padding: 20px;
+		border-radius: 14px;
+	}
+
+	.claim-copy h2 {
+		font-size: 21px;
+	}
+
+	.claim-form {
+		grid-template-columns: 1fr;
+		gap: 12px;
+	}
+
+	.claim-form label,
+	.claim-form button {
+		grid-column: 1;
+	}
+
+	.claim-form .btn.primary {
+		min-height: 48px;
+		margin-top: 4px;
 	}
 
 	.hero-title {
