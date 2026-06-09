@@ -169,7 +169,7 @@
 		<h2>{$t("organizationsPage.emptyTitle")}</h2>
 		<p>{$t("organizationsPage.empty")}</p>
 		<div class="actions">
-			<a href="/register">{$t("organizationsPage.createOrgCta")}</a>
+			<a href="/organizations/new">{$t("organizationsPage.createOrgCta")}</a>
 		</div>
 	</div>
 {:else if filteredOrganizations.length === 0}
@@ -181,6 +181,7 @@
 				{$t("organizationsPage.resetFilters")}
 			</button>
 			<a href="/login">{$t("organizationsPage.claimCta")}</a>
+			<a href="/organizations/new">{$t("organizationsPage.createOrgCta")}</a>
 		</div>
 	</div>
 {:else}

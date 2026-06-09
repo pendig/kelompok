@@ -269,7 +269,10 @@
 			<div class="empty account-empty">
 				<strong>{$t("account.noOrganizationsTitle")}</strong>
 				<p>{$t("account.noOrganizationsBody")}</p>
-				<a href="/organizations" class="ghost-button">{$t("account.findOrganization")}</a>
+				<div class="inline-actions">
+					<a href="/organizations" class="ghost-button">{$t("account.findOrganization")}</a>
+					<a href="/organizations/new" class="btn primary">{$t("account.createOrganization")}</a>
+				</div>
 			</div>
 		{:else}
 			<div class="claim-journey">
