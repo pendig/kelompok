@@ -103,6 +103,23 @@ export async function updateProfile(cookies, { name }) {
 	return payload?.data ?? null;
 }
 
+export async function submitOrganizationOnboardingRequest(cookies, input) {
+	const token = cookies.get(SESSION_COOKIE);
+	if (!token) {
+		throw new APIError("session_required", { status: 401, code: "session_required" });
+	}
+
+	const payload = await fetchJSON("/api/v1/organization-onboarding-requests", {
+		method: "POST",
+		headers: {
+			authorization: `Bearer ${token}`,
+			"content-type": "application/json",
+		},
+		body: JSON.stringify(input),
+	});
+	return payload?.data ?? null;
+}
+
 export async function loginWithGoogle(cookies, code, redirectUri) {
 	const payload = await fetchJSON("/api/v1/auth/google", {
 		method: "POST",
@@ -120,4 +137,3 @@ export async function loginWithGoogle(cookies, code, redirectUri) {
 	cookies.delete(SESSION_UNVERIFIED_COOKIE, { path: "/" });
 	return session;
 }
-
