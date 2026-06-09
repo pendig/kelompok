@@ -304,6 +304,112 @@ func TestCreateOrganizationClaimRejectsUnknownFields(t *testing.T) {
 	}
 }
 
+func TestOrganizationOnboardingRequestRequiresSession(t *testing.T) {
+	server := New(config.Config{APIAddr: ":0"}, nil)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/organization-onboarding-requests",
+		strings.NewReader(`{"name":"New Org","method":"manual_review","target":"registration form"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d (body: %s)", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "session_required") {
+		t.Fatalf("missing stable session_required error: %s", recorder.Body.String())
+	}
+}
+
+func TestOrganizationOnboardingRequestRejectsUnknownFieldsBeforeDB(t *testing.T) {
+	server := New(config.Config{APIAddr: ":0"}, nil)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/organization-onboarding-requests",
+		strings.NewReader(`{"name":"New Org","method":"manual_review","target":"registration form","claim_status":"claimed"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	request = request.WithContext(context.WithValue(request.Context(), principalContextKey, principal{
+		User: auth.User{ID: "user-1", Role: "viewer"},
+	}))
+	recorder := httptest.NewRecorder()
+
+	server.handleCreateOrganizationOnboardingRequest(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d (body: %s)", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "invalid_json") {
+		t.Fatalf("expected invalid_json for unknown smuggled field, got %s", recorder.Body.String())
+	}
+}
+
+func TestOrganizationOnboardingRequestRejectsInvalidFieldsBeforeDB(t *testing.T) {
+	server := New(config.Config{APIAddr: ":0"}, nil)
+
+	cases := []struct {
+		name string
+		body string
+		code string
+	}{
+		{
+			name: "missing organization name",
+			body: `{"method":"manual_review","target":"registration form"}`,
+			code: "organization_name_required",
+		},
+		{
+			name: "bad official email",
+			body: `{"name":"New Org","official_email":"not-email","method":"manual_review","target":"registration form"}`,
+			code: "organization_official_email_invalid",
+		},
+		{
+			name: "invalid claim method",
+			body: `{"name":"New Org","method":"sms","target":"registration form"}`,
+			code: "organization_onboarding_claim_method_invalid",
+		},
+		{
+			name: "missing claim target",
+			body: `{"name":"New Org","method":"manual_review","target":" "}`,
+			code: "organization_onboarding_claim_target_required",
+		},
+		{
+			name: "bad official email claim target",
+			body: `{"name":"New Org","method":"official_email","target":"not-email"}`,
+			code: "organization_onboarding_claim_target_invalid",
+		},
+		{
+			name: "evidence must be object",
+			body: `{"name":"New Org","method":"manual_review","target":"registration form","evidence":[]}`,
+			code: "organization_json_invalid",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/organization-onboarding-requests", strings.NewReader(tc.body))
+			request.Header.Set("Content-Type", "application/json")
+			request = request.WithContext(context.WithValue(request.Context(), principalContextKey, principal{
+				User: auth.User{ID: "user-1", Role: "viewer"},
+			}))
+			recorder := httptest.NewRecorder()
+
+			server.handleCreateOrganizationOnboardingRequest(recorder, request)
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d (body: %s)", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.code) {
+				t.Fatalf("missing stable error code %q: %s", tc.code, recorder.Body.String())
+			}
+		})
+	}
+}
+
 // TestEnsureAdminOrganizationSlugRejectsBlankUserScope guards against the
 // case where a user-session principal sneaks through with an empty target
 // slug. Without this branch, a lookup that derives the slug from a missing

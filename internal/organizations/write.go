@@ -28,6 +28,9 @@ var (
 	ErrOrganizationClaimStatusInvalid   = errors.New("organization claim_status is invalid")
 	ErrOrganizationOfficialEmailInvalid = errors.New("organization official_email is invalid")
 	ErrOrganizationJSONInvalid          = errors.New("organization JSON field is invalid")
+	ErrClaimMethodInvalid               = errors.New("claim method is invalid")
+	ErrClaimTargetRequired              = errors.New("claim target is required")
+	ErrClaimTargetInvalid               = errors.New("claim target is invalid")
 )
 
 type AdminInput struct {
@@ -53,6 +56,31 @@ type ClaimInput struct {
 	Target         string          `json:"target"`
 	RequesterEmail string          `json:"requester_email"`
 	Evidence       json.RawMessage `json:"evidence"`
+}
+
+type OnboardingRequestInput struct {
+	Slug          string          `json:"slug"`
+	Name          string          `json:"name"`
+	LegalName     string          `json:"legal_name"`
+	Description   string          `json:"description"`
+	History       string          `json:"history"`
+	Country       string          `json:"country"`
+	Region        string          `json:"region"`
+	City          string          `json:"city"`
+	WebsiteURL    string          `json:"website_url"`
+	OfficialEmail string          `json:"official_email"`
+	ProfileData   json.RawMessage `json:"profile_data"`
+	SourceData    json.RawMessage `json:"source_data"`
+	SDGSData      json.RawMessage `json:"sdgs_data"`
+	ImpactData    json.RawMessage `json:"impact_data"`
+	Method        string          `json:"method"`
+	Target        string          `json:"target"`
+	Evidence      json.RawMessage `json:"evidence"`
+}
+
+type OnboardingRequest struct {
+	Organization Organization `json:"organization"`
+	Claim        ClaimRequest `json:"claim"`
 }
 
 type ClaimRequest struct {
@@ -423,14 +451,9 @@ func (r *Repository) CreateClaim(ctx context.Context, organizationSlug string, i
 		return ClaimRequest{}, err
 	}
 
-	method := strings.TrimSpace(input.Method)
-	if method != "official_email" && method != "instagram" {
-		return ClaimRequest{}, errors.New("unsupported claim method")
-	}
-
-	target := strings.TrimSpace(input.Target)
-	if target == "" {
-		return ClaimRequest{}, errors.New("claim target is required")
+	method, target, err := NormalizeClaimEvidenceInput(input.Method, input.Target)
+	if err != nil {
+		return ClaimRequest{}, err
 	}
 
 	requesterEmail := strings.TrimSpace(input.RequesterEmail)
@@ -507,6 +530,160 @@ func (r *Repository) CreateClaim(ctx context.Context, organizationSlug string, i
 		"organization_slug": organizationSlug,
 	})
 	return item, nil
+}
+
+func (r *Repository) CreateOnboardingRequest(ctx context.Context, userID string, input OnboardingRequestInput) (OnboardingRequest, error) {
+	normalizedOrganization, err := NormalizeAdminInput(AdminInput{
+		Slug:          input.Slug,
+		Name:          input.Name,
+		LegalName:     input.LegalName,
+		Description:   input.Description,
+		History:       input.History,
+		Country:       input.Country,
+		Region:        input.Region,
+		City:          input.City,
+		WebsiteURL:    input.WebsiteURL,
+		OfficialEmail: input.OfficialEmail,
+		ClaimStatus:   "pending",
+		ProfileData:   input.ProfileData,
+		SourceData:    input.SourceData,
+		SDGSData:      input.SDGSData,
+		ImpactData:    input.ImpactData,
+	})
+	if err != nil {
+		return OnboardingRequest{}, err
+	}
+
+	method, target, err := NormalizeOnboardingClaimEvidenceInput(input.Method, input.Target)
+	if err != nil {
+		return OnboardingRequest{}, err
+	}
+	if len(input.Evidence) > 0 && !validJSONObject(input.Evidence) {
+		return OnboardingRequest{}, fmt.Errorf("%w: evidence", ErrOrganizationJSONInvalid)
+	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return OnboardingRequest{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	organization, err := scanOrganization(tx.QueryRow(ctx, `
+		INSERT INTO organizations (
+			slug,
+			name,
+			legal_name,
+			description,
+			history,
+			country,
+			region,
+			city,
+			website_url,
+			official_email,
+			claim_status,
+			profile_data,
+			source_data,
+			sdgs_data,
+			impact_data
+		)
+		VALUES (
+			$1,
+			$2,
+			NULLIF($3, ''),
+			NULLIF($4, ''),
+			NULLIF($5, ''),
+			NULLIF($6, ''),
+			NULLIF($7, ''),
+			NULLIF($8, ''),
+			NULLIF($9, ''),
+			NULLIF($10, ''),
+			'pending',
+			$11::jsonb,
+			$12::jsonb,
+			$13::jsonb,
+			$14::jsonb
+		)
+		RETURNING
+			id::text,
+			slug,
+			name,
+			COALESCE(legal_name, ''),
+			COALESCE(description, ''),
+			COALESCE(history, ''),
+			COALESCE(country, ''),
+			COALESCE(region, ''),
+			COALESCE(city, ''),
+			COALESCE(website_url, ''),
+			COALESCE(official_email, ''),
+			claim_status,
+			COALESCE(profile_data::text, '{}'),
+			COALESCE(source_data::text, '{}'),
+			COALESCE(sdgs_data::text, '{}'),
+			COALESCE(impact_data::text, '{}'),
+			created_at,
+			updated_at
+	`,
+		normalizedOrganization.Slug,
+		normalizedOrganization.Name,
+		normalizedOrganization.LegalName,
+		normalizedOrganization.Description,
+		normalizedOrganization.History,
+		normalizedOrganization.Country,
+		normalizedOrganization.Region,
+		normalizedOrganization.City,
+		normalizedOrganization.WebsiteURL,
+		normalizedOrganization.OfficialEmail,
+		jsonOrFallback(normalizedOrganization.ProfileData),
+		jsonOrFallback(normalizedOrganization.SourceData),
+		jsonOrFallback(normalizedOrganization.SDGSData),
+		jsonOrFallback(normalizedOrganization.ImpactData),
+	))
+	if isSlugConflict(err) {
+		return OnboardingRequest{}, ErrSlugTaken
+	}
+	if err != nil {
+		return OnboardingRequest{}, err
+	}
+
+	claim, err := scanClaim(tx.QueryRow(ctx, `
+		INSERT INTO claim_requests (
+			organization_id,
+			user_id,
+			method,
+			target,
+			status,
+			evidence
+		)
+		VALUES ($1, $2, $3, $4, 'pending', $5::jsonb)
+		RETURNING
+			id::text,
+			organization_id::text,
+			user_id::text,
+			method,
+			target,
+			status,
+			COALESCE(evidence::text, '{}'),
+			reviewed_by_user_id::text,
+			reviewed_at,
+			created_at,
+			updated_at
+	`, organization.ID, userID, method, target, jsonOrFallback(input.Evidence)))
+	if err != nil {
+		return OnboardingRequest{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return OnboardingRequest{}, err
+	}
+
+	_ = audit.Record(ctx, r.db, userID, "organization", organization.ID, "onboarding_request", nil, organization, map[string]any{
+		"claim_request_id": claim.ID,
+	})
+	_ = audit.Record(ctx, r.db, userID, "claim_request", claim.ID, "create", nil, claim, map[string]any{
+		"organization_id":   organization.ID,
+		"organization_slug": organization.Slug,
+	})
+	return OnboardingRequest{Organization: organization, Claim: claim}, nil
 }
 
 func (r *Repository) ListClaimsByOrganizationSlug(ctx context.Context, organizationSlug string, limit int) ([]ClaimRequest, error) {
@@ -887,6 +1064,39 @@ func NormalizeAdminInput(input AdminInput) (AdminInput, error) {
 	}
 
 	return input, nil
+}
+
+func NormalizeClaimEvidenceInput(method string, target string) (string, string, error) {
+	return normalizeClaimEvidenceInput(method, target, false)
+}
+
+func NormalizeOnboardingClaimEvidenceInput(method string, target string) (string, string, error) {
+	return normalizeClaimEvidenceInput(method, target, true)
+}
+
+func normalizeClaimEvidenceInput(method string, target string, allowManualReview bool) (string, string, error) {
+	method = strings.ToLower(strings.TrimSpace(method))
+	switch method {
+	case "official_email", "instagram":
+	case "manual_review":
+		if !allowManualReview {
+			return "", "", fmt.Errorf("%w: %s", ErrClaimMethodInvalid, method)
+		}
+	default:
+		return "", "", fmt.Errorf("%w: %s", ErrClaimMethodInvalid, method)
+	}
+
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", "", ErrClaimTargetRequired
+	}
+	if method == "official_email" {
+		if _, err := mail.ParseAddress(target); err != nil {
+			return "", "", fmt.Errorf("%w: %s", ErrClaimTargetInvalid, err)
+		}
+	}
+
+	return method, target, nil
 }
 
 func validJSONObject(value json.RawMessage) bool {
