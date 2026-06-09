@@ -180,6 +180,53 @@ paths:
         "404":
           $ref: "#/components/responses/OrganizationNotFound"
 
+  /api/v1/organization-onboarding-requests:
+    post:
+      tags: [Public — Organizations]
+      summary: Submit a new organization onboarding request
+      description: |
+        User-authenticated intake for organizations that do not yet have a
+        public profile. The server creates an organization with
+        `claim_status=pending` plus a linked pending claim request for the
+        caller. Owner access is not granted until an org-admin reviewer
+        approves the claim through the existing review endpoint.
+      operationId: createOrganizationOnboardingRequest
+      security:
+        - sessionBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizationOnboardingRequestInput"
+      responses:
+        "201":
+          description: Pending organization and claim request created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationOnboardingRequestResponse"
+        "400":
+          description: |
+            Invalid payload. Stable error codes include
+            `organization_name_required`,
+            `organization_official_email_invalid`,
+            `organization_json_invalid`,
+            `organization_onboarding_claim_method_invalid`, and
+            `organization_onboarding_claim_target_required`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/SessionRequired"
+        "409":
+          description: Organization slug already exists or is pending review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/v1/organizations/{slug}/posts:
     get:
       tags: [Public — Organizations]
@@ -1758,12 +1805,12 @@ components:
           format: uuid
         method:
           type: string
-          enum: [official_email, instagram]
+          enum: [official_email, instagram, manual_review]
         target:
           type: string
         status:
           type: string
-          enum: [pending, approved, rejected]
+          enum: [pending, approved, rejected, cancelled]
         evidence:
           type: object
           additionalProperties: true
@@ -1789,6 +1836,72 @@ components:
           properties:
             data:
               $ref: "#/components/schemas/ClaimRequest"
+
+    OrganizationOnboardingRequestInput:
+      type: object
+      required: [name, method, target]
+      properties:
+        slug:
+          type: string
+          description: Optional slug. When omitted, the API derives it from `name`.
+        name:
+          type: string
+        legal_name:
+          type: string
+        description:
+          type: string
+        history:
+          type: string
+        country:
+          type: string
+        region:
+          type: string
+        city:
+          type: string
+        website_url:
+          type: string
+          format: uri
+        official_email:
+          type: string
+          format: email
+        profile_data:
+          type: object
+          additionalProperties: true
+        source_data:
+          type: object
+          additionalProperties: true
+        sdgs_data:
+          type: object
+          additionalProperties: true
+        impact_data:
+          type: object
+          additionalProperties: true
+        method:
+          type: string
+          enum: [official_email, instagram, manual_review]
+        target:
+          type: string
+          description: Email address, Instagram handle, or manual review evidence locator.
+        evidence:
+          type: object
+          additionalProperties: true
+
+    OrganizationOnboardingRequest:
+      type: object
+      required: [organization, claim]
+      properties:
+        organization:
+          $ref: "#/components/schemas/AdminOrganization"
+        claim:
+          $ref: "#/components/schemas/ClaimRequest"
+
+    OrganizationOnboardingRequestResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/OrganizationOnboardingRequest"
 
     ClaimListResponse:
       allOf:

@@ -31,6 +31,42 @@ func (s *Server) handleCreateOrganizationClaim(w http.ResponseWriter, r *http.Re
 	writeJSON(w, http.StatusCreated, response{Data: item, Message: "ok"})
 }
 
+func (s *Server) handleCreateOrganizationOnboardingRequest(w http.ResponseWriter, r *http.Request) {
+	var input organizations.OnboardingRequestInput
+	if !decodeJSONBody(w, r, &input) {
+		return
+	}
+
+	item, ok := principalFromContext(r)
+	if !ok || item.User.ID == "" {
+		writeError(w, http.StatusUnauthorized, "session_required", "A user session is required", nil)
+		return
+	}
+
+	result, err := s.organizations.CreateOnboardingRequest(r.Context(), item.User.ID, input)
+	if errors.Is(err, organizations.ErrSlugTaken) {
+		writeError(w, http.StatusConflict, "organization_onboarding_slug_taken", "An organization with this slug already exists or is pending review", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrClaimMethodInvalid) {
+		writeError(w, http.StatusBadRequest, "organization_onboarding_claim_method_invalid", "Claim method must be official_email, instagram, or manual_review", nil)
+		return
+	}
+	if errors.Is(err, organizations.ErrClaimTargetRequired) {
+		writeError(w, http.StatusBadRequest, "organization_onboarding_claim_target_required", "Claim target is required", nil)
+		return
+	}
+	if writeOrganizationValidationError(w, err) {
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "organization_onboarding_create_failed", err.Error(), nil)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, response{Data: result, Message: "ok"})
+}
+
 func (s *Server) handleListAdminOrganizations(w http.ResponseWriter, r *http.Request) {
 	if item, ok := principalFromContext(r); ok {
 		if !item.AdminKey && item.User.Role != "superadmin" {
