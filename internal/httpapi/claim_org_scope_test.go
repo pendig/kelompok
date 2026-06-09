@@ -378,6 +378,11 @@ func TestOrganizationOnboardingRequestRejectsInvalidFieldsBeforeDB(t *testing.T)
 			code: "organization_onboarding_claim_target_required",
 		},
 		{
+			name: "bad official email claim target",
+			body: `{"name":"New Org","method":"official_email","target":"not-email"}`,
+			code: "organization_onboarding_claim_target_invalid",
+		},
+		{
 			name: "evidence must be object",
 			body: `{"name":"New Org","method":"manual_review","target":"registration form","evidence":[]}`,
 			code: "organization_json_invalid",

@@ -22,6 +22,12 @@ func TestNormalizeClaimEvidenceInput(t *testing.T) {
 			wantTarget: "hello@example.org",
 		},
 		{
+			name:    "invalid official email target",
+			method:  "official_email",
+			target:  "not-email",
+			wantErr: ErrClaimTargetInvalid,
+		},
+		{
 			name:       "instagram",
 			method:     "instagram",
 			target:     "@example",

@@ -212,8 +212,9 @@ paths:
             `organization_name_required`,
             `organization_official_email_invalid`,
             `organization_json_invalid`,
-            `organization_onboarding_claim_method_invalid`, and
-            `organization_onboarding_claim_target_required`.
+            `organization_onboarding_claim_method_invalid`,
+            `organization_onboarding_claim_target_required`, and
+            `organization_onboarding_claim_target_invalid`.
           content:
             application/json:
               schema:
@@ -1881,7 +1882,7 @@ components:
           enum: [official_email, instagram, manual_review]
         target:
           type: string
-          description: Email address, Instagram handle, or manual review evidence locator.
+          description: Email address for `official_email`, Instagram handle, or manual review evidence locator.
         evidence:
           type: object
           additionalProperties: true

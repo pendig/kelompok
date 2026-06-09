@@ -30,6 +30,7 @@ var (
 	ErrOrganizationJSONInvalid          = errors.New("organization JSON field is invalid")
 	ErrClaimMethodInvalid               = errors.New("claim method is invalid")
 	ErrClaimTargetRequired              = errors.New("claim target is required")
+	ErrClaimTargetInvalid               = errors.New("claim target is invalid")
 )
 
 type AdminInput struct {
@@ -1088,6 +1089,11 @@ func normalizeClaimEvidenceInput(method string, target string, allowManualReview
 	target = strings.TrimSpace(target)
 	if target == "" {
 		return "", "", ErrClaimTargetRequired
+	}
+	if method == "official_email" {
+		if _, err := mail.ParseAddress(target); err != nil {
+			return "", "", fmt.Errorf("%w: %s", ErrClaimTargetInvalid, err)
+		}
 	}
 
 	return method, target, nil

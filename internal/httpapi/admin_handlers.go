@@ -56,11 +56,15 @@ func (s *Server) handleCreateOrganizationOnboardingRequest(w http.ResponseWriter
 		writeError(w, http.StatusBadRequest, "organization_onboarding_claim_target_required", "Claim target is required", nil)
 		return
 	}
+	if errors.Is(err, organizations.ErrClaimTargetInvalid) {
+		writeError(w, http.StatusBadRequest, "organization_onboarding_claim_target_invalid", "Claim target must be a valid email address for official_email verification", nil)
+		return
+	}
 	if writeOrganizationValidationError(w, err) {
 		return
 	}
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "organization_onboarding_create_failed", err.Error(), nil)
+		writeError(w, http.StatusBadRequest, "organization_onboarding_create_failed", "Failed to create organization onboarding request", nil)
 		return
 	}
 
